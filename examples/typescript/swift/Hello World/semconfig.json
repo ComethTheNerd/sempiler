@@ -1,0 +1,8 @@
+{
+  "beautifyOutput": false,
+  "compileOnSave": true,
+  "inputPath": "src",
+  "outputDirPath": "./Hello World",
+  "postCmd" : "swiftformat ${sempiler.outputDirPath}",
+  "target" : "swift"
+}

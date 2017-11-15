@@ -1,0 +1,11 @@
+use_frameworks!
+
+workspace 'Hello World.xcworkspace'
+
+target 'Hello World' do
+  project 'Hello World.xcodeproj'
+  pod 'YogaKit', '~> 1.6'
+  pod 'SwiftLint'
+  pod 'FlexLayout'
+  pod 'PinLayout'
+end
