@@ -6,6 +6,10 @@
 
 Check out the [documentation](http://sempiler.com)
 
+## Visual Studio Code Extension
+
+You can get the Sempiler extension for Visual Studio Code from the [marketplace](https://marketplace.visualstudio.com/items?itemName=QuantumCommune.sempiler)
+
 ## Examples
 
 Examples for different source and target language combinations can be found in the [`examples`](examples) folder
