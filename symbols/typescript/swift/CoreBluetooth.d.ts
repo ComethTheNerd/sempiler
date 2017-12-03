@@ -37,8 +37,69 @@ declare let CBAdvertisementDataLocalNameKey : string;
 declare let CBAdvertisementDataServiceUUIDsKey : string;
 declare let CBCentralManagerScanOptionAllowDuplicatesKey: string;
 
-declare class CBManager {
+declare class CBATTErr {
+    public errorCode : Int;
+    public errorUserInfo : { [_ : String] : any }
+    public localizedDescription : String;
+
+    public static attributeNotFound : CBATTErr.Code;
+    public static attributeNotLong : CBATTErr.Code;
+    public static errorDomain : String;
+    public static insufficientAuthentication : CBATTErr.Code;
+    public static insufficientAuthorization : CBATTErr.Code;
+    public static insufficientEncryption : CBATTErr.Code;
+    public static insufficientEncryptionKeySize : CBATTErr.Code;
+    public static insufficientResources : CBATTErr.Code;
+    public static invalidAttributeValueLength : CBATTErr.Code;
+    public static invalidHandle : CBATTErr.Code;
+    public static invalidOffset : CBATTErr.Code;
+    public static invalidPdu : CBATTErr.Code;
+    public static prepareQueueFull : CBATTErr.Code;
+    public static readNotPermitted : CBATTErr.Code;
+    public static requestNotSupported : CBATTErr.Code;
+    public static success : CBATTErr.Code;
+    public static unlikelyError : CBATTErr.Code;
+    public static unsupportedGroupType : CBATTErr.Code;
+    public static writeNotPermitted : CBATTErr.Code;
+}
+
+declare module CBATTErr
+{
+    enum Code
+    {
+        success,
+        invalidHandle,
+        readNotPermitted,
+        writeNotPermitted,
+        invalidPdu,
+        insufficientAuthentication,
+        requestNotSupported,
+        invalidOffset,
+        insufficientAuthorization,
+        prepareQueueFull,
+        attributeNotFound,
+        attributeNotLong,
+        insufficientEncryptionKeySize,
+        invalidAttributeValueLength,
+        unlikelyError,
+        insufficientEncryption,
+        unsupportedGroupType,
+        insufficientResources
+    }
+}
+
+declare class CBManager extends NSObject {
     state : CBManagerState
+}
+
+declare class CBPeer extends NSObject
+{
+    public identifier : UUID;
+}
+
+declare class CBCentral extends CBPeer
+{
+    public maximumUpdateValueLength : Int;
 }
 
 declare class CBCentralManager extends CBManager {
@@ -48,6 +109,7 @@ declare class CBCentralManager extends CBManager {
     scanForPeripherals(withServices?: label<'withServices'> | CBUUID[], options? : label<'options'> | { [key : string] : any})
     stopScan()
     connect(_ : CBPeripheral, options? : label<'options'> | { [key : string] : any }) : void
+    cancelPeripheralConnection(peripheral : CBPeripheral) : void;
 }
 
 declare interface CBCentralManagerDelegate {
@@ -83,29 +145,81 @@ declare class CBPeripheral {
 
 declare interface CBPeripheralDelegate
 {
-    peripheral(peripheral : CBPeripheral, error : label<'didDiscoverServices'> | opt<Error>) : void;
-    peripheral(peripheral : CBPeripheral, service : label<'didDiscoverCharacteristicsFor'> | CBService, error : opt<Error>) : void;
-    peripheral(peripheral : CBPeripheral, characteristic : label<'didUpdateValueFor'> | CBCharacteristic, error : opt<Error>) : void;
-    peripheral(peripheral : CBPeripheral, descriptor : label<'didWriteValueFor'> | CBDescriptor, error : opt<Error>) : void;
+    peripheral?(peripheral : CBPeripheral, error : label<'didDiscoverServices'> | opt<Error>) : void;
+    peripheral?(peripheral : CBPeripheral, service : label<'didDiscoverCharacteristicsFor'> | CBService, error : opt<Error>) : void;
+    peripheral?(peripheral : CBPeripheral, characteristic : label<'didUpdateValueFor'> | CBCharacteristic, error : opt<Error>) : void;
+    peripheral?(peripheral : CBPeripheral, descriptor : label<'didWriteValueFor'> | CBDescriptor, error : opt<Error>) : void;
 }
 
 declare class CBPeripheralManager extends CBManager {
 
     constructor(delegate : label<'delegate'> | opt<CBPeripheralManagerDelegate>, queue : label<'queue'> | opt<DispatchQueue>);
+
+    startAdvertising(_ : opt<{ [key : string] : any }>) : void;
+    add(_ : CBMutableService) : void;
+    remove(_ : CBMutableService) : void;
+    removeAllServices() : void;
+
+    respond(to : label<'to'> | CBAttRequest, withResul : label<'withResult'> | CBATTErr.Code)
 }
 
 declare interface CBPeripheralManagerDelegate {
     peripheralManagerDidUpdateState(_ : CBPeripheralManager)
+    peripheralManager?(_ : CBPeripheralManager, didReceiveRead : label<'didReceiveRead'> | CBATTRequest)
+    peripheralManager?(_ : CBPeripheralManager, didReceiveWrite : label<'didReceiveWrite'> | CBATTRequest[])
+}
+
+declare class CBATTRequest 
+{
+    public central : CBCentral;
+    public characteristic : CBCharacteristic;
+    public value : opt<Data>;
+    public offset : Int;
 }
 
 declare class CBService {
     characteristics : opt<CBCharacteristic[]>
 }
 
+declare class CBMutableService extends CBService 
+{
+    public constructor(type : label<'type'> | CBUUID, primary : label<'primary'> | Bool)
+}
+
 declare class CBCharacteristic {
     uuid : CBUUID;
     service : CBService;
     value : opt<Data>
+}
+
+declare class CBMutableCharacteristic extends CBCharacteristic {
+    public constructor(type : label<'type'> | CBUUID, properties : label<'properties'> | CBCharacteristicProperties, value : label<'value'> | opt<Data>, permissions : label<'permissions'> | CBAttributePermissions)
+}
+
+declare class CBCharacteristicProperties implements OptionSet
+{
+    public constructor(rawValue : label<'rawValue'> | UInt);
+
+    public static broadcast : CBCharacteristicProperties;
+    public static read : CBCharacteristicProperties;
+    public static writeWithoutResponse : CBCharacteristicProperties;
+    public static write : CBCharacteristicProperties;
+    public static notify : CBCharacteristicProperties;
+    public static indicate : CBCharacteristicProperties;
+    public static authenticatedSignedWrites : CBCharacteristicProperties;
+    public static extendedProperties : CBCharacteristicProperties;
+    public static notifyEncryptionRequired : CBCharacteristicProperties;
+    public static indicateEncryptionRequired : CBCharacteristicProperties;
+}
+
+declare class CBAttributePermissions implements OptionSet
+{
+    public constructor(rawValue : label<'rawValue'> | UInt);
+    
+    public static readable : CBAttributePermissions;
+    public static writeable : CBAttributePermissions;
+    public static readEncryptionRequired : CBAttributePermissions;
+    public static writeEncryptionRequired : CBAttributePermissions;
 }
 
 declare enum CBManagerState {

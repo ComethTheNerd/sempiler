@@ -33,16 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /// <reference no-default-lib="true"/>
 
-declare interface UIView 
-{
-    pin : Pin;
-}
-
-declare class Pin {
-    top() : Pin;
-    left() : Pin;
-    right() : Pin;
-    horizontally() : Pin;
-    margin(value : CGFloat) : Pin;
-    margin(value : UIEdgeInsets) : Pin;
+declare module std {
+    function printf(format : readonly | (ptr<char> | string), ...args : any[]):  void
 }
