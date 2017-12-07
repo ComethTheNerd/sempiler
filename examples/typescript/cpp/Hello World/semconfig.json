@@ -2,6 +2,7 @@
   "beautifyOutput" : true,
   "compileOnSave" : true,
   "inputPath": "src",
+  "libPath" : "sem_modules",
   "outputDirPath": "out",
   "target" : "cpp"
 }
