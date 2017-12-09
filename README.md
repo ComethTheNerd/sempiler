@@ -2,13 +2,13 @@
 
 🤖 Thank you for checking out the Sempiler project!
 
-## Documentation
+## Quickstart
 
-Check out the [documentation](http://sempiler.com)
+Check out the [documentation](http://sempiler.com) and [quickstart guide](http://sempiler.com/quickstart).
 
 ## Visual Studio Code Extension
 
-You can get the Sempiler extension for Visual Studio Code from the [marketplace](https://marketplace.visualstudio.com/items?itemName=QuantumCommune.sempiler)
+You can get the Sempiler extension for Visual Studio Code from the [marketplace](https://marketplace.visualstudio.com/items?itemName=QuantumCommune.sempiler), and may want to review the relevant [documentation](http://sempiler.com/features/vsc-ext).
 
 ## Examples
 
