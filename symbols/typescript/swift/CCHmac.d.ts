@@ -33,4 +33,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /// <reference no-default-lib="true"/>
 
-declare class ViewController extends UIViewController {}
+declare function CCHmac(algorithm : CCHmacAlgorithm, key : CChar[], keyLength : Int, data : CChar[], dataLength : Int, macOut : ptr<any>);
+
+declare class CCHmacAlgorithm {
+    public constructor(rawValue : number);
+}
+
+
+declare type uint32_t = number;
+
+declare const kCCHmacAlgSHA1 : uint32_t;
+
+declare const CC_SHA1_DIGEST_LENGTH : Int;

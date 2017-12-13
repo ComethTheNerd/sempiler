@@ -37,33 +37,33 @@ declare let CBAdvertisementDataLocalNameKey : string;
 declare let CBAdvertisementDataServiceUUIDsKey : string;
 declare let CBCentralManagerScanOptionAllowDuplicatesKey: string;
 
-declare class CBATTErr {
+declare class CBATTError {
     public errorCode : Int;
     public errorUserInfo : { [_ : String] : any }
     public localizedDescription : String;
 
-    public static attributeNotFound : CBATTErr.Code;
-    public static attributeNotLong : CBATTErr.Code;
+    public static attributeNotFound : CBATTError.Code;
+    public static attributeNotLong : CBATTError.Code;
     public static errorDomain : String;
-    public static insufficientAuthentication : CBATTErr.Code;
-    public static insufficientAuthorization : CBATTErr.Code;
-    public static insufficientEncryption : CBATTErr.Code;
-    public static insufficientEncryptionKeySize : CBATTErr.Code;
-    public static insufficientResources : CBATTErr.Code;
-    public static invalidAttributeValueLength : CBATTErr.Code;
-    public static invalidHandle : CBATTErr.Code;
-    public static invalidOffset : CBATTErr.Code;
-    public static invalidPdu : CBATTErr.Code;
-    public static prepareQueueFull : CBATTErr.Code;
-    public static readNotPermitted : CBATTErr.Code;
-    public static requestNotSupported : CBATTErr.Code;
-    public static success : CBATTErr.Code;
-    public static unlikelyError : CBATTErr.Code;
-    public static unsupportedGroupType : CBATTErr.Code;
-    public static writeNotPermitted : CBATTErr.Code;
+    public static insufficientAuthentication : CBATTError.Code;
+    public static insufficientAuthorization : CBATTError.Code;
+    public static insufficientEncryption : CBATTError.Code;
+    public static insufficientEncryptionKeySize : CBATTError.Code;
+    public static insufficientResources : CBATTError.Code;
+    public static invalidAttributeValueLength : CBATTError.Code;
+    public static invalidHandle : CBATTError.Code;
+    public static invalidOffset : CBATTError.Code;
+    public static invalidPdu : CBATTError.Code;
+    public static prepareQueueFull : CBATTError.Code;
+    public static readNotPermitted : CBATTError.Code;
+    public static requestNotSupported : CBATTError.Code;
+    public static success : CBATTError.Code;
+    public static unlikelyError : CBATTError.Code;
+    public static unsupportedGroupType : CBATTError.Code;
+    public static writeNotPermitted : CBATTError.Code;
 }
 
-declare module CBATTErr
+declare module CBATTError
 {
     enum Code
     {
@@ -121,7 +121,7 @@ declare interface CBCentralManagerDelegate {
     // centralManager(_: CBCentralManager, didDisconnectPeripheral: CBPeripheral, error: Error?) : terminator | void
 }
 
-declare class CBUUID extends string {
+declare class CBUUID extends NSObject {
 
     constructor(string : label<'string'> | string)
 
@@ -160,7 +160,7 @@ declare class CBPeripheralManager extends CBManager {
     remove(_ : CBMutableService) : void;
     removeAllServices() : void;
 
-    respond(to : label<'to'> | CBAttRequest, withResul : label<'withResult'> | CBATTErr.Code)
+    respond(to : label<'to'> | CBAttRequest, withResul : label<'withResult'> | CBATTError.Code)
 }
 
 declare interface CBPeripheralManagerDelegate {
@@ -177,8 +177,8 @@ declare class CBATTRequest
     public offset : Int;
 }
 
-declare class CBService {
-    characteristics : opt<CBCharacteristic[]>
+declare class CBService extends CBAttribute {
+    public characteristics : opt<CBCharacteristic[]>
 }
 
 declare class CBMutableService extends CBService 
@@ -186,10 +186,14 @@ declare class CBMutableService extends CBService
     public constructor(type : label<'type'> | CBUUID, primary : label<'primary'> | Bool)
 }
 
-declare class CBCharacteristic {
-    uuid : CBUUID;
-    service : CBService;
-    value : opt<Data>
+declare class CBCharacteristic extends CBAttribute {
+    public service : CBService;
+    public value : opt<Data>
+}
+
+declare class CBAttribute extends NSObject
+{
+    public uuid : CBUUID;
 }
 
 declare class CBMutableCharacteristic extends CBCharacteristic {

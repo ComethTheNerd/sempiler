@@ -62,6 +62,8 @@ declare class UIColor {
     static const white : UIColor;
     static const lightGray : UIColor;
     static const red : UIColor;
+    static const green : UIColor;
+    static const darkerGreen : UIColor;
 
 }
 
@@ -77,11 +79,33 @@ declare class UIView extends UIResponder {
     frame : CGRect;
     backgroundColor : UIColor;
     textColor : UIColor;
+    transform : CGAffineTransform;
     get safeAreaInsets() : UIEdgeInsets;
     addSubview(_: UIView) : void;
     setNeedsLayout(): void;
     layoutSubviews() : void;
+
+    public static animate(
+        withDuration : label<'withDuration'> | TimeInterval,
+        delay : label<'delay'> | TimeInterval,
+        options? : label<'options'> | UIViewAnimationOptions,
+        animations : label<'animations'> | (() => Void),
+        completion? : label<'completion'> | opt<(b : Bool) => Void>
+    )
+
+    public static animate(
+        withDuration : label<'withDuration'> | TimeInterval,
+        animations : label<'animations'> | (() => Void),
+        completion? : label<'completion'> | opt<(b : Bool) => Void>
+    )
+
+    public static animate(
+        withDuration : label<'withDuration'> | TimeInterval,
+        animations : label<'animations'> | (() => Void)
+    )
 }
+
+declare class UIGestureRecognizer extends NSObject {}
 
 declare class UIViewController extends UIResponder {
     
@@ -142,8 +166,73 @@ declare class UILabel extends UIView {
     textAlignment : NSTextAlignment;
     numberOfLines : Int;
     center : CGPoint;
+    font : UIFont;
+    textColor : UIColor;
 }
 
-enum NSTextAlignment {
+declare class UIFont
+{
+
+}
+
+declare enum NSTextAlignment {
     center
+}
+
+declare class UINavigationController extends UIViewController 
+{
+    public constructor(rootViewController : label<'rootViewController'> | UIViewController)
+    //public constructor(navigationBarClass : opt<AnyClass>, toolbarClass : opt<AnyClass>)
+
+
+    public delegate : opt<UINavigationControllerDelegate>;
+
+    public topViewController : opt<UIViewController>;
+    public visibleViewController : opt<UIViewController>;
+    public viewControllers : UIViewController[];
+
+    public setViewControllers(_ : UIViewController[], animated : label<'animated'> | Bool);
+
+    public pushViewController(_ : UIViewController, animated : label<'animated'> | Bool);
+    public popViewController(animated : label<'animated'> | Bool);
+    public popToRootViewController(animated : label<'animated'> | Bool);
+    public popToViewController(_ : UIViewController, animated : label<'animated'> | Bool);
+
+    public interactivePopGestureRecognizer : opt<UIGestureRecognizer>;
+
+    public navigationbar : UINavigationBar;
+
+    public setNavigationBarHidden(_ : Bool, animated : label<'animated'> | Bool);
+
+    public toolbar : UIToolbar; // [dho] @TODO nonnull
+    public setToolbarHidden(_ : Bool, animated : label<'animated'> | Bool);
+    public isToolbarHidden : Bool;
+
+    public hidesBarsOnTap : Bool;
+    public hidesBarOnSwipe : Bool;
+    public hidesBarsWhenVerticallyCompact : Bool;
+    public hidesBarsWhenKeyboardAppears : Bool;
+
+    public isNavigationBarHidden : Bool;
+    public barHideOnTapGestureRecognizer : UITapGestureRecognizer;
+    public barHideOnSwipeGestureRecognizer : UIPanGestureRecognizer;
+
+    public show(_ : UIViewController, sender : label<'sender'> | opt<Any>)
+}
+
+declare interface UINavigationControllerDelegate
+{
+    public navigationController?(_ : UINavigationController, willShow : label<'willShow'> | UIViewController, animated : label<'animated'> | Bool) : Void;
+    public navigationController?(_ : UINavigationController, didShow : label<'didShow'> | UIViewController, animated : label<'animated'> | Bool) : Void;
+    public navigationController?(_ : UINavigationController, animationControllerFor : label<'animationControllerFor'> | UINavigationControllerOperation, from : label<'from'> | UIViewController, to : label<'to'> | UIViewController) : Void;
+    public navigationController?(_ : UINavigationController, interactionControllerFor : label<'interactionControllerFor'> | UIViewControllerAnimatedTransitioning) : Void;
+    public navigationControllerPreferredInterfaceOrientationForPresentation?(_ : UINavigationController) : UIInterfaceOrientation;
+    public navigationControllerSupportedInterfaceOrientations?(_ : UINavigationController) : UIInterfaceOrientationMask;
+}
+
+declare enum UINavigationControllerOperation
+{
+    none,
+    push,
+    pop
 }

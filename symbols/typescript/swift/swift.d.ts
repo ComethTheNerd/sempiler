@@ -104,6 +104,15 @@ interface IterableIterator<T> extends Iterator<T> {
 declare type label<T extends string> = undefined;
 /// <reference no-default-lib="true"/>
 
+declare type ptr<T> = number & { pointee : T }
+
+declare function addressof<T>(t : T) : ptr<T>;
+
+declare function auto<T>(t: T): T;
+
+declare function heap<T>(t : T) : ptr<T>; // const foo = heap(new Foo())
+/// <reference no-default-lib="true"/>
+
 /** for declaring built in dictionary constructs that have a
  * key type that is not string
  */
@@ -134,6 +143,10 @@ declare class timespec
 
 /// <reference no-default-lib="true"/>
 
+declare type ref = undefined;
+declare type escaping = undefined;
+declare type noescaping = undefined;
+
 declare function UIApplicationMain(target : any) : any;
 
 declare function fatalError(message : string) : terminator | void
@@ -141,10 +154,10 @@ declare function print(_ : string, separator? : label<'separator'> | string, ter
 // declare type inout = undefined;
 // declare type weak = undefined;
 
-interface Array<T>
+declare class Array<T>
 {
-    constructor<T>(sequence : T);
-    constructor(element : label<'repeating'> | Any, count : Int)
+    constructor(sequence : T);
+    constructor(element : label<'repeating'> | Any, count : label<'count'> | Int)
 
     /** Iterator */
     [Symbol.iterator](): IterableIterator<T>;
@@ -159,8 +172,13 @@ interface Array<T>
 
     append(_ : T) : void;
     insert(_ : T, at : label<'at'>| Int) : void;
-    reserveCapacity(minimumCapacity : Int)
+    reserveCapacity(minimumCapacity : Int);
+
+    //sort(by areInIncreasingOrder: (Element, Element) throws -> Bool)
+
+    sorted(areInIncreasingOrder : label<'by'> | ((t1 : T, t2 : T) => Bool)) : Array<T>;
 }
+
 
 interface ContiguousArray<T>
 {
@@ -237,8 +255,13 @@ declare class NSError implements Error {
 
 declare type Any = any;
 
+declare type Void = void;
+
 // https://developer.apple.com/documentation/foundation/data
-declare type Data = Array<UInt8>// & {};
+declare class Data extends NSData
+{
+    public constructor<S>(_ : S);
+}
 
 declare class Bundle {}
 
@@ -249,29 +272,40 @@ declare class Bundle {}
 
 @number declare class Int 
 {
+    public constructor<T>(_ : T)
     public negate();
 }
 
 @number declare class Int8 
 {
-    public magnitude() : Int8;
+    public magnitude : Int8;
 }
 
 declare type CChar = Int8;
+
+@number declare class Int64
+{
+
+}
 
 @number declare class Double 
 {
     public magnitude() : Double;
 }
 
-@number declare class UInt 
+@number declare class Float 
 {
 
 }
 
+@number declare class UInt 
+{
+    public magnitude() : UInt;
+}
+
 @number declare class UInt8
 {
-
+    public magnitude : Int8;
 }
 
 declare type CUnsignedChar = UInt8;
@@ -290,14 +324,18 @@ declare type uint64_t = number;
 
 @string declare class String 
 {
-    constructor()
-    constructor(repeating : label<'repeating'> | String, count : label<'count'> | Int)
+    public constructor()
+    public constructor<T>(_ : T)
+    public constructor(repeating : label<'repeating'> | String, count : label<'count'> | Int)
 
-    isEmpty : Bool;
+    public isEmpty : Bool;
     
-    utf8CString : ContiguousArray<CChar>
+    public utf8 : String.UTF8View;
+    public utf8CString : ContiguousArray<CChar>
+    public lengthOfBytes(using : label<'using'> | String.Encoding) : Int;
 
-    public cString(using : label<'using'> | String.Encoding) : opt<UnsafePointer<Int8>>
+    public cString(using : label<'using'> | String.Encoding) : opt<Int8[]>
+    public data(using : label<'using'> | String.Encoding) : NSData;
 }
 
 declare module String 
@@ -332,38 +370,14 @@ declare module String
         public static windowsCP1253 : String.Encoding;
         public static windowsCP1254 : String.Encoding;
     }
-}
 
-declare type CGFloat = number;
+    @string class UTF8View 
+    {
+
+    }
+}
 
 declare class CFDictionary { }
-
-declare class CGRect {
-    static zero : CGRect;
-
-    public constructor(x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat);
-
-    public constructor(x: Double, y: Double, width: Double, height: Double);
-
-    public constructor(x: Int, y: Int, width: Int, height: Int);
-
-    public constructor/*?*/(dictionaryRepresentation: CFDictionary);
-
-    public divided(atDistance: CGFloat, from: CGRectEdge) : { slice: CGRect, remainder: CGRect }
-}
-
-declare class CGPoint {
-    public constructor(x : label<'x'> | Double, y : label<'y'> | Double)
-}
-
-declare enum CGRectEdge
-{
-    minXEdge,
-    minYEdge,
-    maxXEdge,
-    maxYEdge
-}
-
 
 declare class UnsafePointer<Pointee>
 {

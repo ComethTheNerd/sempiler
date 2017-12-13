@@ -40,11 +40,128 @@ declare interface UIView {
     }
 }
 
-interface YGLayout
+declare interface YGLayout
 {
-    isEnabled : boolean
-    width : number;
-    height : number;
-    marginTop : number;
-    marginLeft : number;
+    isIncludedInLayout : Bool;
+    isEnabled : Bool;
+
+    direction : YGDirection;
+    flexDirection : YGFlexDirection;
+    justifyContent : YGJustify;
+    alignContent : YGAlign;
+    alignItems : YGAlign;
+    alignSelf : YGAlign;
+    position : YGPositionType;
+    flexWrap : YGWrap;
+    overflow : YGOverflow;
+    display : YGDisplay;
+
+    flexGrow : CGFloat;
+    flexShrink : CGFloat;
+    flexBasis : YGValue;
+
+    left : YGValue;
+    top : YGValue;
+    right : YGValue;
+    bottom : YGValue;
+    start : YGValue;
+    end : YGValue;
+
+    marginLeft : YGValue;
+    marginTop : YGValue;
+    marginRight : YGValue;
+    marginBottom : YGValue;
+    marginStart : YGValue;
+    marginEnd : YGValue;
+    marginHorizontal : YGValue;
+    marginVertical : YGValue;
+    margin : YGValue;
+
+    paddingLeft : YGValue;
+    paddingTop : YGValue;
+    paddingRight : YGValue;
+    paddingBottom : YGValue;
+    paddingStart : YGValue;
+    paddingEnd : YGValue;
+    paddingHorizontal : YGValue;
+    paddingVertical : YGValue;
+    padding : YGValue;
+
+    borderLeftWidth : CGFloat;
+    borderTopWidth : CGFloat;
+    borderRightWidth : CGFloat;
+    borderBottomWidth : CGFloat;
+    borderStartWidth : CGFloat;
+    borderEndWidth : CGFloat;
+    borderWidth : CGFloat;
+
+    width : YGValue;
+    height : YGValue;
+    minWidth : YGValue;
+    minHeight : YGValue;
+    maxWidth : YGValue;
+    maxHeight : YGValue;
+
+    aspectRatio : CGFloat;
+
+    resolvedDirection  : YGDirection;
+
+    applyLayout(preservingOriging : label<'preservingOrigin'> | Bool) : Void
+    applyLayout(preservingOriging : label<'preservingOrigin'> | Bool, dimensionFlexibility : label<'dimensionFlexibility'> | YGDimensionFlexibility) : Void
+
+    intrinsicSize : CGSize;
+
+    calculateLayout(_with : label<'width'> | CGSize) : CGSize
+
+    numberOfChildren : NSUInteger;
+    
+    isLeaf : Bool;
+    isDirty : Bool;
+
+
+    markDirty() : void;
+
+}
+
+@struct declare class YGValue 
+{
+    public value : number;
+    public unit : YGUnit;
+}
+
+declare enum YGUnit
+{
+    undefined,
+    point,
+    percent,
+    auto
+}
+
+declare enum YGAlign
+{
+    auto,
+    flexStart,
+    center,
+    flexEnd,
+    stretch,
+    baseline,
+    spaceBetween,
+    spaceAround
+}
+
+declare enum YGDirection
+{
+    inherit,
+    ltr,
+    rtl
+}
+
+declare enum YGJustify
+{
+    flexStart,
+    center,
+    flexEnd,
+    spaceBetween,
+    spaceAround,
+    spaceEvenly
 }

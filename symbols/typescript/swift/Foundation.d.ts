@@ -31,6 +31,8 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+/// <reference no-default-lib="true"/>
+
 declare class UUID
 {
     public constructor();
@@ -77,4 +79,116 @@ declare class Date
     public addTimeInterval(_ : TimeInterval) : void;
     public addingTimeInterval(_ : TimeInterval) : Date;
     // public encode(to : label<'to'> | Encoder)
+}
+
+declare class NSData extends Array<UInt8>
+{
+  public constructor(data : label<'data'> | Data);
+  public constructor(bytes : label<'bytes'> | Int8[], length : label<'length'> | Int)
+  public base64EncodedString(options : label<'options'> | NSData.Base64EncodingOptions = []) : String
+}
+
+declare module NSData
+{
+  class Base64EncodingOptions implements OptionSet
+  {
+    public static lineLength64Characters : NSData.Base64EncodingOptions;
+    public static lineLength76Characters : NSData.Base64EncodingOptions;
+    public static endLineWithCarriageReturn : NSData.Base64EncodingOptions;
+    public static endLineWithLineFeed : NSData.Base64EncodingOptions;
+  }
+}
+
+declare function strlen(str : CChar[]) : Int;
+
+@string declare class NSString
+{
+  public data(using : label<'using'> | UInt) : NSData;
+}
+
+declare class URLSessionConfiguration
+{
+  public static default : URLSessionConfiguration;
+  public static ephemeral : URLSessionConfiguration;
+  public static background(withIdentifier : label<'withIdentifier'> | String) : URLSessionConfiguration;
+}
+
+declare class URLRequest 
+{
+
+}
+
+declare class Progress 
+{
+  
+}
+
+declare class JSONSerialization extends NSObject
+{
+
+}
+
+declare module JSONSerialization 
+{
+  class ReadingOptions implements OptionSet
+  {
+
+  }
+}
+
+declare class URLResponse extends NSObject
+{
+  public constructor(url : label<'url'> | URL, mimeType : label<'mimeType'> | opt<String>, expectedContentLength : label<'expectedContentLength'> | Int, textEncodingName : label<'textEncodingName'> | opt<String>)
+
+  public expectedContentLength : Int64;
+  public suggestedFilename : opt<String>;
+  public mimeType : opt<String>;
+  public textEncodingname : opt<String>;
+  public url : opt<URL>;
+}
+
+declare class HTTPURLResponse extends URLResponse
+{
+  public constructor(url : label<'url'> | URL, statusCode : Int, httpVersion : opt<String>, headerFields : opt<{ [_ : string] : String }>) : terminator
+
+  //public allHeaderFields : dict<AnyHashable, Any>
+
+  public static localizedString(_ : label<'forStatusCode'> | Int) : String
+
+  public statusCode : Int;
+}
+
+declare class URLSessionTask extends NSObject
+{
+  public cancel();
+  public resume();
+  public suspend();
+  public state : URLSessionTask.State;
+  public priority : Float;
+
+  public progress : Progress;
+  public countOfBytesExpectedToReceive : Int64;
+  public countOfBytesReceived : Int64;
+  public countOfBytesExpectedToSend : Int64;
+
+  public currentRequest : opt<URLRequest>;
+  public originalRequest : opt<URLRequest>;
+  public response : opt<URLResponse>;
+  public taskDescription : opt<String>;
+  public taskIdentifier : Int;
+  public error : opt<Error>;
+
+  public earliestBeginDate : opt<Date>;
+
+}
+
+declare module URLSessionTask
+{
+  enum State
+  {
+    running,
+    suspended,
+    canceling,
+    completed
+  }
 }

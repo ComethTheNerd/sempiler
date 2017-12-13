@@ -108,6 +108,20 @@ declare type CLLocationDegrees = Double;
 declare type CLLocationDistance = Double;
 declare type CLLocationDirection = Double;
 
+
+declare const kCLLocationAccuracyBestForNavigation: CLLocationAccuracy
+
+declare const kCLLocationAccuracyBest: CLLocationAccuracy
+
+declare const kCLLocationAccuracyNearestTenMeters: CLLocationAccuracy
+
+declare const kCLLocationAccuracyHundredMeters: CLLocationAccuracy
+
+declare const kCLLocationAccuracyKilometer: CLLocationAccuracy
+
+declare const kCLLocationAccuracyThreeKilometers: CLLocationAccuracy
+
+
 declare enum CLAuthorizationStatus
 {
     notDetermined,
