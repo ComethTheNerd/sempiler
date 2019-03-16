@@ -1,34 +1,8 @@
-# Sempiler
+Hello, this repository is currently outdated so I've deleted the old code from it.
 
-🤖 Thank you for checking out the Sempiler project!
+I'm working on code samples to accompany the new Sempiler, which you can read about at https://sempiler.com.
 
-## Quickstart
+Messages always welcome in the meantime @ComethTheNerd on Twitter.
 
-Check out the [documentation](http://sempiler.com) and [quickstart guide](http://sempiler.com/quickstart).
-
-## Visual Studio Code Extension
-
-You can get the Sempiler extension for Visual Studio Code from the [marketplace](https://marketplace.visualstudio.com/items?itemName=QuantumCommune.sempiler), and may want to review the relevant [documentation](http://sempiler.com/features/vsc-ext).
-
-## Examples
-
-Examples for different source and target language combinations can be found in the [`examples`](examples) folder
-
-## Symbols
-
-Ongoing stub API typings for different target platform libraries can be found in the [`symbols`](symbols) folder.
-
-## Issues & Requests
-
-Please refer to the [feedback guidelines](http://sempiler.com/latest#contributing)
-
-## Patreon
-
-If you would like to support the development costs for the project please see our [Patreon](http://patreon.com/sempiler).
-
-## More
-
-See [http://sempiler.com](http://sempiler.com) for more information!
-
-
-Copyright (c) 2017 Quantum Commune
+Many thanks
+Darius
