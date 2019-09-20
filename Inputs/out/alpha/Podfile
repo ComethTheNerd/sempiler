@@ -1,0 +1,9 @@
+source 'https://cdn.cocoapods.org/'
+
+use_frameworks!
+
+target 'alpha' do
+  platform :ios, '8.0'
+  pod 'Stripe'
+
+end
