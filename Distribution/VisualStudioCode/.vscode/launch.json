@@ -1,0 +1,53 @@
+{
+	"version": "0.2.0",
+	// List of configurations. Add new configurations or edit existing ones.
+	"configurations": [
+		{
+			"type": "extensionHost",
+			"request": "launch",
+			"name": "Launch Client",
+			"runtimeExecutable": "${execPath}",
+			"args": ["--extensionDevelopmentPath=${workspaceRoot}" ],
+			"stopOnEntry": false,
+			"sourceMaps": true,
+			"outFiles": ["${workspaceRoot}/client/out/**/*.js"],
+			"preLaunchTask": "compileAll"
+		},
+		// {
+		// 	"type": "node",
+		// 	"request": "attach",
+		// 	"name": "Attach to Server 6010",
+		// 	"address": "localhost",
+		// 	"protocol": "inspector",
+		// 	"port": 6010,
+		// 	"sourceMaps": true,
+		// 	"outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+		// },
+		{
+			"type": "node",
+			"request": "attach",
+			"name": "Attach to Server 6011",
+			"address": "localhost",
+			"protocol": "inspector",
+			"port": 6011,
+			"sourceMaps": true,
+			"outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+		},
+		// {
+		// 	"type": "node",
+		// 	"request": "attach",
+		// 	"name": "Attach to Server 65337",
+		// 	"address": "localhost",
+		// 	"protocol": "inspector",
+		// 	"port": 65337,
+		// 	"sourceMaps": true,
+		// 	"outFiles": ["${workspaceRoot}/server/out/**/*.js"]
+		// },
+		{ // [dho] have not got this working yet - 07/09/18
+			"type": "coreclr",
+			"request": "attach",
+			"name": "Attach to Core CLR",
+            "processId": "${command:pickProcess}"
+		}
+	]
+}
