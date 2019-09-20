@@ -1,0 +1,110 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "compile",
+			"dependsOn": [
+				{
+					"type": "npm",
+					"script": "compile:client"
+				},
+				{
+					"type": "npm",
+					"script": "compile:server"
+				}
+			],
+			"problemMatcher": []
+		},
+		{
+			"type": "npm",
+			"script": "compile:client",
+			"group": "build",
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+
+			},
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"type": "npm",
+			"script": "compile:server",
+			"group": "build",
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+			},
+			"problemMatcher": [
+				"$tsc"
+			]
+		},
+		{
+			"label": "watch",
+			"dependsOn": [
+				{
+					"type": "npm",
+					"script": "watch:client"
+				},
+				{
+					"type": "npm",
+					"script": "watch:server"
+				}
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"type": "npm",
+			"script": "watch:client",
+			"isBackground": true,
+			"group": "build",
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+			},
+			"problemMatcher": [
+				"$tsc-watch"
+			]
+		},
+		{
+			"type": "npm",
+			"script": "watch:server",
+			"isBackground": true,
+			"group": "build",
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "never"
+			},
+			"problemMatcher": [
+				"$tsc-watch"
+			]
+		},
+		{//dotnet publish --framework netcoreapp1.1 --runtime osx.10.11-x64
+            "label": "compileSempiler",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "publish",
+                "${workspaceFolder}/../CLI/CLI.csproj",
+                // "--framework",
+                // "netcoreapp2.1",
+                // "--runtime",
+                // "osx.10.11-x64",
+                "-r",
+                "osx.10.10-x64",
+                "--output",
+                "${workspaceFolder}/../MockSempilerInstallation"
+            ],
+            "problemMatcher": "$msCompile"
+		},
+		{
+			"label" : "compileAll",
+			"dependsOn" : ["npm: compile", "compileSempiler"]
+		}
+	]
+}
