@@ -8,16 +8,17 @@ namespace Sempiler.Languages
 
     public class Scope 
     {
-        public Node Start;
+        /// <summary>The Node that the symbols/declarations are relative to</summary>
+        public Node Subject;
         public Dictionary<string, Node> Declarations;
         // public Dictionary<string, List<Node>> References;
         // public List<Scope> Children;
 
         // public Scope Parent { get => null; }
     
-        public Scope(Node start)
+        public Scope(Node subject)
         {
-            Start = start;
+            Subject = subject;
             Declarations = new Dictionary<string, Node>();
             // References = new Dictionary<string, List<Node>>();
         }
@@ -87,19 +88,33 @@ namespace Sempiler.Languages
 
                 ASTHelpers.PreOrderTraversal(session, ast, node, focus => {
 
-                    if(IsDeclarationStatement(ast, focus))
+                    if(IsEligibleForSymbolResolutionTarget(ast, focus))
                     {
                         var name = ASTHelpers.GetSingleMatch(ast, focus.ID, SemanticRole.Name);
 
                         if(name != null)
                         {
-                            System.Diagnostics.Debug.Assert(name.Kind == SemanticKind.Identifier);
+                            if(name.Kind == SemanticKind.Identifier)
+                            {
+                                AddSymbolToScope(ast, scope, name, focus);
+                            }
+                            else if(name.Kind == SemanticKind.EntityDestructuring)
+                            {
+                                var entityDestructuring = ASTNodeFactory.EntityDestructuring(ast, name);
 
-                            var lexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)name).Lexeme;
+                                AddSubsetDestructuringSymbolsToScope(ast, scope, entityDestructuring, token);
+                            }
+                            else if(name.Kind == SemanticKind.CollectionDestructuring)
+                            {
+                                var collectionDestructuring = ASTNodeFactory.CollectionDestructuring(ast, name);
 
-                            scope.Declarations[lexeme] = focus;
+                                AddSubsetDestructuringSymbolsToScope(ast, scope, collectionDestructuring, token);
+                            }
+                            // else
+                            // {
+                            //     int i = 0;
+                            // }
                         }
-
                     }
 
                     // [dho] only explore subtree if not a new scope - 22/06/19
@@ -110,8 +125,65 @@ namespace Sempiler.Languages
             return scope;
         }
 
+        private void AddSymbolToScope(RawAST ast, Scope scope, Node symbol, Node decl)
+        {
+            var lexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)symbol).Lexeme;
 
-        public Node GetEnclosingScopeStart(RawAST ast, Node node, System.Threading.CancellationToken token)
+            scope.Declarations[lexeme] = decl;
+        }
+
+        private void AddSubsetDestructuringSymbolsToScope(RawAST ast, Scope scope, SubsetDestructuring subsetDestructuring, CancellationToken token)
+        {
+            foreach(var member in subsetDestructuring.Members)
+            {
+                if(member != null)
+                {
+                    System.Diagnostics.Debug.Assert(member.Kind == SemanticKind.DestructuredMember);
+
+                    var name = ASTNodeFactory.DestructuredMember(ast, member).Name;
+
+                    if(name.Kind == SemanticKind.Identifier)
+                    {
+                        // [dho] TODO CHECK `{ x } = ...;` we are saying `x` is the symbol AND declaration? - 23/09/19
+                        AddSymbolToScope(ast, scope, name, name);
+                    }
+                    else if(name.Kind == SemanticKind.ReferenceAliasDeclaration)
+                    {
+                        var refAliasDeclName = ASTNodeFactory.ReferenceAliasDeclaration(ast, name).Name;
+
+                        if(refAliasDeclName.Kind == SemanticKind.Identifier)
+                        {
+                            // [dho] TODO CHECK `{ x } = ...;` we are saying `x` is the symbol AND declaration? - 23/09/19
+                            AddSymbolToScope(ast, scope, refAliasDeclName, refAliasDeclName);
+                        }
+                        else if(refAliasDeclName.Kind == SemanticKind.EntityDestructuring)
+                        {
+                            var entityDestructuring = ASTNodeFactory.EntityDestructuring(ast, refAliasDeclName);
+
+                            AddSubsetDestructuringSymbolsToScope(ast, scope, entityDestructuring, token);
+                        }
+                        else if(refAliasDeclName.Kind == SemanticKind.CollectionDestructuring)
+                        {
+                            var collectionDestructuring = ASTNodeFactory.EntityDestructuring(ast, refAliasDeclName);
+
+                            AddSubsetDestructuringSymbolsToScope(ast, scope, collectionDestructuring, token);
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.Assert(false, 
+                                $"Unhandled reference alias declaration name kind '{refAliasDeclName.Kind}' found whilst adding symbols to scope from subset destructuring");
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.Assert(false, 
+                                $"Unhandled destructured member name kind '{name.Kind}' found whilst adding symbols to scope from subset destructuring");
+                    }
+                }
+            }
+        }
+
+        public Node GetEnclosingScopeStart(RawAST ast, Node node, CancellationToken token)
         {
             var parent = ASTHelpers.GetParent(ast, node.ID);
 
@@ -191,14 +263,16 @@ namespace Sempiler.Languages
             if(ASTNodeHelpers.IsIdentifierWithName(ast, node, identifierLexeme) &&
                 IsEligibleForReferenceMatch(ast, node))
             {
+                var decl = startScope.Declarations[identifierLexeme];
+
                 // [dho] guard against us finding the original declaration in the tree 
                 // and thinking that its a match - 23/06/19
-                if(startScope.Declarations[identifierLexeme].ID != node.ID)
+                if(decl != null && decl.ID != node.ID)
                 {
                     var nestedScope = GetEnclosingScope(session, ast, node, startScope, token);
 
                     // [dho] is this a reference to the same declaration - 23/06/19
-                    if(nestedScope.Declarations[identifierLexeme].ID == startScope.Declarations[identifierLexeme].ID)
+                    if(nestedScope.Declarations[identifierLexeme]?.ID == decl.ID)
                     {
                         isReferenceMatch = true;
                         shouldExploreChildren = false;
@@ -253,6 +327,7 @@ namespace Sempiler.Languages
 
         public class SymbolicDependency 
         {
+            ///<summary>The declaration of the symbol, or null if the declaration for the symbol was not found in the AST - 23/09/19</summary>
             public Node Declaration;
             public Dictionary<string, List<Node>> References = new Dictionary<string, List<Node>>();
         }
@@ -266,12 +341,34 @@ namespace Sempiler.Languages
         {
             var symbolicDependencyList = new List<SymbolicDependency>();
 
-            var startScope = new Scope(start);
+            // var startScope = new Scope(start);
+            // if(start.ID.EndsWith("$1007"))
+            // {
+            //     int i = 0;
+            // }
 
-            var scope = GetEnclosingScope(session, ast, start, startScope, token);
-
+            // var scope = GetEnclosingScope(session, ast, start, startScope, token);
+            
+            // if(start.ID.EndsWith("_$857") || start.ID.EndsWith("_$858") || start.ID.EndsWith("_$859"))
+            // {
+                // System.Console.WriteLine("GET SYM DEPS " + start.ID + "   " + start.Kind);
+            // }
             ASTHelpers.PreOrderTraversal(session, ast, start, node => {
+                // System.Console.WriteLine("NODE ID " + node.ID);
+                // if(node.ID.EndsWith("_$1006") || node.ID.EndsWith("_$1007") || node.ID.EndsWith("_$1008"))
+                // {
+                //     System.Console.WriteLine("CALLBACK " + node.ID + "   " + node.Kind + ASTHelpers.QueryEdges(ast, node.ID, x=>true).Length);
+                //     int i = 0;
+                // }
 
+                // _scope_boundaries();
+
+
+
+                // if(node.ID.EndsWith("_$858"))
+                // {
+                //     int i = 0;
+                // }
                 if(start != node)
                 {
                     if(node.Kind == SemanticKind.Identifier && IsEligibleForReferenceMatch(ast, node))
@@ -279,6 +376,13 @@ namespace Sempiler.Languages
                         var lexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)node).Lexeme;
 
                         var symbolicDependency = default(SymbolicDependency);
+                        
+                        // [dho] TODO OPTIMIZE originally we were getting the scope from the start node
+                        // of `GetSymbolicDependencies`, but this means any symbols between that start point,
+                        // and some arbitrarily nested identifier will not be added to the Scope, and not be resolvable.
+                        // However, I think we can do better than this fix of getting the scope every time..
+                        // maybe incrementally adding to the scope as we traverse? - 23/09/19
+                        var scope = GetEnclosingScope(session, ast, node, new Scope(node), token);
 
                         // [dho] do we know where this symbol was declared - 11/07/19
                         if(scope.Declarations.ContainsKey(lexeme))
@@ -298,6 +402,7 @@ namespace Sempiler.Languages
                                     }
                                 }
 
+                                // [dho] check we have not accounted for this dependency already - 23/09/19
                                 if(symbolicDependency == null)
                                 {
                                     symbolicDependency = new SymbolicDependency()
@@ -311,7 +416,16 @@ namespace Sempiler.Languages
                         }
                         else
                         {
-                            // [dho] cannot find the declaration, so may be a global or implicity symbol that start node depends on - 11/07/19
+                            // System.Console.WriteLine("UNRESOLVED " + lexeme);
+                            // [dho] TODO should we use `Unknown` as a new Node type for cases where the declaration
+                            // was not found, instead of `null`? - 23/09/19
+                            symbolicDependency = new SymbolicDependency()
+                            {
+                                // [dho] symbol declaration not found in AST - 23/09/19
+                                Declaration = null
+                            };
+
+                            symbolicDependencyList.Add(symbolicDependency);
                         }         
 
                         if(symbolicDependency != null)
@@ -333,7 +447,7 @@ namespace Sempiler.Languages
 
                 return true;
             }, token);
-
+            // System.Console.WriteLine("DONE SYM DEPS " + start.ID);
             return symbolicDependencyList;
         }
 
@@ -351,8 +465,17 @@ namespace Sempiler.Languages
 
             foreach(var dependency in dependencies)
             {
-                if(dependency.Declaration != null &&
-                    !IsStaticallyComputable(session, artifact, ast, dependency.Declaration, token))
+                // System.Console.WriteLine(">>> " + node.ID + " " + node.Kind + " has a dependency on " + dependency.Declaration.ID + "  " + ASTNodeHelpers.GetLexeme(dependency.Declaration));
+                
+                var decl = dependency.Declaration;
+
+                // [dho] we could not resolve the declaration for the symbol - 23/09/19
+                if(decl == null)
+                {
+                    return false;
+                }
+
+                if(!IsStaticallyComputable(session, artifact, ast, dependency.Declaration, token))
                 {
                     return false;
                 }
@@ -367,18 +490,83 @@ namespace Sempiler.Languages
             return node.Kind.ToString().IndexOf("Construction") > -1;
         }
 
+        ///<summary>[dho] When resolving a symbol, should we consider the given `node`
+        /// eligible as the target of that resolution (ie. is it the definition of a symbol) - 23/09/19</summary>
+        public virtual bool IsEligibleForSymbolResolutionTarget(RawAST ast, Node node)
+        {
+            return IsDeclarationStatement(ast, node);
+        }
+
         ///<summary>Do the language semantics dictate that the given node is in a position
         /// that will mean it is treated as a declaration (eg. class, interface etc.)</summary>
-        public abstract bool IsDeclarationStatement(RawAST ast, Node node);
+        public virtual bool IsDeclarationStatement(RawAST ast, Node node)
+        {
+            switch(node.Kind)
+            {
+                case SemanticKind.AccessorDeclaration:
+                case SemanticKind.ConstructorDeclaration:
+                case SemanticKind.DataValueDeclaration:
+                case SemanticKind.DestructorDeclaration:
+                case SemanticKind.EnumerationMemberDeclaration:
+                case SemanticKind.EnumerationTypeDeclaration:
+                case SemanticKind.GlobalDeclaration:
+                case SemanticKind.ExportDeclaration:
+                case SemanticKind.FieldDeclaration:
+                case SemanticKind.FunctionDeclaration:
+                case SemanticKind.ImportDeclaration:
+                case SemanticKind.InterfaceDeclaration:
+                case SemanticKind.LambdaDeclaration:
+                case SemanticKind.MethodDeclaration:
+                case SemanticKind.MutatorDeclaration:
+                case SemanticKind.NamespaceDeclaration:
+                case SemanticKind.ObjectTypeDeclaration:
+                case SemanticKind.ParameterDeclaration:
+                case SemanticKind.PropertyDeclaration:
+                case SemanticKind.ReferenceAliasDeclaration:
+                case SemanticKind.TypeAliasDeclaration:
+                case SemanticKind.TypeParameterDeclaration:
+                case SemanticKind.ViewDeclaration:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
 
         ///<summary>Do the language semantics dictate that the given node is in a position
         /// that will mean it is treated as a value (eg. argument, rval etc.)</summary>
         public abstract bool IsValueExpression(RawAST ast, Node node);
 
-        public abstract bool IsFunctionLikeDeclarationStatement(RawAST ast, Node node);
+        public virtual bool IsFunctionLikeDeclarationStatement(RawAST ast, Node node)
+        {
+            switch(node.Kind)
+            {
+                case SemanticKind.AccessorDeclaration:
+                case SemanticKind.MutatorDeclaration:
+                case SemanticKind.ConstructorDeclaration:
+                case SemanticKind.DestructorDeclaration:
+                case SemanticKind.MethodDeclaration:
+                case SemanticKind.FunctionDeclaration:
+                case SemanticKind.LambdaDeclaration:
+                    return true;
+                
+                default:
+                    return false;
+            }
+        }
 
-        public abstract bool IsInvocationLikeExpression(RawAST ast, Node node);
-
+        public virtual bool IsInvocationLikeExpression(RawAST ast, Node node)
+        {
+            switch(node.Kind)
+            {
+                case SemanticKind.Invocation:
+                case SemanticKind.NamedTypeConstruction:
+                    return true;
+                
+                default:
+                    return false;
+            }
+        }
 
         ///<summary>
         /// Produces a list of all the explicitly provided exit points (return statements, single statement lambda bodies) 

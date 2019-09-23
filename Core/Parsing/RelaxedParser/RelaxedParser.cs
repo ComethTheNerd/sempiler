@@ -3836,7 +3836,7 @@ namespace Sempiler.Parsing
                     CreateOrigin(range, lexer, context)
                 );
 
-                result.AddMessages(AddOutgoingEdges(n, future, SemanticRole.Future));
+                result.AddMessages(AddOutgoingEdges(n, future, SemanticRole.Operand));
 
                 result.Value = result.AddMessages(FinishNode(n, lexer, context, ct));
 
@@ -5098,7 +5098,7 @@ namespace Sempiler.Parsing
 
                 var range = new Range(startPos, lexer.Pos);
 
-                var clause = NodeFactory.ErrorFinallyClause(context.AST, CreateOrigin(range, lexer, context));
+                var clause = NodeFactory.ErrorHandlerClause(context.AST, CreateOrigin(range, lexer, context));
 
                 result.AddMessages(AddOutgoingEdges(clause, pattern, SemanticRole.Pattern));
 
@@ -7082,7 +7082,7 @@ namespace Sempiler.Parsing
                 ));
 
                 result.AddMessages(AddOutgoingEdges(context.AST, refAliasDecl, defaultExport, SemanticRole.From));
-                result.AddMessages(AddOutgoingEdges(context.AST, refAliasDecl, name, SemanticRole.To));
+                result.AddMessages(AddOutgoingEdges(context.AST, refAliasDecl, name, SemanticRole.Name));
 
                 result.Value = new [] { refAliasDecl };
             }
@@ -7121,7 +7121,7 @@ namespace Sempiler.Parsing
                     ));
 
                     result.AddMessages(AddOutgoingEdges(context.AST, refAliasDecl, wildcardExport, SemanticRole.From));
-                    result.AddMessages(AddOutgoingEdges(context.AST, refAliasDecl, name, SemanticRole.To));
+                    result.AddMessages(AddOutgoingEdges(context.AST, refAliasDecl, name, SemanticRole.Name));
 
                     result.Value = new [] { refAliasDecl };
                 }
@@ -7165,7 +7165,7 @@ namespace Sempiler.Parsing
 
             // [dho] `import { ...` 
             //                 ^^^     - 19/03/19
-            Node name = result.AddMessages(
+            Node from = result.AddMessages(
                 ParseIdentifier(token, lexer, context, ct)
             );
 
@@ -7177,7 +7177,7 @@ namespace Sempiler.Parsing
             {
                 token = result.AddMessages(NextToken(lexer, context, ct));
 
-                Node to = result.AddMessages(
+                Node name = result.AddMessages(
                     ParseIdentifier(token, lexer, context, ct)
                 );
 
@@ -7185,15 +7185,15 @@ namespace Sempiler.Parsing
 
                 var alias = NodeFactory.ReferenceAliasDeclaration(context.AST, CreateOrigin(range, lexer, context));
 
-                result.AddMessages(AddOutgoingEdges(alias, name, SemanticRole.From));
+                result.AddMessages(AddOutgoingEdges(alias, from, SemanticRole.From));
 
-                result.AddMessages(AddOutgoingEdges(alias, to, SemanticRole.To));
+                result.AddMessages(AddOutgoingEdges(alias, name, SemanticRole.Name));
 
                 result.Value = result.AddMessages(FinishNode(alias, lexer, context, ct));
             }
             else
             {
-                result.Value = name;
+                result.Value = from;
             }
 
             return result;
@@ -7248,14 +7248,14 @@ namespace Sempiler.Parsing
             }
 
 
-            Node to = default(Node);
+            Node from = default(Node);
 
             if (token.Kind == SyntaxKind.EqualsToken)
             {
                 // [dho] advance to next token - 15/02/19
                 token = result.AddMessages(NextToken(lexer, context, ct));
 
-                to = result.AddMessages(
+                from = result.AddMessages(
                     ParseType(token, lexer, context, ct)
                 );
 
@@ -7266,7 +7266,7 @@ namespace Sempiler.Parsing
                 var decl = NodeFactory.TypeAliasDeclaration(context.AST, CreateOrigin(range, lexer, context));
 
                 result.AddMessages(AddOutgoingEdges(decl, name, SemanticRole.Name));
-                result.AddMessages(AddOutgoingEdges(decl, to, SemanticRole.To));
+                result.AddMessages(AddOutgoingEdges(decl, from, SemanticRole.From));
                 result.AddMessages(AddOutgoingEdges(decl, template, SemanticRole.Template));
                 result.AddMessages(AddOutgoingEdges(decl, annotations, SemanticRole.Annotation));
                 result.AddMessages(AddOutgoingEdges(decl, modifiers, SemanticRole.Modifier));
@@ -8687,6 +8687,8 @@ namespace Sempiler.Parsing
         {
             var result = new Result<Node>();
 
+            var startPos = token.StartPos;
+
             var exp = result.AddMessages(
                 ParseParenthesizedExpressionAfterSymbolRole(SymbolRole.PredicateJunction, token, lexer, context, ct)
             );
@@ -8735,8 +8737,10 @@ namespace Sempiler.Parsing
                 }
             }
 
+            var range = new Range(startPos, lexer.Pos);
+
             Node fork = result.AddMessages(FinishNode(
-                NodeFactory.PredicateJunction(context.AST, CreateOrigin(token, lexer, context)),
+                NodeFactory.PredicateJunction(context.AST, CreateOrigin(range, lexer, context)),
                 lexer, context, ct)
             );
 
@@ -9446,7 +9450,7 @@ namespace Sempiler.Parsing
                 var alias = NodeFactory.ReferenceAliasDeclaration(context.AST, CreateOrigin(range, lexer, context));
 
                 result.AddMessages(AddOutgoingEdges(alias, propertyName, SemanticRole.From));
-                result.AddMessages(AddOutgoingEdges(alias, to, SemanticRole.To));
+                result.AddMessages(AddOutgoingEdges(alias, to, SemanticRole.Name));
 
                 name = result.AddMessages(FinishNode(alias, lexer, context, ct));
             }
@@ -9861,7 +9865,7 @@ namespace Sempiler.Parsing
                     );
 
                     result.AddMessages(AddOutgoingEdges(referenceAliasDecl, defaultExport, SemanticRole.From));
-                    result.AddMessages(AddOutgoingEdges(referenceAliasDecl, expression, SemanticRole.To));
+                    result.AddMessages(AddOutgoingEdges(referenceAliasDecl, expression, SemanticRole.Name));
 
                     // [dho] my eyes... - 29/03/19
                     Node clauses = result.AddMessages(FinishNode(
@@ -9907,14 +9911,16 @@ namespace Sempiler.Parsing
 
             if (HasErrors(result)) return result;
 
-            var (annotations, modifiers, hasEatenTokens) = result.AddMessages(
-                ParseOrnamentationComponents(token, lexer, context, ct)
-            );
+            // [dho] NOTE removing parsing ornamentation because this should be attached to the declaration
+            // being exported, not eating by the export itself - 23/09/19
+            // var (annotations, modifiers, hasEatenTokens) = result.AddMessages(
+            //     ParseOrnamentationComponents(token, lexer, context, ct)
+            // );
 
-            if (hasEatenTokens)
-            {
-                token = result.AddMessages(NextToken(lexer, context, ct));
-            }
+            // if (hasEatenTokens)
+            // {
+            //     token = result.AddMessages(NextToken(lexer, context, ct));
+            // }
 
             var clauses = default(Node[]);
             Node specifier = default(Node);
@@ -9983,8 +9989,10 @@ namespace Sempiler.Parsing
 
                 result.AddMessages(AddOutgoingEdges(decl, clauses, SemanticRole.Clause));
                 result.AddMessages(AddOutgoingEdges(decl, specifier, SemanticRole.Specifier));
-                result.AddMessages(AddOutgoingEdges(decl, annotations, SemanticRole.Annotation));
-                result.AddMessages(AddOutgoingEdges(decl, modifiers, SemanticRole.Modifier));
+                // [dho] NOTE removing parsing ornamentation because this should be attached to the declaration
+                // being exported, not eating by the export itself - 23/09/19
+                // result.AddMessages(AddOutgoingEdges(decl, annotations, SemanticRole.Annotation));
+                // result.AddMessages(AddOutgoingEdges(decl, modifiers, SemanticRole.Modifier));
 
                 result.Value = result.AddMessages(FinishNode(decl, lexer, context, ct));
             }
@@ -10019,7 +10027,7 @@ namespace Sempiler.Parsing
                 var alias = NodeFactory.ReferenceAliasDeclaration(context.AST, CreateOrigin(range, lexer, context));
 
                 result.AddMessages(AddOutgoingEdges(alias, name, SemanticRole.From));
-                result.AddMessages(AddOutgoingEdges(alias, to, SemanticRole.To));
+                result.AddMessages(AddOutgoingEdges(alias, to, SemanticRole.Name));
 
                 result.Value = result.AddMessages(FinishNode(alias, lexer, context, ct));
             }
@@ -10934,7 +10942,7 @@ namespace Sempiler.Parsing
 
                 var startPos = token.StartPos;
 
-                var subject = result.AddMessages(
+                var operand = result.AddMessages(
                     // [dho] `throw  ...` 
                     //        ^^^^^^^^^^   - 10/02/19
                     ParseOptionalExpressionAfterSymbolRole(SymbolRole.RaiseError, token, lexer, context, ct)
@@ -10944,7 +10952,7 @@ namespace Sempiler.Parsing
 
                 var raiseError = NodeFactory.RaiseError(context.AST, CreateOrigin(range, lexer, context));
 
-                result.AddMessages(AddOutgoingEdges(raiseError, subject, SemanticRole.Subject));
+                result.AddMessages(AddOutgoingEdges(raiseError, operand, SemanticRole.Operand));
 
                 result.Value = result.AddMessages(FinishNode(raiseError, lexer, context, ct));
 
@@ -11745,11 +11753,13 @@ namespace Sempiler.Parsing
             }
             else
             {
+               
+
                 // [dho] `foo => ...` 
                 //        ^^^          - 21/03/19
                 parameters = new [] {
                     result.AddMessages(
-                        ParseIdentifier(token, lexer, context, ct)
+                        ParseParameter(token, lexer, context, ct)
                     )
                 };
             }

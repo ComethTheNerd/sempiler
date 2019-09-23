@@ -50,10 +50,11 @@ namespace Sempiler
     public static class ArtifactTargetPlatform
     {
         public const string Android = "android";
-        public const string AWSLambda = "awslambda";
+        public const string AWSLambda = "aws/lambda";
+        public const string FirebaseFunctions = "firebase/functions";
         public const string IOS = "ios";
         public const string Node = "node";
-        public const string SwiftUI = "swiftui";
+        public const string SwiftUI = "ios/swiftui";
         public const string WebBrowser = "webbrowser";
         public const string ZeitNow = "zeit/now";
     }

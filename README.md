@@ -145,8 +145,8 @@ The `square` function has no dependency on run time symbols and so is able to be
 The compiler API is barebones at present, but allows for the following:
 - `build(name : string, targetLanguage : string, targetPlatform : string)` declares an artifact (currently must be first statement(s) of root input source file)
 - `addDependency(name : string, version? : string)` declares a dependency that the artifact requires (eg. Stripe)
-- `addEntitlement(name : string)` declares a target platform entitlement that the artifact requires (eg. Apple Pay) 
-- `addPermission(name : string)` declares a target platform permission that the artifact requires (eg. camera access)
+- `addEntitlement(name : string, value : number | string | string[])` declares a target platform entitlement that the artifact requires (eg. Apple Pay) 
+- `addPermission(name : string, description : string)` declares a target platform permission that the artifact requires (eg. camera access)
 - `addRawSourceFiles(...relativePaths : string[])` adds verbatim files to the artifact (ie. they will *not* be parsed/transformed)
 - `addSourceFiles(...relativePaths : string[])` add files that will be parsed/transformed and added to the artifact
 
