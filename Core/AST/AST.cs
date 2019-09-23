@@ -192,6 +192,15 @@ namespace Sempiler.AST
                         throw new System.ArgumentException("Cannot connect node to itself");
                     }
 
+                    // foreach(var e in QueryEdges(ast, newNode.ID, x => x.Role != SemanticRole.Parent))
+                    // {
+                    //     if(e == parentID)
+                    //     {
+                    //         throw new System.ArgumentException("Circular dependency!!");
+                    //     }
+                    // }
+
+
                     // [dho] if the new node was previously deleted, now undelete it! - 13/05/18
                     ast.Removed.Remove(newNode.ID);
 
@@ -694,9 +703,17 @@ namespace Sempiler.AST
 
             queue.Enqueue(start);
 
+            // var seen = new System.Collections.Generic.Dictionary<string, bool>();
+
             while(queue.Count > 0)
             {
                 var focus = queue.Dequeue();
+
+                // if(seen.ContainsKey(focus.ID))
+                // {
+                //     int i =0;
+                // }
+                // seen[focus.ID] = true;
 
                 var shouldExploreChildren = del(focus);
 
@@ -711,7 +728,11 @@ namespace Sempiler.AST
                 {
                     foreach(var (child, _) in ASTNodeHelpers.IterateChildren(ast, focus.ID))
                     {
-                        // Console.WriteLine(focus.Kind + " (" +  focus.ID + ") is adding " + child.Kind + " (" + child.ID + ")");
+                        // if(focus.ID.EndsWith("_$1007")/*  || focus.ID.EndsWith("_$858") || focus.ID.EndsWith("_$859")*/)
+                        // {
+                        //     Console.WriteLine(focus.Kind + " (" +  focus.ID + ") is adding " + child.Kind + " (" + child.ID + ")");
+
+                        // }
                         queue.Enqueue(child);
                     }
                 }

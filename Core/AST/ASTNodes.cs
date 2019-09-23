@@ -401,9 +401,9 @@ namespace Sempiler.AST
             get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.From);
         }
 
-        public Node To
+        public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.To);
+            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
         }
     }
     
@@ -2560,9 +2560,9 @@ namespace Sempiler.AST
         {
         }
 
-        public Node Future
+        public Node Operand
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Future);
+            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -2728,9 +2728,9 @@ namespace Sempiler.AST
         {
         }
 
-        public Node Subject
+        public Node Operand
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 

@@ -115,10 +115,10 @@ namespace Sempiler.Inlining
 
                                 if (refAliasDecl.From.Kind == SemanticKind.DefaultExportReference)
                                 {
-                                    if (languageSemantics.IsFunctionLikeDeclarationStatement(ast, refAliasDecl.To))
+                                    if (languageSemantics.IsFunctionLikeDeclarationStatement(ast, refAliasDecl.Name))
                                     {
                                         inlinerInfo.Entrypoint = exportDecl.Node;
-                                        inlinerInfo.EntrypointUserCode = refAliasDecl.To;
+                                        inlinerInfo.EntrypointUserCode = refAliasDecl.Name;
                                         // inlinerInfo.Entrypoint = refAliasDecl.To;
                                         // // [dho] remove the original export statement because we only need the function like declaration
                                         // // it is assigned to - 01/06/19

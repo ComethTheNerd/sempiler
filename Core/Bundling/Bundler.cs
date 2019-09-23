@@ -44,6 +44,24 @@ namespace Sempiler.Bundler
             return (relParentDirPath.ToLower().IndexOf(GetNameOfExpectedArtifactEntrypointComponent(session, artifact)) == 0);
         }
 
+        public static bool IsOutsideArtifactInferredSourceDir(Session session, Component component)
+        {
+            var relComponentPath = component.Name.Replace(session.BaseDirectory.ToPathString(), "");
+
+            // [dho] check component is not inside the inferred source directory for any artifact in the session - 18/07/19
+            foreach (var kv in session.Artifacts)
+            {
+                var artifactName = kv.Key;
+                var inferredArtifactSourceDirPath = $"/{Sempiler.Core.Main.InferredConfig.SourceDirName}/{artifactName}/";
+
+                if (relComponentPath.IndexOf(inferredArtifactSourceDirPath) > -1)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public static string GetNameOfExpectedArtifactEntrypointComponent(Session session, Artifact artifact)
         {
             return $"/{Sempiler.Core.Main.InferredConfig.SourceDirName}/{artifact.Name}/{Sempiler.Core.Main.InferredConfig.EntrypointFileName}".ToLower();

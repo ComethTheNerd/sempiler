@@ -762,211 +762,10 @@ public void onCreate() {
 
             if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-            {
-                foreach (var im in inlinerInfo.ImportDeclarations)
-                {
-                    var importDecl = ASTNodeFactory.ImportDeclaration(ast, im);
 
-                    // [dho] we need to refactor the symbols for imports because we are inlining the whole
-                    // program - 23/06/19
-                    var importInfo = result.AddMessages(ImportHelpers.GetImportClauseReferences(session, importDecl, LanguageSemantics.Java, token));
-
-                    // [dho] something went wrong with this import declaration - 23/06/19
-                    if (importInfo == null) continue;
-
-                    if (importInfo.SpecifierLexeme == "sempiler")
-                    {
-                        if (importInfo.DefaultReferences.Count > 0)
-                        {
-                            result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Package '{importInfo.SpecifierLexeme}' has no default export", importDecl)
-                                {
-                                    Hint = GetHint(importDecl.Origin),
-                                    Tags = DiagnosticTags
-                                }
-                            );
-                        }
-
-                        if (importInfo.WildcardReferences.Count > 0)
-                        {
-                            result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Package '{importInfo.SpecifierLexeme}' does not support wildcard importing", importDecl)
-                                {
-                                    Hint = GetHint(importDecl.Origin),
-                                    Tags = DiagnosticTags
-                                }
-                            );
-                        }
-
-                        foreach (var kv in importInfo.SymbolReferences)
-                        {
-                            var symbol = kv.Key;
-                            var references = kv.Value;
-
-                            switch (symbol)
-                            {
-                                case "View":
-                                    {
-                                        foreach (var reference in references)
-                                        {
-                                            ASTNodeHelpers.RefactorName(ast, reference, "Component");
-                                        }
-                                    }
-                                    break;
-
-                                default:
-                                    {
-                                        var clause = importInfo.Clauses[symbol];
-
-                                        result.AddMessages(
-                                            new NodeMessage(MessageKind.Error, $"Symbol '{symbol}' does not exist in package '{importInfo.SpecifierLexeme}'", clause)
-                                            {
-                                                Hint = GetHint(clause.Origin),
-                                                Tags = DiagnosticTags
-                                            }
-                                        );
-                                    }
-                                    break;
-                            }
-                        }
-
-                        // [dho] remove the "sempiler" import because it is a _fake_
-                        // import we just use to be sure that the symbols the user refers
-                        // to are for sempiler, and not something in global scope for a particular target platform - 24/06/19
-                        ASTHelpers.RemoveNodes(ast, new[] { importDecl.ID });
-                    }
-                    // [dho] relative file path - 23/06/19
-                    else if (importInfo.SpecifierLexeme.StartsWith("."))
-                    {
-                        var componentPath = component.Name;
-
-                        var absImportSpecifier = FileSystem.Resolve(
-                            System.IO.Directory.GetParent(componentPath).ToString(),
-                            importInfo.SpecifierLexeme
-                        );
-
-                        var importSpecifierHasFileExt = System.IO.Path.GetExtension(absImportSpecifier).Length > 0;
-
-
-                        var root = ASTHelpers.GetRoot(ast);
-                        System.Diagnostics.Debug.Assert(root.Kind == SemanticKind.Domain);
-
-                        var domain = ASTNodeFactory.Domain(ast, root);
-
-                        var matchedComponent = default(Component);
-                        var matchedName = default(string);
-
-                        foreach (var c in domain.Components)
-                        {
-                            var candidate = ASTNodeFactory.Component(ast, (DataNode<string>)c);
-                            var candidateName = candidate.Name;
-
-                            // [dho] strip the extension of the path because when someone writes an import
-                            // they do not have to specify the extension - 24/06/19
-                            if (!importSpecifierHasFileExt)
-                            {
-                                var candidateFileExt = System.IO.Path.GetExtension(candidateName);
-
-                                candidateName = candidateName.Substring(0, candidateName.Length - candidateFileExt.Length);
-                            }
-
-
-                            if (candidateName == absImportSpecifier)
-                            {
-                                if (matchedComponent == null)
-                                {
-                                    matchedComponent = candidate;
-                                    matchedName = candidateName;
-                                }
-                                else
-                                {
-                                    var specifier = importDecl.Specifier;
-
-                                    result.AddMessages(
-                                        new NodeMessage(MessageKind.Error, $"Package '{importInfo.SpecifierLexeme}' is ambiguous between '{matchedName} and {candidateName}'", specifier)
-                                        {
-                                            Hint = GetHint(specifier.Origin),
-                                            Tags = DiagnosticTags
-                                        }
-                                    );
-                                }
-                            }
-                        }
-
-                        if (matchedComponent != null)
-                        {
-                            var importedComponentInlinedName = ToInlinedObjectTypeClassIdentifier(ast, matchedComponent.Node);
-
-                            if (importInfo.DefaultReferences.Count > 0)
-                            {
-                                // [dho] TODO support this.. find the default export in the component and
-                                // replace the reference with `{importedComponentInlinedName}.{nameOfDefaultExportInComponent}` - 24/06/19
-                                result.AddMessages(
-                                    new NodeMessage(MessageKind.Error, $"Package '{importInfo.SpecifierLexeme}' does not support default importing", importDecl)
-                                    {
-                                        Hint = GetHint(importDecl.Origin),
-                                        Tags = DiagnosticTags
-                                    }
-                                );
-                            }
-
-                            foreach (var kv in importInfo.WildcardReferences)
-                            {
-                                var symbol = kv.Key;
-                                var references = kv.Value;
-
-                                foreach (var reference in references)
-                                {
-                                    ASTNodeHelpers.RefactorName(ast, reference, importedComponentInlinedName);
-                                }
-                            }
-
-                            foreach (var kv in importInfo.SymbolReferences)
-                            {
-                                var symbol = kv.Key;
-                                var references = kv.Value;
-
-                                foreach (var reference in references)
-                                {
-                                    ASTNodeHelpers.ConvertToPrefixedQualifiedAccess(ast, reference, importedComponentInlinedName);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Could not find package '{importInfo.SpecifierLexeme}'", importDecl)
-                                {
-                                    Hint = GetHint(importDecl.Origin),
-                                    Tags = DiagnosticTags
-                                }
-                            );
-                        }
-
-                        // [dho] remove the import because all components are inlined into the same output file - 24/06/19
-                        ASTHelpers.RemoveNodes(ast, new[] { importDecl.ID });
-                    }
-                    else
-                    {
-                        var specifier = importDecl.Specifier;
-
-                        // [dho] unpack a string constant for the import specifier so it is 
-                        // just the raw value of it, because in Java imports are not wrapped in
-                        // quotes - 01/06/19 (ported 22/06/19)
-                        var newSpecifier = NodeFactory.CodeConstant(
-                            ast,
-                            specifier.Origin,
-                            importInfo.SpecifierLexeme
-                        );
-
-                        ASTHelpers.Replace(ast, specifier.ID, new[] { newSpecifier.Node });
-
-                        imports.Add(importDecl.Node);
-
-                    }
-                }
-            }
-
+            result.AddMessages(
+                ProcessImports(session, artifact, ast, component, inlinerInfo.ImportDeclarations, token, ref imports)
+            );
 
             {
                 foreach (var namespaceDecl in inlinerInfo.NamespaceDeclarations)
@@ -1266,6 +1065,95 @@ final com.facebook.litho.ComponentContext context = new com.facebook.litho.Compo
 
 
             result.Value = inlinedObjectTypeDecl;
+
+            return result;
+        }
+
+
+        private static Result<object> ProcessImports(Session session, Artifact artifact, RawAST ast, Component component, List<Node> importDeclarations, CancellationToken token, ref List<Node> imports)
+        {
+            var result = new Result<object>();
+
+            if (importDeclarations?.Count > 0)
+            {
+                var importsSortedByType = result.AddMessages(
+                    ImportHelpers.SortImportDeclarationsByType(session, artifact, ast, component, importDeclarations, LanguageSemantics.Swift, token)
+                );
+
+                if (!HasErrors(result) && !token.IsCancellationRequested)
+                {
+                    foreach (var im in importsSortedByType.SempilerImports)
+                    {
+                        foreach (var kv in im.ImportInfo.SymbolReferences)
+                        {
+                            var symbol = kv.Key;
+                            var references = kv.Value;
+
+                            switch (symbol)
+                            {
+                                case SempilerPackageSymbols.View:
+                                    {
+                                        foreach (var reference in references)
+                                        {
+                                            // [dho] replace alias with 'Component' usage instead - 22/09/19 (ported : 22/09/19)
+                                            ASTNodeHelpers.RefactorName(ast, reference, "Component");
+                                        }
+                                    }
+                                    break;
+
+                                default:
+                                    {
+                                        var clause = im.ImportInfo.Clauses[symbol];
+
+                                        result.AddMessages(
+                                            new NodeMessage(MessageKind.Error, $"Symbol '{symbol}' from package '{im.ImportInfo.SpecifierLexeme}' is a symbolic alias not mapped for {artifact.TargetPlatform}", clause)
+                                            {
+                                                Hint = GetHint(clause.Origin),
+                                                Tags = DiagnosticTags
+                                            }
+                                        );
+                                    }
+                                    break;
+                            }
+                        }
+
+                        // [dho] remove the "sempiler" import because it is a _fake_
+                        // import we just use to be sure that the symbols the user refers
+                        // to are for sempiler, and not something in global scope for a particular target platform - 24/06/19 (ported : 22/09/19)
+                        ASTHelpers.RemoveNodes(ast, new[] { im.ImportDeclaration.ID });
+                    }
+
+                    foreach (var im in importsSortedByType.ComponentImports)
+                    {
+                        var importedComponentInlinedName = ToInlinedObjectTypeClassIdentifier(ast, im.Component.Node);
+
+                        result.AddMessages(
+                            ImportHelpers.QualifyImportReferences(ast, im, importedComponentInlinedName)
+                        );
+
+                        // [dho] remove the import because all components are inlined into the same output file - 24/06/19
+                        ASTHelpers.RemoveNodes(ast, new[] { im.ImportDeclaration.ID });
+                    }
+
+                    foreach (var im in importsSortedByType.PlatformImports)
+                    {
+                        var specifier = im.ImportDeclaration.Specifier;
+
+                        // [dho] unpack a string constant for the import specifier so it is 
+                        // just the raw value of it, because in Java imports are not wrapped in
+                        // quotes - 01/06/19 (ported 22/09/19)
+                        var newSpecifier = NodeFactory.CodeConstant(
+                            ast,
+                            specifier.Origin,
+                            im.ImportInfo.SpecifierLexeme
+                        );
+
+                        ASTHelpers.Replace(ast, specifier.ID, new[] { newSpecifier.Node });
+
+                        imports.Add(im.ImportDeclaration.Node);
+                    }
+                }
+            }
 
             return result;
         }

@@ -61,7 +61,7 @@ namespace Sempiler.Transformation
 
                 var startScope = new Scope(encScopeStartNode);
 
-                var references = LanguageSemantics.Java.GetUnqualifiedReferenceMatches(session, ast, startScope.Start, startScope, viewDeclNameLexeme, token);
+                var references = LanguageSemantics.Java.GetUnqualifiedReferenceMatches(session, ast, startScope.Subject, startScope, viewDeclNameLexeme, token);
 
                 foreach(var reference in references)
                 {

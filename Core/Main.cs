@@ -445,6 +445,7 @@ namespace Sempiler.Core
                                 switch(artifactTargetPlatform)
                                 {
                                     case ArtifactTargetPlatform.Node:
+                                    case ArtifactTargetPlatform.FirebaseFunctions:
                                     case ArtifactTargetPlatform.AWSLambda:
                                     case ArtifactTargetPlatform.ZeitNow:
                                         artifactRole = ArtifactRole.Server;
@@ -463,7 +464,9 @@ namespace Sempiler.Core
                                         }
                                         else
                                         {
-                                            result.AddMessages(new Message(MessageKind.Error, $"Could not infer artifact role for '{artifactName}'"));
+                                            result.AddMessages(
+                                                new Message(MessageKind.Error, $"Could not infer artifact role for '{artifactName}' from target language '{artifactTargetLang}' and target platform '{artifactTargetPlatform}'")
+                                            );
                                         }
                                     break;
                                 }
@@ -1314,6 +1317,10 @@ namespace Sempiler.Core
                 else if(artifact.TargetPlatform == ArtifactTargetPlatform.ZeitNow)
                 {
                     bundler = new ZeitNowBundler();
+                }
+                else if(artifact.TargetPlatform == ArtifactTargetPlatform.FirebaseFunctions)
+                {
+                    bundler = new FirebaseFunctionsBundler();
                 }
                 else
                 {

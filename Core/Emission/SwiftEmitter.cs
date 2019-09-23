@@ -2789,7 +2789,7 @@ namespace Sempiler.Emission
 
             var from = node.From;
             var template = node.Template;
-            var to = node.To;
+            var to = node.Name;
 
             result.AddMessages(
                 EmitNode(from, childContext, token)

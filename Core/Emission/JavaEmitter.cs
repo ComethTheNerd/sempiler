@@ -2363,11 +2363,11 @@ namespace Sempiler.Emission
 
             context.Emission.Append(node, "throw");
             
-            if(node.Subject != null)
+            if(node.Operand != null)
             {
                 context.Emission.Append(node, " ");
 
-                result.AddMessages(EmitNode(node.Subject, childContext, token));
+                result.AddMessages(EmitNode(node.Operand, childContext, token));
             }
 
             return result;
@@ -3035,20 +3035,22 @@ namespace Sempiler.Emission
                 case SemanticKind.Block:
                 case SemanticKind.CodeConstant:
                 case SemanticKind.Directive:
-                case SemanticKind.MatchJunction:
-                case SemanticKind.PredicateJunction:
-                case SemanticKind.ObjectTypeDeclaration:
-                case SemanticKind.MethodDeclaration:
-                case SemanticKind.FunctionDeclaration:
-                case SemanticKind.NamespaceDeclaration:
-                case SemanticKind.ErrorTrapJunction:
+                case SemanticKind.DoWhilePredicateLoop:
                 case SemanticKind.DoOrDieErrorTrap:
                 case SemanticKind.DoOrRecoverErrorTrap:
+                case SemanticKind.EnumerationTypeDeclaration:
+                case SemanticKind.ErrorTrapJunction:
                 case SemanticKind.ForKeysLoop:
                 case SemanticKind.ForMembersLoop:
                 case SemanticKind.ForPredicateLoop:
+                case SemanticKind.FunctionDeclaration:
+                case SemanticKind.InterfaceDeclaration:
+                case SemanticKind.MatchJunction:
+                case SemanticKind.MethodDeclaration:
+                case SemanticKind.NamespaceDeclaration:
+                case SemanticKind.ObjectTypeDeclaration:
+                case SemanticKind.PredicateJunction:
                 case SemanticKind.WhilePredicateLoop:
-                case SemanticKind.DoWhilePredicateLoop:
                     return false;
 
                 default:

@@ -34,11 +34,11 @@ namespace Sempiler.Languages
         }
 
 
-        public override bool IsDeclarationStatement(RawAST ast, Node node)
-        {
-            // [dho] TODO CLEANUP HACK!! - 16/05/19
-            return node.Kind.ToString().EndsWith("Declaration");
-        }
+        // public override bool IsDeclarationStatement(RawAST ast, Node node)
+        // {
+        //     // [dho] TODO CLEANUP HACK!! - 16/05/19
+        //     return node.Kind.ToString().EndsWith("Declaration");
+        // }
 
         public override bool IsValueExpression(RawAST ast, Node node)
         {
@@ -64,35 +64,35 @@ namespace Sempiler.Languages
             return false;
         }
 
-        public override bool IsFunctionLikeDeclarationStatement(RawAST ast, Node node)
-        {
-            switch(node.Kind)
-            {
-                case SemanticKind.AccessorDeclaration:
-                case SemanticKind.MutatorDeclaration:
-                case SemanticKind.ConstructorDeclaration:
-                case SemanticKind.DestructorDeclaration:
-                case SemanticKind.MethodDeclaration:
-                case SemanticKind.FunctionDeclaration:
-                case SemanticKind.LambdaDeclaration:
-                    return true;
+        // public override bool IsFunctionLikeDeclarationStatement(RawAST ast, Node node)
+        // {
+        //     switch(node.Kind)
+        //     {
+        //         case SemanticKind.AccessorDeclaration:
+        //         case SemanticKind.MutatorDeclaration:
+        //         case SemanticKind.ConstructorDeclaration:
+        //         case SemanticKind.DestructorDeclaration:
+        //         case SemanticKind.MethodDeclaration:
+        //         case SemanticKind.FunctionDeclaration:
+        //         case SemanticKind.LambdaDeclaration:
+        //             return true;
                 
-                default:
-                    return false;
-            }
-        }
+        //         default:
+        //             return false;
+        //     }
+        // }
 
-        public override bool IsInvocationLikeExpression(RawAST ast, Node node)
-        {
-            switch(node.Kind)
-            {
-                case SemanticKind.Invocation:
-                case SemanticKind.NamedTypeConstruction:
-                    return true;
+        // public override bool IsInvocationLikeExpression(RawAST ast, Node node)
+        // {
+        //     switch(node.Kind)
+        //     {
+        //         case SemanticKind.Invocation:
+        //         case SemanticKind.NamedTypeConstruction:
+        //             return true;
                 
-                default:
-                    return false;
-            }
-        }
+        //         default:
+        //             return false;
+        //     }
+        // }
     }
 }

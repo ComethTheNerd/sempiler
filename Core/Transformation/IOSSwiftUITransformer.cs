@@ -546,28 +546,10 @@ namespace Sempiler.Transformation
                             {
                                 var cParameters = ASTNodeFactory.ViewDeclaration(ast, resolvedSymbol).Parameters;
 
-                                viewDeclParamNames = new string[cParameters.Length];
+                                viewDeclParamNames = ASTNodeHelpers.ExtractParameterNameLexemes(ast, cParameters);
                                 // [dho] allocate enough space to potentially saw all parameters, even though
                                 // some may be missing (eg. if the call is invalid, or those parameters have defaults) - 02/07/19
                                 arguments = new List<Node>(viewDeclParamNames.Length);
-
-                                for(int i = 0; i < cParameters.Length; ++i)
-                                {
-                                    var p = cParameters[i];
-                                    System.Diagnostics.Debug.Assert(p.Kind == SemanticKind.ParameterDeclaration);
-
-                                    var parameter = ASTNodeFactory.ParameterDeclaration(ast, p);
-                                    var parameterName = parameter.Name;
-
-                                    var rawParameterNameLexeme = default(string);
-
-                                    if(parameterName.Kind == SemanticKind.Identifier)
-                                    {
-                                        rawParameterNameLexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)parameterName).Lexeme;
-                                    }
-
-                                    viewDeclParamNames[i] = rawParameterNameLexeme;
-                                }
                             }
                             else
                             {
@@ -720,7 +702,7 @@ namespace Sempiler.Transformation
                             }
                             else
                             {
-                                var index = IndexOfArgument(viewDeclParamNames, propName);
+                                var index = ASTNodeHelpers.IndexOfArgument(viewDeclParamNames, propName);
 
                                 if(index > -1)
                                 {
@@ -986,7 +968,7 @@ namespace Sempiler.Transformation
 
             var result = new Result<object>();
 
-            int index = IndexOfArgument(parameterNames, argName);
+            int index = ASTNodeHelpers.IndexOfArgument(parameterNames, argName);
 
             if(index > -1)
             {
@@ -1007,28 +989,5 @@ namespace Sempiler.Transformation
 
             return result;
         }
-
-        private int IndexOfArgument(string[] parameterNames, Identifier argName)
-        {
-            int index = -1;
-
-            if(argName != null && parameterNames != null)
-            {
-                var argNameLexeme = argName.Lexeme;
-
-                for(int i = 0; i < parameterNames.Length; ++i)
-                {
-                    if(parameterNames[i] == argNameLexeme)
-                    {
-                        index = i;
-                        break;
-                    }
-                }
-            }
-
-            return index;
-        }
-
-
     }
 }

@@ -244,10 +244,10 @@
         Interface,
         Size,
         Subject, // [dho] to be deleted/refactored? - 11/05/19
-        Future,
+        // Future,
         Offset,
         Template,
-        To,
+        // To,
         TargetType,
         TrueType,
         TrueValue,

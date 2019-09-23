@@ -22,6 +22,7 @@ namespace Sempiler.Inlining
 
         public struct ServerRouteInfo 
         {
+            public Node SourceDeclaration;
             public Node Handler;
             public string[] QualifiedHandlerName;
             public string[] APIRelPath;
@@ -79,7 +80,8 @@ namespace Sempiler.Inlining
                                     {
                                         APIRelPath = apiRelPath,
                                         QualifiedHandlerName = qualifedHandlerName,
-                                        Handler = child
+                                        SourceDeclaration = child,
+                                        Handler = clause
                                     });
                                 }
                                 else
