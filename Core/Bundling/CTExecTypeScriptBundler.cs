@@ -351,7 +351,7 @@ $@"
                 ASTHelpers.Connect(ast, component.ID, importDecls.ToArray(), SemanticRole.None);
 
                 // [dho] wrap content in an IIFE - 12/07/19
-                var iifeCreation = CreateIIFE(ast, content);
+                var iifeCreation = ASTNodeHelpers.CreateIIFE(ast, content);
                 {
                     var lambdaDecl = iifeCreation.Item2;
                     {
@@ -381,11 +381,11 @@ $@"
         }
 
 
-        private (Association, InterimSuspension) CreateAwait(RawAST ast, Node subject)
+        private (Association, InterimSuspension) CreateAwait(RawAST ast, Node operand)
         {
             var awaitExp = NodeFactory.InterimSuspension(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
             {
-                ASTHelpers.Connect(ast, awaitExp.ID, new [] { subject }, SemanticRole.Future);
+                ASTHelpers.Connect(ast, awaitExp.ID, new [] { operand }, SemanticRole.Operand);
             } 
 
             var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
@@ -394,39 +394,6 @@ $@"
             }
 
             return (parentheses, awaitExp);
-        }
-
-        private (Invocation, LambdaDeclaration) CreateIIFE(RawAST ast, List<Node> content)
-        {
-            var iife = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            
-            var lambdaDecl = NodeFactory.LambdaDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            {
-                var asyncFlag = NodeFactory.Meta(
-                    ast,
-                    new PhaseNodeOrigin(PhaseKind.Transformation),
-                    MetaFlag.Asynchronous
-                );
-
-                ASTHelpers.Connect(ast, lambdaDecl.ID, new [] { asyncFlag.Node }, SemanticRole.Meta);
-
-                var body = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-                {
-                    ASTHelpers.Connect(ast, body.ID, content.ToArray(), SemanticRole.Content);
-                }
-
-                ASTHelpers.Connect(ast, lambdaDecl.ID, new [] { body.Node }, SemanticRole.Body);
-            }
-
-            var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            {
-                ASTHelpers.Connect(ast, parentheses.ID, new [] { lambdaDecl.Node }, SemanticRole.Subject);
-            }
-
-            ASTHelpers.Connect(ast, iife.ID, new [] { parentheses.Node }, SemanticRole.Subject);
-        
-
-            return (iife, lambdaDecl);
         }
 
         private InvocationArgument CreateInvocationArgument(RawAST ast, Node value)
@@ -617,7 +584,17 @@ $@"
 
 
             {
-                ASTHelpers.Connect(ast, inlinedDVDecl.ID, new [] { CreateIIFE(ast, iifeContent).Item1.Node }, SemanticRole.Initializer);
+                var (iife, lambdaDecl) = ASTNodeHelpers.CreateIIFE(ast, iifeContent);
+                
+                var asyncFlag = NodeFactory.Meta(
+                    ast,
+                    new PhaseNodeOrigin(PhaseKind.Transformation),
+                    MetaFlag.Asynchronous
+                );
+
+                ASTHelpers.Connect(ast, lambdaDecl.ID, new [] { asyncFlag.Node }, SemanticRole.Meta);
+
+                ASTHelpers.Connect(ast, inlinedDVDecl.ID, new [] { iife.Node }, SemanticRole.Initializer);
             }
 
 
@@ -684,7 +661,7 @@ $@"
             var nodesToRemove = new List<string>();
 
             ASTHelpers.PreOrderTraversal(session, ast, component.Node, node => {
-                
+
                 if(node.Kind == SemanticKind.Component) return true;
 
                 if(node.Kind == SemanticKind.Directive) return false;
@@ -1183,7 +1160,7 @@ $@"
                     
                     var awaitExp = NodeFactory.InterimSuspension(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                     {
-                        ASTHelpers.Connect(ast, awaitExp.ID, new [] { inv }, SemanticRole.Future);
+                        ASTHelpers.Connect(ast, awaitExp.ID, new [] { inv }, SemanticRole.Operand);
                     } 
 
                     ASTHelpers.Connect(ast, parentheses.ID, new [] { awaitExp.Node }, SemanticRole.Subject);

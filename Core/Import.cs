@@ -86,7 +86,7 @@ namespace Sempiler.Core
                     {
                         var refAlias = ASTNodeFactory.ReferenceAliasDeclaration(ast, importClause);
 
-                        var to = refAlias.To;
+                        var to = refAlias.Name;
                         System.Diagnostics.Debug.Assert(to.Kind == SemanticKind.Identifier);
 
 
@@ -100,7 +100,7 @@ namespace Sempiler.Core
 
                         var from = refAlias.From;
 
-                        var references = languageSemantics.GetUnqualifiedReferenceMatches(session, ast, startScope.Start, startScope, lexeme, token);
+                        var references = languageSemantics.GetUnqualifiedReferenceMatches(session, ast, startScope.Subject, startScope, lexeme, token);
 
                         if (from.Kind == SemanticKind.WildcardExportReference)
                         {
@@ -128,7 +128,7 @@ namespace Sempiler.Core
 
                         importInfo.Clauses[lexeme] = importClause;
 
-                        importInfo.SymbolReferences[lexeme] = languageSemantics.GetUnqualifiedReferenceMatches(session, ast, startScope.Start, startScope, lexeme, token);
+                        importInfo.SymbolReferences[lexeme] = languageSemantics.GetUnqualifiedReferenceMatches(session, ast, startScope.Subject, startScope, lexeme, token);
                     }
                 }
 

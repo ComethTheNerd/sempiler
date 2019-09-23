@@ -441,6 +441,46 @@ namespace Sempiler.AST
             return qa;
         }
 
+        public static (Invocation, LambdaDeclaration) CreateIIFE(RawAST ast, List<Node> content)
+        {
+            var iife = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            
+            var lambdaDecl = CreateLambda(ast, content);
+
+            var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                ASTHelpers.Connect(ast, parentheses.ID, new [] { lambdaDecl.Node }, SemanticRole.Subject);
+            }
+
+            ASTHelpers.Connect(ast, iife.ID, new [] { parentheses.Node }, SemanticRole.Subject);
+        
+
+            return (iife, lambdaDecl);
+        }
+
+        public static LambdaDeclaration CreateLambda(RawAST ast, List<Node> content)
+        {
+            var lambdaDecl = NodeFactory.LambdaDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                // var asyncFlag = NodeFactory.Meta(
+                //     ast,
+                //     new PhaseNodeOrigin(PhaseKind.Transformation),
+                //     MetaFlag.Asynchronous
+                // );
+
+                // ASTHelpers.Connect(ast, lambdaDecl.ID, new [] { asyncFlag.Node }, SemanticRole.Meta);
+
+                var body = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                {
+                    ASTHelpers.Connect(ast, body.ID, content.ToArray(), SemanticRole.Content);
+                }
+
+                ASTHelpers.Connect(ast, lambdaDecl.ID, new [] { body.Node }, SemanticRole.Body);
+            }
+
+            return lambdaDecl;
+        }
+
         public static Identifier RefactorName(RawAST ast, Node node, string lexeme)
         {
             var newName = NodeFactory.Identifier(ast, node.Origin, lexeme);
@@ -495,6 +535,50 @@ namespace Sempiler.AST
             result.Value = items;
 
             return result;
+        }
+
+        public static int IndexOfArgument(string[] parameterNames, Identifier argName)
+        {
+            int index = -1;
+
+            if(argName != null && parameterNames != null)
+            {
+                var argNameLexeme = argName.Lexeme;
+
+                for(int i = 0; i < parameterNames.Length; ++i)
+                {
+                    if(parameterNames[i] == argNameLexeme)
+                    {
+                        index = i;
+                        break;
+                    }
+                }
+            }
+
+            return index;
+        }
+
+        ///<summary>[dho] Returns a string array of the raw parameter name lexemes, and `null` at any
+        /// index that corresponds to a parameter without a name that is an `Identifier` (eg. a destructuring) - 23/09/19</summary>
+        public static string[] ExtractParameterNameLexemes(RawAST ast, Node[] parameters)
+        {
+            var paramNameLexemes = new string[parameters.Length];
+
+            for(int i = 0; i < parameters.Length; ++i)
+            {
+                var p = parameters[i];
+                System.Diagnostics.Debug.Assert(p.Kind == SemanticKind.ParameterDeclaration);
+
+                var parameter = ASTNodeFactory.ParameterDeclaration(ast, p);
+                var symbol = parameter.Label ?? parameter.Name;
+
+                if(symbol?.Kind == SemanticKind.Identifier)
+                {
+                    paramNameLexemes[i] = ASTNodeFactory.Identifier(ast, (DataNode<string>)symbol).Lexeme;
+                }
+            }
+
+            return paramNameLexemes;
         }
     }
 }

@@ -387,7 +387,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                         // [dho] any code that was outside an artifact root is just emitted without a class wrapper, so we have a way
                         // in the input sources of declaring global symbols, or things like protocols which cannot be nested inside other
                         // declarations in Swift - 18/07/19
-                        else if (IsOutsideArtifactInferredSourceDir(session, component))
+                        else if (BundlerHelpers.IsOutsideArtifactInferredSourceDir(session, component))
                         {
                             globalStatements.AddRange(r.Value.Members);
                         }
@@ -778,49 +778,6 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
 
 
             return result;
-        }
-
-        private static bool IsOutsideArtifactInferredSourceDir(Session session, Component component)
-        {
-            var relComponentPath = component.Name.Replace(session.BaseDirectory.ToPathString(), "");
-
-            // [dho] check component is not inside the inferred source directory for any artifact in the session - 18/07/19
-            foreach (var kv in session.Artifacts)
-            {
-                var artifactName = kv.Key;
-                var inferredArtifactSourceDirPath = $"/{Sempiler.Core.Main.InferredConfig.SourceDirName}/{artifactName}/";
-
-                if (relComponentPath.IndexOf(inferredArtifactSourceDirPath) > -1)
-                {
-                    return false;
-                }
-            }
-            return true;
-            // var componentName = component.Name;
-
-            // foreach(var inputPath in session.InputPaths)
-            // {
-            //     if(inputPath == componentName)
-            //     {
-            //         var relComponentPath = componentName.Replace(session.BaseDirectory.ToPathString(), "");
-
-            //         // [dho] check component is not inside the inferred source directory for any artifact in the session - 18/07/19
-            //         foreach(var kv in session.Artifacts)
-            //         {
-            //             var artifactName = kv.Key;
-            //             var inferredArtifactSourceDirPath = $"/{Sempiler.Core.NewCompilerAPI.InferredConfig.SourceDirName}/{artifactName}/";
-
-            //             if(relComponentPath.IndexOf(inferredArtifactSourceDirPath) > -1)
-            //             {
-            //                 return false;
-            //             }
-            //         }
-
-            //         return true;
-            //     }
-            // }
-
-            // return false;
         }
 
         private static Result<ObjectTypeDeclaration> ConvertToInlinedObjectTypeDeclaration(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
