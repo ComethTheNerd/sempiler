@@ -1,0 +1,1 @@
+#compiler build("server", "typescript", "firebase/functions");

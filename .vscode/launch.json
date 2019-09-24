@@ -19,12 +19,23 @@
             "internalConsoleOptions": "openOnSessionStart"
         },
         {
-            "name": "Compile",
+            "name": "Example",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
             "program": "${workspaceFolder}/Proto/bin/Debug/netcoreapp3.0/Proto.dll",
-            "args": ["${workspaceFolder}/Inputs/app.ts"],
+            "args": ["${workspaceFolder}/Inputs/example/app.ts"],
+            "cwd": "${workspaceFolder}/Proto",
+            "stopAtEntry": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "FirebaseFunctions",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/Proto/bin/Debug/netcoreapp3.0/Proto.dll",
+            "args": ["${workspaceFolder}/Inputs/firebase-functions/main.ts"],
             "cwd": "${workspaceFolder}/Proto",
             "stopAtEntry": false,
             "internalConsoleOptions": "openOnSessionStart"
