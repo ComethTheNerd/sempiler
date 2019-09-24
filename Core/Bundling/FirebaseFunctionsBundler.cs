@@ -22,6 +22,11 @@ namespace Sempiler.Bundler
         const string UserCodeDirName = "functions";
         static readonly string AppFileName = $"{UserCodeDirName}/src/index";
 
+        // [dho] NOTE for some reason firebase functions doesn't work properly if the name
+        // we use here is long and complex (like a component ID).. but "api" seems to work fine...
+        // It won't clash with any user code symbol called `api` either, because we use `exports.api = ...` - 24/09/19
+        static readonly string APISymbolicLexeme = "api";
+
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
@@ -37,8 +42,7 @@ namespace Sempiler.Bundler
             }
 
             
-            var routeInfos = default(List<ServerInlining.ServerRouteInfo>);
-
+            var inlined = default(Component);
             var ofc = default(OutFileCollection);//new OutFileCollection();
 
             // [dho] emit source files - 21/05/19
@@ -47,7 +51,7 @@ namespace Sempiler.Bundler
 
                 if (artifact.TargetLang == ArtifactTargetLang.TypeScript)
                 {
-                    routeInfos = result.AddMessages(TypeScriptInlining(session, artifact, ast, token));
+                    inlined = result.AddMessages(TypeScriptInlining(session, artifact, ast, token));
 
                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
@@ -71,13 +75,25 @@ namespace Sempiler.Bundler
             {                
                 AddRawFileIfMissing(ofc, "firebase.json", 
 $@"{{
-   ""functions"": {{
-     ""predeploy"": ""npm --prefix functions run build""
-   }}
+  ""hosting"": {{
+    ""rewrites"": [
+      {{
+        ""source"": ""**"",
+        ""function"": ""{APISymbolicLexeme}""
+      }}
+    ]
+  }},
+  ""functions"": {{
+    ""predeploy"": ""npm --prefix functions run build""
+  }}
 }}");
                 var dependenciesContent = new System.Text.StringBuilder();
+                var dependencies = session.Dependencies[artifact.Name];
+                
+                if(dependencies.Count > 0)
                 {
-                    var dependencies = session.Dependencies[artifact.Name];
+                    dependenciesContent.Append(",");
+                    dependenciesContent.AppendLine();
 
                     for(int i = 0; i < dependencies.Count; ++i)
                     {
@@ -94,7 +110,6 @@ $@"{{
 
                         dependenciesContent.AppendLine();
                     }
-
                 }
 
                 AddRawFileIfMissing(ofc, $"{UserCodeDirName}/package.json", 
@@ -102,6 +117,9 @@ $@"{{
   ""name"": ""{artifact.Name}"",
   ""private"": true,
   ""version"": ""1.0.0"",
+  ""engines"": {{
+    ""node"": ""8""
+  }},
   ""scripts"": {{
     ""build"": ""./node_modules/.bin/tsc""
   }},
@@ -110,29 +128,25 @@ $@"{{
     ""@types/node"": ""*""
   }},
   ""dependencies"": {{
-    ""firebase-functions"": ""^2.2.1"",
-    {dependenciesContent.ToString()}
-  }}
+    ""firebase-functions"": ""*""{dependenciesContent.ToString()}
+  }},
+  ""main"": ""lib/index.js""
 }}");
                
+                // [dho] adapted from https://raw.githubusercontent.com/firebase/functions-samples/master/typescript-getting-started/functions/tsconfig.json - 24/09/19
                 AddRawFileIfMissing(ofc, $"{UserCodeDirName}/tsconfig.json", 
 @"{
-    ""compilerOptions"": {
-       ""target"": ""es6"" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017','ES2018' or 'ESNEXT'. */,
-        ""module"": ""commonjs"" /* Specify module code generation: 'none', 'commonjs', 'amd', 'system', 'umd', 'es2015', or 'ESNext'. */,
-        ""lib"": [
-            ""es2015""
-        ] /* Specify library files to be included in the compilation. */,
-        ""strict"": true /* Enable all strict type-checking options. */,
-        ""noImplicitAny"": true /* Raise error on expressions and declarations with an implied 'any' type. */,
-        ""strictNullChecks"": true /* Enable strict null checks. */,
-        ""strictFunctionTypes"": true /* Enable strict checking of function types. */,
-        ""strictBindCallApply"": true /* Enable strict 'bind', 'call', and 'apply' methods on functions. */,
-        ""strictPropertyInitialization"": true /* Enable strict checking of property initialization in classes. */,
-        ""noImplicitThis"": true /* Raise error on 'this' expressions with an implied 'any' type. */,
-        ""alwaysStrict"": true /* Parse in strict mode and emit ""use strict"" for each source file. */,
-        ""esModuleInterop"": true /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
-    }
+  ""compilerOptions"": {
+    ""lib"": [""es2017""],
+    ""module"": ""commonjs"",
+    ""noImplicitReturns"": true,
+    ""outDir"": ""lib"",
+    ""sourceMap"": true,
+    ""target"": ""es2017""
+  },
+  ""include"": [
+    ""src""
+  ]
 }");
 
                 result.Value = ofc;
@@ -142,9 +156,9 @@ $@"{{
             return result;
         }
 
-        private static Result<List<ServerInlining.ServerRouteInfo>> TypeScriptInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        private static Result<Component> TypeScriptInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
-            var result = new Result<List<ServerInlining.ServerRouteInfo>>();
+            var result = new Result<Component>();
 
             var root = ASTHelpers.GetRoot(ast);
 
@@ -215,6 +229,8 @@ $@"{{
                     result.AddMessages(
                         new Message(MessageKind.Error, $"Could not create Firebase functions bundle because an entrypoint component was not found {artifact.Name} (expected '{BundlerHelpers.GetNameOfExpectedArtifactEntrypointComponent(session, artifact)}' to exist)")
                     );
+
+                    return result;
                 }
 
 
@@ -224,7 +240,7 @@ $@"{{
                 // }
 
                 var router = result.AddMessages(
-                    CreateRouter(session, artifact, ast, token, ref routeInfos)
+                    CreateRouter(session, artifact, ast, inlined, token, ref routeInfos)
                 );
 
                 inlinedContent.Add(router);
@@ -239,9 +255,7 @@ $@"{{
                 // [dho] remove the components from the tree because now they have all been inlined - 22/09/19
                 ASTHelpers.RemoveNodes(ast, componentIDsToRemove.ToArray());
                 
-
-
-                result.Value = routeInfos;
+                result.Value = inlined;
             }
 
             newComponentNodes.Add(inlined.Node);
@@ -251,17 +265,16 @@ $@"{{
             return result;
         }
 
-        private static Result<Node> CreateRouter(Session session, Artifact artifact, RawAST ast, CancellationToken token, ref List<ServerInlining.ServerRouteInfo> routes)
+        private static Result<Node> CreateRouter(Session session, Artifact artifact, RawAST ast, Component entrypointComponent, CancellationToken token, ref List<ServerInlining.ServerRouteInfo> routes)
         {
             var result = new Result<Node>();
 
             var assignment = NodeFactory.Assignment(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
             {
-                // module.exports.foo
+                // [dho] `exports.api` - 24/09/19
                 var storage = ASTNodeHelpers.ConvertToQualifiedAccessIfRequiredLTR(ast, new PhaseNodeOrigin(PhaseKind.Bundling), new [] {
-                    NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "module").Node,
                     NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "exports").Node,
-                    NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), assignment.ID).Node,
+                    NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), APISymbolicLexeme).Node,
                 });
 
                 ASTHelpers.Connect(ast, assignment.ID, new [] { storage }, SemanticRole.Storage);
@@ -318,6 +331,19 @@ app.use(cors({{ origin : true }}));").Node
         
 
             result.Value = assignment.Node;
+
+
+
+            // var exportDecl = NodeFactory.ExportDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+            // {
+            //     var name = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"{entrypointComponent.ID}{ExportSuffix}");
+
+            //     var clause = CreateConstantDataValueDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling), name.Node, invocation.Node);
+
+            //     ASTHelpers.Connect(ast, exportDecl.ID, new [] { clause.Node }, SemanticRole.Clause);
+            // }
+
+            // result.Value = exportDecl.Node;
 
             return result;
         }

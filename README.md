@@ -84,7 +84,29 @@ Emitted artifacts contain the transpiled/transformed source files, as well as an
 Currently supported target platforms:
 - iOS 13 🍏
 - Android 🤖
-- Node ([Zeit Now](https://www.youtube.com/watch?v=dzjQUAYNL60&feature=youtu.be) ◼️)
+- [Zeit Now](https://www.youtube.com/watch?v=dzjQUAYNL60&feature=youtu.be) ◼️
+- Firebase Functions
+
+#### Firebase Functions
+
+Look at the sample in `Inputs/firebase-functions`. 
+
+If you open this repository in Visual Studio Code there should be a launch configuration called `FirebaseFunctions`.
+
+Running that should create and populate the `Inputs/firebase-functions/out` directory with a bundle set up to be deployed via the Firebase CLI.
+
+Assuming you have the [Firebase CLI](https://firebase.google.com/docs/cli) installed and configured (eg. you are logged in to Firebase), you should be able to run the following script:
+
+```bash
+cd Inputs/firebase-functions/out/server/functions && \
+    npm i && \
+    npm run build && \
+    cd ../ && \
+    firebase emulators:start --only functions,hosting --project <your-firebase-project-id>
+
+# Use the local server address, and append the name of one of the functions. eg. http://localhost:5000/hello
+# (TIP : make sure you are using the correct HTTP verb!)"
+```
 
 #### vFuture 🔮
 - Web

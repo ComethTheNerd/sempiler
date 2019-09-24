@@ -1,0 +1,21 @@
+{
+  "name": "server",
+  "private": true,
+  "version": "1.0.0",
+  "engines": {
+    "node": "8"
+  },
+  "scripts": {
+    "build": "./node_modules/.bin/tsc"
+  },
+  "devDependencies": {
+    "typescript": "^3.2.4",
+    "@types/node": "*"
+  },
+  "dependencies": {
+    "firebase-functions": "*",
+"firebase-admin": "*"
+
+  },
+  "main": "lib/index.js"
+}
