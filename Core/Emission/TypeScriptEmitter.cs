@@ -1999,6 +1999,8 @@ namespace Sempiler.Emission
                 );
             }
 
+            result.AddMessages(EmitAnnotationsAndModifiers(node, context, token));
+
             if((metaFlags & MetaFlag.Asynchronous) == MetaFlag.Asynchronous)
             {
                 context.Emission.Append(node, "async ");
