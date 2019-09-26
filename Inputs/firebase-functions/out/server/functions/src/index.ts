@@ -1,8 +1,8 @@
-const node_1569356706342_$10 = (()=>{
+const node_1569355983565_$10 = (()=>{
     return {
     };
 })();
-const node_1569356706456_$23 = (()=>{
+const node_1569355983639_$23 = (()=>{
     function hello(){
         return "Hello World!";
     }
@@ -18,7 +18,7 @@ app.use(cors({ origin : true }));
     app.get("/hello",async (req,res)=>{
         
 try {
-    const data = await node_1569356706456_$23.hello();
+    const data = await node_1569355983639_$23.hello();
 
     res.statusCode = 200;
 

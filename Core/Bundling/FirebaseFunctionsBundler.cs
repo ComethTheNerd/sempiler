@@ -759,10 +759,10 @@ try {{
     res.statusCode = 200;
 
     res.json({{ data : data || void 0 }});
-}} catch (error) {{
+}} catch ({{ message, stack, code }}) {{
     res.statusCode = 500;
 
-    res.json({{ error: error.message }});
+    res.json({{ message, stack, code }});
 }}"
                 ).Node
             );
