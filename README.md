@@ -85,7 +85,7 @@ Currently supported target platforms:
 - iOS 13 🍏
 - Android 🤖
 - [Zeit Now](https://www.youtube.com/watch?v=dzjQUAYNL60&feature=youtu.be) ◼️
-- Firebase Functions
+- Firebase Functions 🔥
 
 #### Firebase Functions
 

@@ -1,5 +1,10 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 26/09/19
+- Proto now has non zero exit code if compilation errors occurred
+- Firebase Functions Bundler routes return error message, code and stack if an exception is thrown
+- Fixed bug with TypeScript emitter not emitting annotations and modifiers on lambda declarations
+
 # 🗓 24/09/19
 - Firebase Functions Bundler bug fixes, now able to build a correct bundle from source files
 

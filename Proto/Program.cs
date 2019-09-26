@@ -9,7 +9,7 @@ namespace Proto
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             var result = new Result<object>();
 
@@ -61,13 +61,17 @@ namespace Proto
 
             var errorCount = 0;
 
+            var exitCode = 0;
 
             if(Sempiler.Diagnostics.DiagnosticsHelpers.HasErrors(result))
             {
                 errorCount = result.Messages.Errors.Count;
+                exitCode = 1;
             }
 
             Console.WriteLine($"\n***** FINISHED WITH {errorCount} ERROR(S) *****");
+            
+            return exitCode;
         }
 
 
