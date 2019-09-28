@@ -6175,7 +6175,7 @@ namespace Sempiler.Parsing
 
                 var startPos = token.StartPos;
 
-                var members = default(Node[]);
+                var members = new Node[]{};
 
                 // [dho] guard against eating too many tokens when the block is empty - 29/03/19
                 if (!EatIfNext(SyntaxKind.CloseBraceToken, lexer, context, ct))

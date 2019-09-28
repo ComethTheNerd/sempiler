@@ -1,5 +1,9 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 28/09/19
+- Fixed parsing `NullPointerException` when encountering type literal without members
+- Fixed bug with `switch` that meant a clause body was null if it contained more than 1 statement
+
 # 🗓 26/09/19
 - Proto now has non zero exit code if compilation errors occurred
 - Firebase Functions Bundler routes return error message, code and stack if an exception is thrown
