@@ -2657,9 +2657,9 @@ namespace Sempiler.AST
             get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Pattern);
         }
 
-        public Node Body
+        public Node[] Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Body);
         }
     }
 
