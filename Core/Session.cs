@@ -37,6 +37,7 @@ namespace Sempiler
 
         public Dictionary<string, List<ISource>> Resources { get; set; }
 
+        public Dictionary<string, List<Capability>> Capabilities { get; set; }
         public Dictionary<string, List<Dependency>> Dependencies { get; set; }
 
         public Dictionary<string, List<Entitlement>> Entitlements { get; set; }
@@ -49,13 +50,21 @@ namespace Sempiler
         public Dictionary<string, Dictionary<string, OutFile>> FilesWritten { get; set; }
     }
 
+    public struct Capability
+    {
+        public string Name;
+        public ConfigurationPrimitive Type;
+        public string[] Values;
+    }
+
+
     public struct Dependency 
     {
         public string Name;
         public string Version;
     }
 
-    public enum EntitlementType
+    public enum ConfigurationPrimitive
     {
         String,
         StringArray
@@ -64,7 +73,7 @@ namespace Sempiler
     public struct Entitlement
     {
         public string Name;
-        public EntitlementType Type;
+        public ConfigurationPrimitive Type;
         public string[] Values;
     }
 

@@ -237,6 +237,20 @@ $@"
 
         // const client = await createClient(""{host}"", {port});
 
+
+
+        async function {CTAPISymbols.AddCapability}(name, value)
+        {{
+            if(Array.isArray(value))
+            {{
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+            }}
+            else 
+            {{
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
+            }}
+        }}
+
         async function {CTAPISymbols.AddDependency}(name, version)
         {{
             if(arguments.length === 1)
@@ -253,11 +267,11 @@ $@"
         {{
             if(Array.isArray(value))
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)EntitlementType.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
             }}
             else 
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)EntitlementType.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
             }}
         }}
 
@@ -276,6 +290,16 @@ $@"
             return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
         }}
 
+        function {CTAPISymbols.IsTargetLanguage}(languageName)
+        {{
+            return languageName === '{artifact.TargetLang}';
+        }}
+
+        function {CTAPISymbols.IsTargetPlatform}(platformName)
+        {{
+            return platformName === '{artifact.TargetPlatform}';
+        }}
+
         async function {CTAPISymbols.DeleteNode}(nodeID)
         {{
             return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.DeleteNode}(${{nodeID}})`);
@@ -292,11 +316,14 @@ $@"
         }}
 
         return {{ 
+            {CTAPISymbols.AddCapability},
             {CTAPISymbols.AddDependency},
             {CTAPISymbols.AddEntitlement},
             {CTAPISymbols.AddPermission},
             {CTAPISymbols.AddRawSources},
             {CTAPISymbols.AddSources}, 
+            {CTAPISymbols.IsTargetLanguage},
+            {CTAPISymbols.IsTargetPlatform},
             {CTAPISymbols.ReplaceNodeByCodeConstant},
             {CTAPISymbols.InsertImmediateSiblingFromValueAndDeleteNode}, 
             {CTAPISymbols.DeleteNode}
@@ -305,11 +332,14 @@ $@"
     }})();
     // [dho] make the public compiler API symbols available in scope as unqualified names - 12/07/19
     const {{ 
+        {CTAPISymbols.AddCapability},
         {CTAPISymbols.AddDependency}, 
         {CTAPISymbols.AddEntitlement}, 
         {CTAPISymbols.AddPermission}, 
         {CTAPISymbols.AddRawSources}, 
-        {CTAPISymbols.AddSources} 
+        {CTAPISymbols.AddSources},
+        {CTAPISymbols.IsTargetLanguage},
+        {CTAPISymbols.IsTargetPlatform},
     }} = {serverInteropHandleLexeme};").Node
                     );
                 }

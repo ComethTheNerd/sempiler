@@ -63,6 +63,8 @@ namespace Sempiler.Core
 
                 session.BridgeIntents = new Dictionary<string, List<Directive>>();
 
+                session.Capabilities = new Dictionary<string, List<Capability>>();
+
                 session.Dependencies = new Dictionary<string, List<Dependency>>();
 
                 session.Entitlements = new Dictionary<string, List<Entitlement>>();
@@ -76,6 +78,7 @@ namespace Sempiler.Core
                     // [dho] each artifact mutates it's own clone of the input AST - 15/05/19
                     session.ASTs[artifactName] = ast.Clone();
 
+                    session.Capabilities[artifactName] = new List<Capability>();
                     session.Dependencies[artifactName] = new List<Dependency>();
                     session.Entitlements[artifactName] = new List<Entitlement>();
                     session.Permissions[artifactName] = new List<Permission>();
@@ -453,6 +456,7 @@ namespace Sempiler.Core
 
                                     case ArtifactTargetPlatform.Android:
                                     case ArtifactTargetPlatform.IOS:
+                                    case ArtifactTargetPlatform.SwiftUI:
                                     case ArtifactTargetPlatform.WebBrowser:
                                         artifactRole = ArtifactRole.Client;
                                     break;
@@ -721,6 +725,24 @@ namespace Sempiler.Core
 
             switch (command.Kind)
             {
+                case CTProtocolCommandKind.AddCapability:{
+                    var name = command.Arguments[CTProtocolAddCapabilityCommand.NameIndex];
+                    var type = (ConfigurationPrimitive)Enum.Parse(typeof(ConfigurationPrimitive), command.Arguments[CTProtocolAddEntitlementCommand.TypeIndex]);
+                    var values = new string[command.Arguments.Length - 2];
+                    Array.Copy(command.Arguments, 2, values, 0, values.Length);
+
+                    session.Capabilities[artifact.Name].Add(
+                        new Capability {
+                            Name = name,
+                            Type = type,
+                            Values = values
+                        }
+                    );
+
+                    result.Value = ("Added capability " + name);
+                }
+                break;
+
                 case CTProtocolCommandKind.AddDependency:{
                     var name = command.Arguments[CTProtocolAddDependencyCommand.NameIndex];
                     
@@ -752,7 +774,7 @@ namespace Sempiler.Core
 
                 case CTProtocolCommandKind.AddEntitlement:{
                     var name = command.Arguments[CTProtocolAddEntitlementCommand.NameIndex];
-                    var type = (EntitlementType)Enum.Parse(typeof(EntitlementType), command.Arguments[CTProtocolAddEntitlementCommand.TypeIndex]);
+                    var type = (ConfigurationPrimitive)Enum.Parse(typeof(ConfigurationPrimitive), command.Arguments[CTProtocolAddEntitlementCommand.TypeIndex]);
                     var values = new string[command.Arguments.Length - 2];
                     Array.Copy(command.Arguments, 2, values, 0, values.Length);
 
@@ -1241,6 +1263,13 @@ namespace Sempiler.Core
             var totalPaths = new List<string>();
             var newPaths = new List<string>();
 
+            // [dho] set this in any case to protect calling code from `NullPointerException` - 29/09/19
+            result.Value = new FilterNewSourceFilePathsResult
+            {
+                TotalPaths = totalPaths,
+                NewPaths = newPaths
+            };
+
             var root = ASTHelpers.GetRoot(ast);
 
             System.Diagnostics.Debug.Assert(root?.Kind == SemanticKind.Domain);
@@ -1289,12 +1318,7 @@ namespace Sempiler.Core
                 }
             }
 
-            result.Value = new FilterNewSourceFilePathsResult
-            {
-                TotalPaths = totalPaths,
-                NewPaths = newPaths
-            };
-
+        
             return result;
         }
 
@@ -1310,7 +1334,8 @@ namespace Sempiler.Core
                 {
                     bundler = new AndroidBundler();
                 }
-                else if(artifact.TargetPlatform == ArtifactTargetPlatform.IOS)
+                else if(artifact.TargetPlatform == ArtifactTargetPlatform.IOS || 
+                    artifact.TargetPlatform == ArtifactTargetPlatform.SwiftUI)
                 {
                     bundler = new IOSBundler();
                 }
