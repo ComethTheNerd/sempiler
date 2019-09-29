@@ -1,5 +1,12 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 29/09/19
+- Added support for `addCapability(name : string, value : string | string[])` compile time API function
+- Added support for `isTargetLanguage(name : string) : bool` compile time API function
+- Added support for `isTargetPlatform(name : string) : bool` compile time API function
+- `IOSBundler` now allows for entrypoint function to access launch options, eg. `export default function main(launchOptions : { [key : UIApplication.LaunchOptionsKey] : Any }){...}`
+- Fixed `NullPointerException` when `addRawSources(...)` did not match any file paths
+
 # 🗓 28/09/19
 - Fixed parsing `NullPointerException` when encountering type literal without members
 - Fixed bug with `switch` that meant a clause body was null if it contained more than 1 statement

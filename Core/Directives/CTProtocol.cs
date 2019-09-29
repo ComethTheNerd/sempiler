@@ -16,6 +16,7 @@ namespace Sempiler.Core.Directives
         ReplaceNodeByCodeConstant,
         InsertImmediateSiblingAndDeleteNode,
 
+        AddCapability,
         AddDependency,
         AddEntitlement,
         AddPermission,
@@ -91,6 +92,14 @@ namespace Sempiler.Core.Directives
     // {
     //     public const int NodeIDIndex = 0;
     // }
+
+    public static class CTProtocolAddCapabilityCommand
+    {
+        public const int NameIndex = 0;
+        public const int TypeIndex = 1;
+
+        // [dho] anything after index 1 is a value - 29/09/19
+    }
 
     public static class CTProtocolAddDependencyCommand
     {
