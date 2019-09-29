@@ -23,6 +23,9 @@ namespace Sempiler.Bundler
         const string InlinedAppFileName = "App";
         const string EntrypointSymbolName = "_____MAIN_____";
 
+        const string AppDelegateClassSymbolName = "AppDelegate";
+        const string SceneDelegateClassSymbolName = "SceneDelegate";
+
         // [dho] NOTE INCOMPLETE! TODO finish implementation of non inlined output - 31/08/19
         // const bool PerformInlining = true;
 
@@ -110,35 +113,7 @@ namespace Sempiler.Bundler
                         entitlementsPListContent.Append($"<key>{entitlement.Name}</key>");
                         entitlementsPListContent.AppendLine();
 
-                        switch(entitlement.Type)
-                        {
-                            case EntitlementType.String:{
-                                System.Diagnostics.Debug.Assert(entitlement.Values.Length == 1);
-                                entitlementsPListContent.Append($"<string>{entitlement.Values[0]}</string>");
-                                entitlementsPListContent.AppendLine();
-                            }
-                            break;
-
-                            case EntitlementType.StringArray:{
-                                entitlementsPListContent.Append($"<array>");
-                                entitlementsPListContent.AppendLine();
-                                foreach(var value in entitlement.Values)
-                                {
-                                    entitlementsPListContent.Append($"<string>{value}</string>");
-                                    entitlementsPListContent.AppendLine();
-                                }
-                                entitlementsPListContent.Append($"</array>");
-                                entitlementsPListContent.AppendLine();
-                            }
-                            break;
-
-                            default:{
-                                result.AddMessages(
-                                    new Message(MessageKind.Error, $"Unhandled Entitlement Type for '{((EntitlementType)entitlement.Type).ToString()}' in IOS Bundler" )
-                                );
-                            }
-                            break;
-                        }
+                        PListSerialize(entitlement.Type, entitlement.Values, ref entitlementsPListContent);
                     }
                 }
 
@@ -235,6 +210,17 @@ end");
                     }
                 }
 
+                var capabilitiesPListContent = new System.Text.StringBuilder();
+                {
+                    foreach (var capability in session.Capabilities[artifact.Name])
+                    {
+                        capabilitiesPListContent.Append($"<key>{capability.Name}</key>");
+                        capabilitiesPListContent.AppendLine();
+
+                        PListSerialize(capability.Type, capability.Values, ref capabilitiesPListContent);
+                    }
+                }
+
 
                 AddRawFileIfMissing(ofc, $"./{artifact.Name}/Info.plist",
 $@"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -273,7 +259,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 					<key>UISceneConfigurationName</key>
 					<string>Default Configuration</string>
 					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<string>$(PRODUCT_MODULE_NAME).{SceneDelegateClassSymbolName}</string>
 				</dict>
 			</array>
 		</dict>
@@ -298,6 +284,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
     {permissionPListContent.ToString()}
+    {capabilitiesPListContent.ToString()}
 </dict>
 </plist>");
 
@@ -318,6 +305,40 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
             return result;
         }
 
+        private static void PListSerialize(ConfigurationPrimitive type, string[] values, ref System.Text.StringBuilder pListContent)
+        {
+            switch(type)
+            {
+                case ConfigurationPrimitive.String:{
+                    System.Diagnostics.Debug.Assert(values.Length == 1);
+                    pListContent.Append($"<string>{values[0]}</string>");
+                    pListContent.AppendLine();
+                }
+                break;
+
+                case ConfigurationPrimitive.StringArray:{
+                    pListContent.Append($"<array>");
+                    pListContent.AppendLine();
+                    foreach(var value in values)
+                    {
+                        pListContent.Append($"<string>{value}</string>");
+                        pListContent.AppendLine();
+                    }
+                    pListContent.Append($"</array>");
+                    pListContent.AppendLine();
+                }
+                break;
+
+                default:{
+                    System.Diagnostics.Debug.Assert(
+                        false,
+                        $"Unhandled Entitlement Type for '{((ConfigurationPrimitive)type).ToString()}' in IOS Bundler"
+                    );
+                }
+                break;
+            }
+        }
+
 
         private static Result<object> SwiftInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
@@ -336,6 +357,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 
             // [dho] the component (eg. file) that contains the entrypoint view for the application - 31/08/19
             var entrypointComponent = default(Component);
+            var entrypointInlined = default(ObjectTypeDeclaration);
 
             // [dho] the first view to be rendered for the application - 31/08/19
             // var entrypointView = default(ObjectTypeDeclaration);
@@ -382,6 +404,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                         {
                             // [dho] the SceneDelegate will use this information to wire up the entrypoint - 28/06/19
                             entrypointComponent = component;
+                            entrypointInlined = r.Value;
                             // entrypointView = r.Value;
                         }
                         // [dho] any code that was outside an artifact root is just emitted without a class wrapper, so we have a way
@@ -456,10 +479,36 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                 //     NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), @"import UIKit").Node
                 // }, SemanticRole.None);
 
+
+
+                // [dho] we will expose the launch args to the user entrypoint function for the app if they have specified
+                // a parameter declaration for it, eg `export default main(args : { [key : UIApplication.LaunchOptionsKey] : Any })` - 29/09/19
+                // [dho] TODO investigate whether to provide a universal API for launch args across platforms.. is that counter to the Sempiler tenets? - 29/09/19
+                var requiresLaunchArgsAccess = false;
+                {
+                    foreach(var member in entrypointInlined.Members)
+                    {
+                        if(member.Kind == SemanticKind.MethodDeclaration)
+                        {
+                            var methodDecl = ASTNodeFactory.MethodDeclaration(ast, member);
+
+                            if(ASTNodeHelpers.IsIdentifierWithName(ast, methodDecl.Name, EntrypointSymbolName))
+                            {
+                                // [dho] for now just assuming that any parameter would be a reference to the 
+                                // launch args - 29/09/19
+                                requiresLaunchArgsAccess = methodDecl.Parameters.Length > 0;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+
+
                 var appDelegateClass = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
                 {
                     ASTHelpers.Connect(ast, appDelegateClass.ID, new[] {
-                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "AppDelegate").Node
+                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), AppDelegateClassSymbolName).Node
                     }, SemanticRole.Name);
 
                     // [dho] add the entrypoint annotation `@UIApplicationMain` - 02/07/19
@@ -493,6 +542,14 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                         }
                     }
 
+                    if(requiresLaunchArgsAccess)
+                    {
+                        ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { 
+                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+                                $"static var {entrypointComponent.ID}LaunchOptions: [UIApplication.LaunchOptionsKey: Any]?").Node
+                         }, SemanticRole.Member);
+                    }
+
                     var applicationFn = NodeFactory.MethodDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
                     {
                         ASTHelpers.Connect(ast, applicationFn.ID, new[] {
@@ -512,6 +569,14 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                             }, SemanticRole.Name);
 
                             ASTHelpers.Connect(ast, applicationFn.ID, new[] { returnType.Node }, SemanticRole.Type);
+                        }
+
+                        if(requiresLaunchArgsAccess)
+                        {
+                            topLevelExpressions.Add(
+                                //launchOptions
+                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"{AppDelegateClassSymbolName}.{entrypointComponent.ID}LaunchOptions = launchOptions").Node
+                            );
                         }
 
 
@@ -576,7 +641,7 @@ func application(_ application: UIApplication, didDiscardSceneSessions sceneSess
                 var sceneDelegateClass = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
                 {
                     ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] {
-                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "SceneDelegate").Node
+                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), SceneDelegateClassSymbolName).Node
                     }, SemanticRole.Name);
 
                     // [dho] scene delegate interfaces - 25/06/19
@@ -637,13 +702,15 @@ func application(_ application: UIApplication, didDiscardSceneSessions sceneSess
                         }, SemanticRole.Parameter);
 
 
+                        var entrypointInvocationArgString = requiresLaunchArgsAccess ? $"{AppDelegateClassSymbolName}.{entrypointComponent.ID}LaunchOptions ?? [:]" : string.Empty;
+
                         var body = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
                         {
                             ASTHelpers.Connect(ast, body.ID, new[] {
                                 NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
     $@"if let windowScene = scene as? UIWindowScene {{
             let window = UIWindow(windowScene: windowScene)
-            window.rootViewController = UIHostingController(rootView: {ToInlinedObjectTypeClassIdentifier(ast, entrypointComponent.Node)}.{EntrypointSymbolName}())
+            window.rootViewController = UIHostingController(rootView: {ToInlinedObjectTypeClassIdentifier(ast, entrypointComponent.Node)}.{EntrypointSymbolName}({entrypointInvocationArgString}))
             self.window = window
             window.makeKeyAndVisible()
         }}").Node
@@ -857,8 +924,8 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
             {
                 // [dho] extracts the code that should be executed in the body of the 
                 // entrypoint function so it can be wrapped up in a different way - 31/08/19
-                var userCodeBody = result.AddMessages(
-                    ProcessEntrypoint(session, artifact, ast, component, inlinerInfo.Entrypoint, inlinerInfo.EntrypointUserCode, token)
+                var (userCodeParams, userCodeBody) = result.AddMessages(
+                    GetEntrypointParamsAndBody(session, artifact, ast, component, inlinerInfo.Entrypoint, inlinerInfo.EntrypointUserCode, token)
                 );
 
                 if (HasErrors(result) || token.IsCancellationRequested) return result;
@@ -886,6 +953,9 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
                         NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), EntrypointSymbolName).Node
 
                     }, SemanticRole.Name);
+
+
+                    ASTHelpers.Connect(ast, entrypointMethod.ID, userCodeParams, SemanticRole.Parameter);
 
                     var returnType = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
                     {
@@ -1052,14 +1122,16 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
             return result;
         }
 
-        private static Result<Node> ProcessEntrypoint(Session session, Artifact artifact, RawAST ast, Component component, Node entrypoint, Node entrypointUserCode, CancellationToken token)
+        private static Result<(Node[], Node)> GetEntrypointParamsAndBody(Session session, Artifact artifact, RawAST ast, Component component, Node entrypoint, Node entrypointUserCode, CancellationToken token)
         {
-            var result = new Result<Node>();
+            var result = new Result<(Node[], Node)>();
 
             if (entrypoint != null)
             {
                 if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
                 {
+                    // [dho] TODO CLEANUP HACK to get function parameters!! - 29/09/19
+                    var userCodeParams = ASTHelpers.QueryEdgeNodes(ast, entrypointUserCode.ID, SemanticRole.Parameter);
                     // [dho] TODO CLEANUP HACK to get function body!! - 29/06/19
                     var userCodeBody = ASTHelpers.GetSingleMatch(ast, entrypointUserCode.ID, SemanticRole.Body);
 
@@ -1098,7 +1170,7 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
                         }
                     }
 
-                    result.Value = userCodeBody;
+                    result.Value = (userCodeParams, userCodeBody);
                 }
                 else
                 {
@@ -1111,6 +1183,11 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
                     );
                 }
             }
+            else
+            {
+                result.Value = (default(Node[]), default(Node));
+            }
+            
 
             return result;
         }
