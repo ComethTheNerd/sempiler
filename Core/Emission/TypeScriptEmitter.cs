@@ -1134,7 +1134,7 @@ namespace Sempiler.Emission
             context.Emission.AppendBelow(node, "try ");
 
             result.AddMessages(
-                EmitBlockLike(node.Subject, node.Node, childContext, token)
+                EmitBlockLike(node.Body, node.Node, childContext, token)
             );
             
             foreach(var (member, hasNext) in ASTNodeHelpers.IterateMembers(node.Clauses))

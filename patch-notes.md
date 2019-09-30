@@ -1,5 +1,9 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 30/09/19
+- Fix for body of error trap (eg. `try`) not being emitted by any target emitter
+- Implemented error trap emission for Swift (`try/catch`)
+
 # 🗓 29/09/19
 - Added support for `addCapability(name : string, value : string | string[])` compile time API function
 - Added support for `isTargetLanguage(name : string) : bool` compile time API function
