@@ -1,3 +1,6 @@
+# 🗓 30/09/19
+- 🐛 Matching property name identifier and value identifier causes stack overflow when trying to find reference matches, eg. `let remoteCommandManager = new Bar(...{ foo })` OR `let remoteCommandManager = new Bar(...{ foo : foo })` (NOTE: did some work already to fix this kind of thing but this may be a different issue) *[dho]*
+
 # 🗓 26/09/19
 - 🐛 `addDependency` should dedup, and also complain if the input code asks adds the same library multiple times with different version specifiers *[dho]*
 
@@ -24,7 +27,7 @@
 
 
 # 🗓 14/09/19
-- 🐛 compiler throws exception if it finds codegen in properties: 
+- 🐛 **(CANNOT REPRO 30/09/19 TODO CHECK! *[dho]*)**  compiler throws exception if it finds codegen in properties: 
 ```typescript
 const a = new Foo(...{
     b : #codegen `...`

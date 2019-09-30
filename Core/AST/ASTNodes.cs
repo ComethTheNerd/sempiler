@@ -2745,9 +2745,9 @@ namespace Sempiler.AST
         {
         }
 
-        public Node Subject
+        public Node[] Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Body);
         }
 
         public Node[] Clauses
