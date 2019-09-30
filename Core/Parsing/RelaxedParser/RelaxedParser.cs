@@ -4944,6 +4944,7 @@ namespace Sempiler.Parsing
                 var range = new Range(startPos, lexer.Pos);
                 var errorTrapJunction = NodeFactory.ErrorTrapJunction(context.AST, CreateOrigin(range, lexer, context));
 
+                result.AddMessages(AddOutgoingEdges(errorTrapJunction, body, SemanticRole.Body));
                 result.AddMessages(AddOutgoingEdges(errorTrapJunction, clauses, SemanticRole.Clause));
 
                 result.Value = result.AddMessages(FinishNode(errorTrapJunction, lexer, context, ct));

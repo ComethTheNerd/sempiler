@@ -855,12 +855,59 @@ namespace Sempiler.Emission
 
         public override Result<object> EmitErrorHandlerClause(ErrorHandlerClause node, Context context, CancellationToken token)
         {
-            return base.EmitErrorHandlerClause(node, context, token);
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+            // // childContext.Parent = node;
+
+            context.Emission.AppendBelow(node, "catch ");
+
+            var expression = node.Expression;
+            var body = node.Body;
+
+            if(expression.Length == 1)
+            {
+
+                result.AddMessages(
+                    EmitNode(expression[0], childContext, token)
+                );
+            }
+            else if(expression.Length > 1)
+            {
+                result.AddMessages(new NodeMessage(MessageKind.Error, $"Expected at most one expression but found {expression.Length}", node)
+                {
+                    Hint = GetHint(node.Origin),
+                    Tags = DiagnosticTags
+                });
+            }
+            
+
+            result.AddMessages(
+                EmitBlockLike(body, node.Node, childContext, token)
+            );
+
+            return result;
         }
 
         public override Result<object> EmitErrorTrapJunction(ErrorTrapJunction node, Context context, CancellationToken token)
         {
-            return base.EmitErrorTrapJunction(node, context, token);
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+            // // childContext.Parent = node;
+
+            context.Emission.AppendBelow(node, "do ");
+
+            result.AddMessages(
+                EmitBlockLike(node.Body, node.Node, childContext, token)
+            );
+            
+            foreach(var (member, hasNext) in ASTNodeHelpers.IterateMembers(node.Clauses))
+            {
+                result.AddMessages(EmitNode(member, childContext, token));
+            }
+
+            return result;
         }
 
         public override Result<object> EmitEvalToVoid(EvalToVoid node, Context context, CancellationToken token)
