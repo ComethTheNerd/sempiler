@@ -1,4 +1,4 @@
-🔜 **I'm in the process of migrating the project to this repo and writing good docs... Please treat as read only for now! 🙈**
+🔜 **I'm in the process of migrating the project to this repo and writing good docs... Feedback welcome! 🙈**
 
 # Sempiler 💎
 Popular solutions for x-platform programming offer convenience to the developer at the expense of the user experience. 
@@ -32,7 +32,7 @@ Sempiler empowers teams to introspect, instrument, and optimise their code, from
 - Multiple artifact generation from single codebase
 
 ## Usage 🚀
-There compiler can be leveraged in several ways.
+The compiler can be leveraged in several ways.
 
 ### Proto
 The `Proto` project can be built and then passed a single input file path.
