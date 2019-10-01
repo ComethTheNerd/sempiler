@@ -1,5 +1,10 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 01/10/19
+- Fix for exception caused by lexer reporting wrong position when parsing single identifier parameters
+- Fixed bug when parser was silently eating an extra token in non null expressions (eg. `x!.y`)
+- Added support for parsing maybe null (safe unwraps) (eg `x?.y`)
+
 # 🗓 30/09/19
 - Fix for body of error trap (eg. `try`) not being emitted by any target emitter
 - Implemented error trap emission for Swift (`try/catch`)

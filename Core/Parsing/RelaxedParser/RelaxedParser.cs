@@ -1492,13 +1492,26 @@ namespace Sempiler.Parsing
                 //           ^   - 05/02/19
                 else if (token.Kind == SyntaxKind.ExclamationToken && !token.PrecedingLineBreak)
                 {
-                    lexer.Pos = lookAhead.Pos;
-
-                    token = result.AddMessages(NextToken(lookAhead, context, ct));
-
                     var subject = expression;
 
                     expression = result.AddMessages(FinishNode(NodeFactory.NotNull(
+                        context.AST,
+                        CreateOrigin(token, lookAhead, context)
+                    ), lookAhead, context, ct));
+
+                    result.AddMessages(AddOutgoingEdges(context.AST, expression, subject, SemanticRole.Subject));
+
+                    lexer.Pos = lookAhead.Pos;
+
+                    token = result.AddMessages(NextToken(lookAhead, context, ct));
+                }
+                // [dho] `exp?` 
+                //           ^   - 01/10/19
+                else if (token.Kind == SyntaxKind.QuestionToken && !token.PrecedingLineBreak)
+                {
+                    var subject = expression;
+
+                    expression = result.AddMessages(FinishNode(NodeFactory.MaybeNull(
                         context.AST,
                         CreateOrigin(token, lookAhead, context)
                     ), lookAhead, context, ct));
@@ -1978,7 +1991,7 @@ namespace Sempiler.Parsing
                     var left = exp;
 
                     var right = result.AddMessages(
-                        ParseAssignmentExpressionOrHigher(token, lexer, expContext, ct)
+                        ParseAssignmentExpressionOrHigher(token, lookAhead, expContext, ct)
                     );
 
                     lexer.Pos = lookAhead.Pos;
