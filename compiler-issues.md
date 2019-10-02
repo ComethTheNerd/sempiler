@@ -1,3 +1,7 @@
+# 🗓 02/10/19
+- 🐛 `ImportInfo` fails to find symbolic references to imported clauses (eg. `import { A, B, C } from "../x";`). In this case they are types that referred to symbolically in type parameters and type annotations (need to investigate whether it applies to only types, or all symbols - maybe types are considered inelligible for currently symbolic reference matching)  *[dho]*
+- 🐛 Firebase Functions Bundler currently rewrites import declarations to require statements because imports would be invalid in inlined IIFEs, however when importing types this will be incorrect as the TypeScript compiler erases types during compilation. What we need to do instead is rewrite the imported symbol name and hoist all imports to the top level, and let the TypeScript compiler remove those that refer to types )  *[dho]*
+
 # 🗓 30/09/19
 - 🐛 Matching property name identifier and value identifier causes stack overflow when trying to find reference matches, eg. `let remoteCommandManager = new Bar(...{ foo })` OR `let remoteCommandManager = new Bar(...{ foo : foo })` (NOTE: did some work already to fix this kind of thing but this may be a different issue) *[dho]*
 

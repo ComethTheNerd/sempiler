@@ -367,6 +367,8 @@ app.use(cors({{ origin : true }}));").Node
                 ProcessImports(session, artifact, ast, component, inlinerInfo.Imports, token)
             );
 
+            if(HasErrors(result) || token.IsCancellationRequested) return result;
+
             // [dho] TODO FIX the server inlining code currently treats exports from any file to be a 'route', but I think
             // we only want exports from the artifact entrypoint to be considered 'routes'.. everything else is just an export
             // for sharing symbols between files - 22/09/19

@@ -1,8 +1,16 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 02/10/19
+- Fixed parsing conditional expressions (eg. `x ? y : z`) caused by bug in parsing maybe null (safe unwraps) (eg `x?.y`)
+- Fixed bug parsing not null expressions (eg. `x!.y`)
+- Renamed placeholder name `Sempiler.Parsing.S1` to `Sempiler.Parsing.TokenUtils`
+- Renamed placeholder name `Sempiler.Parsing.Lexer.XToken` to `Sempiler.Parsing.Lexer.Token`
+- Fixed bug in Firebase Functions Bundler when failing to bail out early if a Component import specifier was not resolved
+- Added support to specify the Proto internal duplex socket server port with command line switch (eg. `--p 1234`)
+
 # 🗓 01/10/19
 - Fix for exception caused by lexer reporting wrong position when parsing single identifier parameters
-- Fixed bug when parser was silently eating an extra token in non null expressions (eg. `x!.y`)
+- Fixed bug when parser was silently eating an extra token in not null expressions (eg. `x!.y`)
 - Added support for parsing maybe null (safe unwraps) (eg `x?.y`)
 
 # 🗓 30/09/19

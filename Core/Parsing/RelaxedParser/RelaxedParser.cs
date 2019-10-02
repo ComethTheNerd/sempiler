@@ -14,7 +14,7 @@ using static Sempiler.Diagnostics.DiagnosticsHelpers;
 
 namespace Sempiler.Parsing
 {
-    using Token = Lexer.XToken;
+    using Token = Lexer.Token;
 
     using NodeID = System.String;
 
@@ -1020,6 +1020,11 @@ namespace Sempiler.Parsing
             return !token.PrecedingLineBreak && token.Kind == SyntaxKind.LessThanToken;
         }
 
+        private bool IsDotOnSameLine(Token token, Lexer lexer, Context context, CancellationToken ct)
+        {
+            return !token.PrecedingLineBreak && token.Kind == SyntaxKind.DotToken;
+        }
+
         private bool IsIdentifierOrOpenBraceOrExport(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
             if (token.Kind == SyntaxKind.OpenBraceToken)
@@ -1122,7 +1127,7 @@ namespace Sempiler.Parsing
                 {
                     // We either have a binary operator here, or we're finished.  We call
                     // reScanGreaterToken so that we merge token sequences like > and = into >=
-                    token = result.AddMessages(S1.ReScanGreaterThanToken(token, lookAhead));
+                    token = result.AddMessages(TokenUtils.ReScanGreaterThanToken(token, lookAhead));
                 }
 
                 var newPrecedence = GetBinaryOperatorPrecedence(token, lookAhead, context, ct);
@@ -1492,35 +1497,51 @@ namespace Sempiler.Parsing
                 //           ^   - 05/02/19
                 else if (token.Kind == SyntaxKind.ExclamationToken && !token.PrecedingLineBreak)
                 {
-                    var subject = expression;
+                    if(LookAhead(IsDotOnSameLine, lookAhead, context, ct).Item1)
+                    {
+                        lexer.Pos = lookAhead.Pos;
 
-                    expression = result.AddMessages(FinishNode(NodeFactory.NotNull(
-                        context.AST,
-                        CreateOrigin(token, lookAhead, context)
-                    ), lookAhead, context, ct));
+                        var subject = expression;
 
-                    result.AddMessages(AddOutgoingEdges(context.AST, expression, subject, SemanticRole.Subject));
+                        expression = result.AddMessages(FinishNode(NodeFactory.NotNull(
+                            context.AST,
+                            CreateOrigin(token, lookAhead, context)
+                        ), lookAhead, context, ct));
 
-                    lexer.Pos = lookAhead.Pos;
+                        result.AddMessages(AddOutgoingEdges(context.AST, expression, subject, SemanticRole.Subject));
 
-                    token = result.AddMessages(NextToken(lookAhead, context, ct));
+                        token = result.AddMessages(NextToken(lookAhead, context, ct));
+                    }
+                    else
+                    {
+                        result.Value = expression;
+                        break;
+                    }
                 }
                 // [dho] `exp?` 
                 //           ^   - 01/10/19
                 else if (token.Kind == SyntaxKind.QuestionToken && !token.PrecedingLineBreak)
                 {
-                    var subject = expression;
+                    if(LookAhead(IsDotOnSameLine, lookAhead, context, ct).Item1)
+                    {
+                        lexer.Pos = lookAhead.Pos;
 
-                    expression = result.AddMessages(FinishNode(NodeFactory.MaybeNull(
-                        context.AST,
-                        CreateOrigin(token, lookAhead, context)
-                    ), lookAhead, context, ct));
+                        var subject = expression;
 
-                    result.AddMessages(AddOutgoingEdges(context.AST, expression, subject, SemanticRole.Subject));
+                        expression = result.AddMessages(FinishNode(NodeFactory.MaybeNull(
+                            context.AST,
+                            CreateOrigin(token, lookAhead, context)
+                        ), lookAhead, context, ct));
 
-                    lexer.Pos = lookAhead.Pos;
+                        result.AddMessages(AddOutgoingEdges(context.AST, expression, subject, SemanticRole.Subject));
 
-                    token = result.AddMessages(NextToken(lookAhead, context, ct));
+                        token = result.AddMessages(NextToken(lookAhead, context, ct));
+                    }
+                    else
+                    {
+                        result.Value = expression;
+                        break;
+                    }
                 }
                 // [dho] if NOT in decorator context - 09/02/19
                 else if (((context.Flags & ContextFlags.DecoratorContext) == 0) &&
@@ -1672,7 +1693,7 @@ namespace Sempiler.Parsing
             {
                 if (token.Kind == SyntaxKind.CloseBraceToken)
                 {
-                    token = result.AddMessages(S1.ReScanTemplateToken(token, lookAhead));
+                    token = result.AddMessages(TokenUtils.ReScanTemplateToken(token, lookAhead));
                 }
 
                 if (HasErrors(result))
@@ -2646,7 +2667,7 @@ namespace Sempiler.Parsing
                     {
                         var result = new Result<Node>();
 
-                        token = result.AddMessages(S1.ReScanSlashToken(token, lexer));
+                        token = result.AddMessages(TokenUtils.ReScanSlashToken(token, lexer));
 
                         if (token.Kind == SyntaxKind.RegularExpressionLiteral)
                         {
@@ -4005,12 +4026,12 @@ namespace Sempiler.Parsing
                     // var lookAhead = lexer.Clone();
 
                     var childContext = ContextHelpers.CloneInKind(context, ContextKind.JsxChildren);
-                    System.Console.WriteLine($"STARTING LOOP is {token.Kind} with lexeme {Lexeme(token, lexer)}\n{lexer.SourceText.Substring(token.StartPos, 50)}");
+                    // System.Console.WriteLine($"STARTING LOOP is {token.Kind} with lexeme {Lexeme(token, lexer)}\n{lexer.SourceText.Substring(token.StartPos, 50)}");
                     while(true)
                     {
-                        token = result.AddMessages(S1.ReScanJSXToken(token, lexer));
+                        token = result.AddMessages(TokenUtils.ReScanJSXToken(token, lexer));
 
-                        System.Console.WriteLine($"The token is {token.Kind} with lexeme {Lexeme(token, lexer)}\n{lexer.SourceText.Substring(token.StartPos, 50)}");
+                        // System.Console.WriteLine($"The token is {token.Kind} with lexeme {Lexeme(token, lexer)}\n{lexer.SourceText.Substring(token.StartPos, 50)}");
                         
                         if(HasErrors(result) || ct.IsCancellationRequested) return result;
 
@@ -4091,7 +4112,7 @@ namespace Sempiler.Parsing
                             return result;
                         }
 
-                        System.Console.WriteLine($"WE'RE GOING ROUND AGAIN WITH {token.Kind} with lexeme {Lexeme(token, lexer)}\n{lexer.SourceText.Substring(token.StartPos, 50)}");
+                        // System.Console.WriteLine($"WE'RE GOING ROUND AGAIN WITH {token.Kind} with lexeme {Lexeme(token, lexer)}\n{lexer.SourceText.Substring(token.StartPos, 50)}");
                     }
                 }
 
@@ -11546,7 +11567,7 @@ namespace Sempiler.Parsing
         {
             if (token.Kind == SyntaxKind.GreaterThanToken)
             {
-                var r = S1.ReScanGreaterThanToken(token, lexer);
+                var r = TokenUtils.ReScanGreaterThanToken(token, lexer);
 
                 if (HasErrors(r))
                 {
@@ -11599,7 +11620,7 @@ namespace Sempiler.Parsing
         {
             if (token.Kind == SyntaxKind.GreaterThanToken)
             {
-                var r = S1.ReScanGreaterThanToken(token, lexer.Clone());
+                var r = TokenUtils.ReScanGreaterThanToken(token, lexer.Clone());
 
                 if (HasErrors(r))
                 {

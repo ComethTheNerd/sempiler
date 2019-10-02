@@ -19,15 +19,8 @@ using Sempiler.Parsing.Diagnostics;
 namespace Sempiler.Parsing
 {
 
-    public static class S1
+    public static class TokenUtils
     {
-        public enum LanguageVariant
-        {
-            Standard,
-            Jsx
-        }
-
-
         public static Dictionary<string, SyntaxKind> DefaultTokenMap = new Dictionary<string, SyntaxKind>
 {
 { "{", SyntaxKind.OpenBraceToken },
@@ -149,9 +142,9 @@ namespace Sempiler.Parsing
             return false;
         }
 
-        public static Result<Lexer.XToken> ReScanGreaterThanToken(Lexer.XToken token, Lexer lexer)
+        public static Result<Lexer.Token> ReScanGreaterThanToken(Lexer.Token token, Lexer lexer)
         {
-            var result = new Result<Lexer.XToken>()
+            var result = new Result<Lexer.Token>()
             {
                 Value = token
             };
@@ -216,11 +209,11 @@ namespace Sempiler.Parsing
             return result;
         }
 
-        private static Lexer.XToken MakeToken(string text, int startPos, int endPos, SyntaxKind kind)
+        private static Lexer.Token MakeToken(string text, int startPos, int endPos, SyntaxKind kind)
         {
             var lexeme = text.Substring(startPos, endPos - startPos);
 
-            return new Lexer.XToken()
+            return new Lexer.Token()
             {
                 Kind = kind,
                 Lexeme = lexeme,
@@ -228,9 +221,9 @@ namespace Sempiler.Parsing
             };
         }
 
-        public static Result<Lexer.XToken> ReScanSlashToken(Lexer.XToken token, Lexer lexer)
+        public static Result<Lexer.Token> ReScanSlashToken(Lexer.Token token, Lexer lexer)
         {
-            var result = new Result<Lexer.XToken>();
+            var result = new Result<Lexer.Token>();
 
             // [dho] ensure lexer is aligned to correct position to start - 30/03/19
             lexer.Pos = token.StartPos;
@@ -301,7 +294,7 @@ namespace Sempiler.Parsing
                 
                 var lexeme = text.Substring(token.StartPos, lexer.Pos - token.StartPos);
 
-                result.Value = new Lexer.XToken()
+                result.Value = new Lexer.Token()
                 {
                     Kind = SyntaxKind.RegularExpressionLiteral,
                     Lexeme = lexeme,
@@ -316,7 +309,7 @@ namespace Sempiler.Parsing
             return result;
         }
 
-        public static Result<Lexer.XToken> ReScanTemplateToken(Lexer.XToken token, Lexer lexer)
+        public static Result<Lexer.Token> ReScanTemplateToken(Lexer.Token token, Lexer lexer)
         {
             // [dho] ensure lexer is aligned to correct position to start - 30/03/19
             lexer.Pos = token.StartPos;
@@ -327,7 +320,7 @@ namespace Sempiler.Parsing
             }
             else
             {
-                var result = new Result<Lexer.XToken>();
+                var result = new Result<Lexer.Token>();
                 
                 result.AddMessages(
                     new ParsingMessage(MessageKind.Error, "'reScanTemplateToken' should only be called on a '}'", new Range(token.StartPos, token.StartPos + 1))
@@ -337,7 +330,7 @@ namespace Sempiler.Parsing
             }
         }
 
-        public static Result<Lexer.XToken> ReScanJSXToken(Lexer.XToken token, Lexer lexer)
+        public static Result<Lexer.Token> ReScanJSXToken(Lexer.Token token, Lexer lexer)
         {
             lexer.Pos = token.StartPos;
 
@@ -475,7 +468,7 @@ namespace Sempiler.Parsing
         
         private static readonly int _mergeConflictMarkerLength = "<<<<<<<".Length;
 
-        public class XToken
+        public class Token
         {
             // private int LineStartPos;
             public bool PrecedingLineBreak;
@@ -501,7 +494,7 @@ namespace Sempiler.Parsing
         {
             SourceText = sourceText;
             Pos = pos;
-            TokenMap = S1.DefaultTokenMap;
+            TokenMap = TokenUtils.DefaultTokenMap;
             LineStarts = ComputeLineStarts(SourceText);
         }
 
@@ -582,12 +575,12 @@ namespace Sempiler.Parsing
 
             while (pos < text.Length)
             {
-                var ch = S1.CharCodeAt(text, pos);
+                var ch = TokenUtils.CharCodeAt(text, pos);
                 pos++;
                 switch (ch)
                 {
                     case (int)CharacterCodes.CarriageReturn:
-                        if (S1.CharCodeAt(text, pos) == (int)CharacterCodes.LineFeed)
+                        if (TokenUtils.CharCodeAt(text, pos) == (int)CharacterCodes.LineFeed)
                         {
                             pos++;
                         }
@@ -598,7 +591,7 @@ namespace Sempiler.Parsing
                         lineStart = pos;
                         break;
                     default:
-                        if (ch > (int)CharacterCodes.MaxAsciiCharacter && S1.IsLineBreak(ch))
+                        if (ch > (int)CharacterCodes.MaxAsciiCharacter && TokenUtils.IsLineBreak(ch))
                         {
                             result.Add(lineStart);
                             lineStart = pos;
@@ -610,11 +603,11 @@ namespace Sempiler.Parsing
             return result;
         }
 
-        public Result<XToken> NextToken()
+        public Result<Token> NextToken()
         {
-            XToken token = new XToken();
+            Token token = new Token();
 
-            var result = new Result<XToken>()
+            var result = new Result<Token>()
             {
                 // [dho] to make life easier in a messy algorithm
                 // below we just set the result value up front, and it's
@@ -643,11 +636,11 @@ namespace Sempiler.Parsing
                     
                     return result;
                 }
-                var ch = S1.CharCodeAt(SourceText, Pos);
+                var ch = TokenUtils.CharCodeAt(SourceText, Pos);
 
                 if (ch == (int)CharacterCodes.Hash)
                 {
-                    if(S1.IsDirective(SourceText, Pos))
+                    if(TokenUtils.IsDirective(SourceText, Pos))
                     {
                         token.Lexeme = ScanDirective();
 
@@ -656,7 +649,7 @@ namespace Sempiler.Parsing
                         return result;
                     }
 
-                    if(Pos == 0 && S1.IsShebangTrivia(SourceText, Pos))
+                    if(Pos == 0 && TokenUtils.IsShebangTrivia(SourceText, Pos))
                     {
                         token.Lexeme = ScanShebangTrivia();
 
@@ -695,7 +688,7 @@ namespace Sempiler.Parsing
                         // {
                             if (ch == (int)CharacterCodes.CarriageReturn && 
                                         Pos + 1 < end && 
-                                        S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.LineFeed)
+                                        TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.LineFeed)
                             {
                                 Pos += 2;
                             }
@@ -726,7 +719,7 @@ namespace Sempiler.Parsing
                         // }
                         // else
                         // {
-                            while (Pos < end && S1.IsWhiteSpaceSingleLine(S1.CharCodeAt(SourceText, Pos)))
+                            while (Pos < end && TokenUtils.IsWhiteSpaceSingleLine(TokenUtils.CharCodeAt(SourceText, Pos)))
                             {
                                 Pos++;
                             }
@@ -741,9 +734,9 @@ namespace Sempiler.Parsing
                         }
                     case (int)CharacterCodes.Exclamation:
                     caseLabel7: {
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
-                            if (S1.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
+                            if (TokenUtils.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
                             {
                                 Pos += 3;
                                 token.Kind = SyntaxKind.ExclamationEqualsEqualsToken;
@@ -797,7 +790,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Percent:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.PercentEqualsToken;
@@ -812,14 +805,14 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Ampersand:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Ampersand)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Ampersand)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.AmpersandAmpersandToken;
 
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.AmpersandEqualsToken;
@@ -847,16 +840,16 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Asterisk:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.AsteriskEqualsToken;
                             
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Asterisk)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Asterisk)
                         {
-                            if (S1.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
+                            if (TokenUtils.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
                             {
                                 Pos += 3;
                                 token.Kind = SyntaxKind.AsteriskAsteriskEqualsToken;
@@ -874,14 +867,14 @@ namespace Sempiler.Parsing
                         return result;
                     }
                     case (int)CharacterCodes.Plus:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Plus)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Plus)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.PlusPlusToken;
                             
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.PlusEqualsToken;
@@ -908,7 +901,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Minus:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Minus)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Minus)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.MinusMinusToken;
@@ -917,7 +910,7 @@ namespace Sempiler.Parsing
 
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.MinusEqualsToken;
@@ -935,7 +928,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Dot:{
-                        if (S1.IsDigit(S1.CharCodeAt(SourceText, Pos + 1)))
+                        if (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos + 1)))
                         {
                             var (messages, lexeme) = ScanNumber();
 
@@ -946,8 +939,8 @@ namespace Sempiler.Parsing
 
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Dot && 
-                            S1.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Dot)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Dot && 
+                            TokenUtils.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Dot)
                         {
                             Pos += 3;
                             token.Kind = SyntaxKind.DotDotDotToken;
@@ -963,14 +956,14 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Slash:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash)
                         {
                             var commentStart = Pos;
 
                             Pos += 2;
                             while (Pos < end)
                             {
-                                if (S1.IsLineBreak(S1.CharCodeAt(SourceText, Pos)))
+                                if (TokenUtils.IsLineBreak(TokenUtils.CharCodeAt(SourceText, Pos)))
                                 {
                                     break;
                                 }
@@ -990,7 +983,7 @@ namespace Sempiler.Parsing
                             // }
                         }
 
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Asterisk)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Asterisk)
                         {
                             var commentStart = Pos;
 
@@ -998,15 +991,15 @@ namespace Sempiler.Parsing
                             var commentClosed = false;
                             while (Pos < end)
                             {
-                                var ch2 = S1.CharCodeAt(SourceText, Pos);
+                                var ch2 = TokenUtils.CharCodeAt(SourceText, Pos);
                                 if (ch2 == (int)CharacterCodes.Asterisk && 
-                                    S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash)
+                                    TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash)
                                 {
                                     Pos += 2;
                                     commentClosed = true;
                                     break;
                                 }
-                                if (S1.IsLineBreak(ch2))
+                                if (TokenUtils.IsLineBreak(ch2))
                                 {
                                     token.PrecedingLineBreak = true;
                                 }
@@ -1041,7 +1034,7 @@ namespace Sempiler.Parsing
                                 return result;
                             // }
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.SlashEqualsToken;
@@ -1056,7 +1049,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes._0:{
-                        if (Pos + 2 < end && (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.X || S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.x))
+                        if (Pos + 2 < end && (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.X || TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.x))
                         {
                             Pos += 2;
                             var value = ScanMinimumNumberOfHexDigits(1);
@@ -1074,7 +1067,7 @@ namespace Sempiler.Parsing
 
                             return result;
                         }
-                        else if (Pos + 2 < end && (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.B || S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.b))
+                        else if (Pos + 2 < end && (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.B || TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.b))
                         {
                             Pos += 2;
                             var value = ScanBinaryOrOctalDigits(/* base */ 2);
@@ -1091,7 +1084,7 @@ namespace Sempiler.Parsing
                             
                             return result;
                         }
-                        else if (Pos + 2 < end && (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.O || S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.o))
+                        else if (Pos + 2 < end && (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.O || TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.o))
                         {
                             Pos += 2;
                             var value = ScanBinaryOrOctalDigits(/* base */ 8);
@@ -1109,7 +1102,7 @@ namespace Sempiler.Parsing
                             
                             return result;
                         }
-                        else if (Pos + 1 < end && S1.IsOctalDigit(S1.CharCodeAt(SourceText, Pos + 1)))
+                        else if (Pos + 1 < end && TokenUtils.IsOctalDigit(TokenUtils.CharCodeAt(SourceText, Pos + 1)))
                         {
                             token.Lexeme = "" + ScanOctalDigits();
                             token.Kind = SyntaxKind.NumericLiteral;
@@ -1156,7 +1149,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.LessThan:{
-                        if (S1.IsConflictMarkerTrivia(SourceText, Pos))
+                        if (TokenUtils.IsConflictMarkerTrivia(SourceText, Pos))
                         {
                             result.AddMessages(ScanConflictMarkerTrivia());
 
@@ -1171,9 +1164,9 @@ namespace Sempiler.Parsing
                                 return result;
                             // }
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.LessThan)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.LessThan)
                         {
-                            if (S1.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
+                            if (TokenUtils.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
                             {
                                 Pos += 3;
                                 token.Kind = SyntaxKind.LessThanLessThanEqualsToken;
@@ -1187,7 +1180,7 @@ namespace Sempiler.Parsing
 
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.LessThanEqualsToken;
@@ -1197,8 +1190,8 @@ namespace Sempiler.Parsing
                             return result;
                         }
                         if (//LanguageVariant == LanguageVariant.Jsx &&
-                                                        S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash &&
-                                                        S1.CharCodeAt(SourceText, Pos + 2) != (int)CharacterCodes.Asterisk)
+                                                        TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash &&
+                                                        TokenUtils.CharCodeAt(SourceText, Pos + 2) != (int)CharacterCodes.Asterisk)
                         {   
                             Pos += 2;
                             token.Kind = SyntaxKind.LessThanSlashToken;
@@ -1215,7 +1208,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Equals:{
-                        if (S1.IsConflictMarkerTrivia(SourceText, Pos))
+                        if (TokenUtils.IsConflictMarkerTrivia(SourceText, Pos))
                         {
                             var (messages, _) = ScanConflictMarkerTrivia();
 
@@ -1232,9 +1225,9 @@ namespace Sempiler.Parsing
                                 return result;
                             // }
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
-                            if (S1.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
+                            if (TokenUtils.CharCodeAt(SourceText, Pos + 2) == (int)CharacterCodes.Equals)
                             {
                                 Pos += 3;
                                 token.Kind = SyntaxKind.EqualsEqualsEqualsToken;
@@ -1250,7 +1243,7 @@ namespace Sempiler.Parsing
 
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.GreaterThan)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.GreaterThan)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.EqualsGreaterThanToken;
@@ -1268,7 +1261,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.GreaterThan:{
-                        if (S1.IsConflictMarkerTrivia(SourceText, Pos))
+                        if (TokenUtils.IsConflictMarkerTrivia(SourceText, Pos))
                         {
                             var (messages, _) = ScanConflictMarkerTrivia();
                             
@@ -1317,7 +1310,7 @@ namespace Sempiler.Parsing
                     }
 
                     case (int)CharacterCodes.Caret:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.CaretEqualsToken;
@@ -1340,7 +1333,7 @@ namespace Sempiler.Parsing
                         return result;
                     }
                     case (int)CharacterCodes.Bar:{
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Bar)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Bar)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.BarBarToken;
@@ -1349,7 +1342,7 @@ namespace Sempiler.Parsing
 
                             return result;
                         }
-                        if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Equals)
                         {
                             Pos += 2;
                             token.Kind = SyntaxKind.BarEqualsToken;
@@ -1394,12 +1387,12 @@ namespace Sempiler.Parsing
 
                     case (int)CharacterCodes.Backslash:{
                         var cookedChar = PeekUnicodeEscape();
-                        if (cookedChar >= 0 && S1.IsIdentifierStart(cookedChar/*, _languageVersion*/))
+                        if (cookedChar >= 0 && TokenUtils.IsIdentifierStart(cookedChar/*, _languageVersion*/))
                         {
                             Pos += 6;
-                            var lexeme = S1.StringFromCharCode(cookedChar) + ScanIdentifierParts();
+                            var lexeme = TokenUtils.StringFromCharCode(cookedChar) + ScanIdentifierParts();
                             
-                            token.Kind = S1.GetIdentifierToken(lexeme, TokenMap);
+                            token.Kind = TokenUtils.GetIdentifierToken(lexeme, TokenMap);
                             token.Lexeme = lexeme;
 
                             return result;
@@ -1417,10 +1410,10 @@ namespace Sempiler.Parsing
                     }
 
                     default:{
-                        if (S1.IsIdentifierStart(ch/*, _languageVersion*/))
+                        if (TokenUtils.IsIdentifierStart(ch/*, _languageVersion*/))
                         {
                             Pos++;
-                            while (Pos < end && S1.IsIdentifierPart(ch = S1.CharCodeAt(SourceText, Pos)/*, _languageVersion*/))
+                            while (Pos < end && TokenUtils.IsIdentifierPart(ch = TokenUtils.CharCodeAt(SourceText, Pos)/*, _languageVersion*/))
                             { 
                                 Pos++;
                             }
@@ -1432,17 +1425,17 @@ namespace Sempiler.Parsing
                                 lexeme += ScanIdentifierParts();
                             }
 
-                            token.Kind = S1.GetIdentifierToken(lexeme, TokenMap);
+                            token.Kind = TokenUtils.GetIdentifierToken(lexeme, TokenMap);
                             token.Lexeme = lexeme;
 
                             return result;
                         }
-                        else if (S1.IsWhiteSpaceSingleLine(ch))
+                        else if (TokenUtils.IsWhiteSpaceSingleLine(ch))
                         {
                             Pos++;
                             continue;
                         }
-                        else if (S1.IsLineBreak(ch))
+                        else if (TokenUtils.IsLineBreak(ch))
                         {
                             token.PrecedingLineBreak = true;
                             Pos++;
@@ -1470,7 +1463,7 @@ namespace Sempiler.Parsing
             var result = new Result<string>();
            
             var end = SourceText.Length;
-            var quote = S1.CharCodeAt(SourceText, Pos);
+            var quote = TokenUtils.CharCodeAt(SourceText, Pos);
 
             Pos++;
             
@@ -1491,7 +1484,7 @@ namespace Sempiler.Parsing
 
                     break;
                 }
-                var ch = S1.CharCodeAt(SourceText, Pos);
+                var ch = TokenUtils.CharCodeAt(SourceText, Pos);
                 if (ch == quote)
                 {
                     lexeme += SourceText.Substring(start, Pos - start);
@@ -1512,7 +1505,7 @@ namespace Sempiler.Parsing
 
                     continue;
                 }
-                if (S1.IsLineBreak(ch))
+                if (TokenUtils.IsLineBreak(ch))
                 {
                     lexeme += SourceText.Substring(start, Pos - start);
 
@@ -1536,17 +1529,17 @@ namespace Sempiler.Parsing
             return result;
         }
 
-        public Result<XToken> ScanTemplateAndSetTokenValue()
+        public Result<Token> ScanTemplateAndSetTokenValue()
         {
-            var result = new Result<XToken>();
+            var result = new Result<Token>();
 
-            var token = new XToken();
+            var token = new Token();
             
             var lexeme = "";
 
             var end = SourceText.Length;
 
-            var startedWithBacktick = S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Backtick;
+            var startedWithBacktick = TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Backtick;
             
             Pos++;
             
@@ -1569,7 +1562,7 @@ namespace Sempiler.Parsing
                     break;
                 }
                 
-                var currChar = S1.CharCodeAt(SourceText, Pos);
+                var currChar = TokenUtils.CharCodeAt(SourceText, Pos);
                 
                 if (currChar == (int)CharacterCodes.Backtick)
                 {
@@ -1581,7 +1574,7 @@ namespace Sempiler.Parsing
                     
                     break;
                 }
-                if (currChar == (int)CharacterCodes.Dollar && Pos + 1 < end && S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.OpenBrace)
+                if (currChar == (int)CharacterCodes.Dollar && Pos + 1 < end && TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.OpenBrace)
                 {
                     lexeme += SourceText.Substring(start, Pos - start);
 
@@ -1612,7 +1605,7 @@ namespace Sempiler.Parsing
 
                     Pos++;
                     
-                    if (Pos < end && S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.LineFeed)
+                    if (Pos < end && TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.LineFeed)
                     {
                         Pos++;
                     }
@@ -1657,7 +1650,7 @@ namespace Sempiler.Parsing
                 return result;
             }
 
-            var ch = S1.CharCodeAt(SourceText, Pos);
+            var ch = TokenUtils.CharCodeAt(SourceText, Pos);
             
             Pos++;
             
@@ -1709,7 +1702,7 @@ namespace Sempiler.Parsing
                 }
 
                 case (int)CharacterCodes.u:{
-                    if (Pos < end && S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.OpenBrace)
+                    if (Pos < end && TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.OpenBrace)
                     {
                         // _hasExtendedUnicodeEscape = true;
                         Pos++;
@@ -1733,7 +1726,7 @@ namespace Sempiler.Parsing
 
 
                 case (int)CharacterCodes.CarriageReturn:
-                    if (Pos < end && S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.LineFeed)
+                    if (Pos < end && TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.LineFeed)
                     {
                         Pos++;
                     }
@@ -1762,11 +1755,11 @@ namespace Sempiler.Parsing
             //     new ParsingMessage(MessageKind.Error, "Merge conflict marker encountered", new Range(Pos, Pos))
             // );
 // var s = Pos;
-            var ch = S1.CharCodeAt(SourceText, Pos);
+            var ch = TokenUtils.CharCodeAt(SourceText, Pos);
             var len = SourceText.Length;
             if (ch == (int)CharacterCodes.LessThan || ch == (int)CharacterCodes.GreaterThan)
             {
-                while (Pos < len && !S1.IsLineBreak(S1.CharCodeAt(SourceText, Pos)))
+                while (Pos < len && !TokenUtils.IsLineBreak(TokenUtils.CharCodeAt(SourceText, Pos)))
                 {
                     Pos++;
                 }
@@ -1776,8 +1769,8 @@ namespace Sempiler.Parsing
                 ////Debug.assert(ch ==  (int)CharacterCodes.equals);
                 while (Pos < len)
                 {
-                    var ch2 = S1.CharCodeAt(SourceText, Pos);
-                    if (ch2 == (int)CharacterCodes.GreaterThan && S1.IsConflictMarkerTrivia(SourceText, Pos))
+                    var ch2 = TokenUtils.CharCodeAt(SourceText, Pos);
+                    if (ch2 == (int)CharacterCodes.GreaterThan && TokenUtils.IsConflictMarkerTrivia(SourceText, Pos))
                     {
                         break;
                     }
@@ -1790,11 +1783,11 @@ namespace Sempiler.Parsing
             return result;
         }
 
-        public Result<Lexer.XToken> ScanJSXToken()
+        public Result<Lexer.Token> ScanJSXToken()
         {
-            var token = new XToken();
+            var token = new Token();
 
-            var result = new Result<Lexer.XToken>{ Value = token };
+            var result = new Result<Lexer.Token>{ Value = token };
 
             var start = token.StartPos = Pos;
             var end = SourceText.Length;
@@ -1805,11 +1798,11 @@ namespace Sempiler.Parsing
                 return result;
             }
 
-            var @char = S1.CharCodeAt(SourceText, Pos);
+            var @char = TokenUtils.CharCodeAt(SourceText, Pos);
 
             if (@char == (int)CharacterCodes.LessThan)
             {
-                if (S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash)
+                if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Slash)
                 {
                     Pos += 2;
                     token.Kind = SyntaxKind.LessThanSlashToken;
@@ -1829,7 +1822,7 @@ namespace Sempiler.Parsing
             while (Pos < end)
             {
                 Pos++;
-                @char = S1.CharCodeAt(SourceText, Pos);
+                @char = TokenUtils.CharCodeAt(SourceText, Pos);
 
                 if (@char == (int)CharacterCodes.OpenBrace)
                 {
@@ -1837,7 +1830,7 @@ namespace Sempiler.Parsing
                 }
                 if (@char == (int)CharacterCodes.LessThan)
                 {
-                    if (S1.IsConflictMarkerTrivia(SourceText, Pos))
+                    if (TokenUtils.IsConflictMarkerTrivia(SourceText, Pos))
                     {
                         result.AddMessages(ScanConflictMarkerTrivia());
                         token.Kind = SyntaxKind.ConflictMarkerTrivia;
@@ -1850,11 +1843,11 @@ namespace Sempiler.Parsing
             return result;
         }
 
-        public Result<Lexer.XToken> ScanJSXIdentifier()
+        public Result<Lexer.Token> ScanJSXIdentifier()
         {
-            var token = new XToken();
+            var token = new Token();
 
-            var result = new Result<Lexer.XToken>{ Value = token };
+            var result = new Result<Lexer.Token>{ Value = token };
 
             var start = token.StartPos = Pos;
             var end = SourceText.Length;
@@ -1863,8 +1856,8 @@ namespace Sempiler.Parsing
 
             while (Pos < end)
             {
-                var ch = S1.CharCodeAt(SourceText, Pos);
-                if (ch == (int)CharacterCodes.Minus || ((firstCharPosition == Pos) ? S1.IsIdentifierStart(ch) : S1.IsIdentifierPart(ch)))
+                var ch = TokenUtils.CharCodeAt(SourceText, Pos);
+                if (ch == (int)CharacterCodes.Minus || ((firstCharPosition == Pos) ? TokenUtils.IsIdentifierStart(ch) : TokenUtils.IsIdentifierPart(ch)))
                 {
                     Pos++;
                 }
@@ -1894,18 +1887,18 @@ namespace Sempiler.Parsing
             return result;
         }
 
-        public Result<Lexer.XToken> ScanJSXAttributeValue()
+        public Result<Lexer.Token> ScanJSXAttributeValue()
         {
-            var result = new Result<Lexer.XToken>();
+            var result = new Result<Lexer.Token>();
 
             var start = Pos;
 
-            switch (S1.CharCodeAt(SourceText, Pos))
+            switch (TokenUtils.CharCodeAt(SourceText, Pos))
             {
                 case (int)CharacterCodes.DoubleQuote:
                 case (int)CharacterCodes.SingleQuote:
                 {
-                    var token = new XToken();
+                    var token = new Token();
                     token.Lexeme = result.AddMessages(ScanString(/*allowEscapes*/ false));
                     token.Kind = SyntaxKind.StringLiteral;
 
@@ -1944,9 +1937,9 @@ namespace Sempiler.Parsing
 
             while (Pos < end)
             {
-                var ch = S1.CharCodeAt(SourceText, Pos);
+                var ch = TokenUtils.CharCodeAt(SourceText, Pos);
 
-                if (S1.IsIdentifierPart(ch/*, _languageVersion*/))
+                if (TokenUtils.IsIdentifierPart(ch/*, _languageVersion*/))
                 {
                     Pos++;
                 }
@@ -1954,12 +1947,12 @@ namespace Sempiler.Parsing
                 if (ch == (int)CharacterCodes.Backslash)
                 {
                     ch = PeekUnicodeEscape();
-                    if (!(ch >= 0 && S1.IsIdentifierPart(ch/*, _languageVersion*/)))
+                    if (!(ch >= 0 && TokenUtils.IsIdentifierPart(ch/*, _languageVersion*/)))
                     {
                         break;
                     }
                     result += SourceText.Substring(start, Pos - start);
-                    result += S1.StringFromCharCode(ch);
+                    result += TokenUtils.StringFromCharCode(ch);
                     // Valid Unicode escape is always six characters
                     Pos += 6;
                     start = Pos;
@@ -1981,7 +1974,7 @@ namespace Sempiler.Parsing
             var escapedValue = ScanExactNumberOfHexDigits(numDigits);
             if (escapedValue >= 0)
             {
-                return S1.StringFromCharCode(escapedValue);
+                return TokenUtils.StringFromCharCode(escapedValue);
             }
             else
             {
@@ -2000,9 +1993,9 @@ namespace Sempiler.Parsing
             
             while (true)
             {
-                var ch = S1.CharCodeAt(SourceText, Pos);
+                var ch = TokenUtils.CharCodeAt(SourceText, Pos);
                 var valueOfCh = ch - (int)CharacterCodes._0;
-                if (!S1.IsDigit(ch) || valueOfCh >= radix)
+                if (!TokenUtils.IsDigit(ch) || valueOfCh >= radix)
                 {
                     break;
                 }
@@ -2057,7 +2050,7 @@ namespace Sempiler.Parsing
                 isInvalidExtendedEscape = true;
             }
             else
-            if (S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.CloseBrace)
+            if (TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.CloseBrace)
             {
                 // Only swallow the following character up if it's a '}'.
                 Pos++;
@@ -2082,30 +2075,30 @@ namespace Sempiler.Parsing
             var result = new Result<string>();
 
             var start = Pos;
-            while (S1.IsDigit(S1.CharCodeAt(SourceText, Pos)))
+            while (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
             {
                 Pos++;
             }
-            if (S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Dot)
+            if (TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Dot)
             {
                 Pos++;
-                while (S1.IsDigit(S1.CharCodeAt(SourceText, Pos)))
+                while (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
                 {
                     Pos++;
                 }
             }
             var end = Pos;
-            if (S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.E || S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.e)
+            if (TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.E || TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.e)
             {
                 Pos++;
-                if (S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Plus || S1.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Minus)
+                if (TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Plus || TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Minus)
                 {
                     Pos++;
                 }
-                if (S1.IsDigit(S1.CharCodeAt(SourceText, Pos)))
+                if (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
                 {
                     Pos++;
-                    while (S1.IsDigit(S1.CharCodeAt(SourceText, Pos)))
+                    while (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
                     {
                         Pos++;
                     }
@@ -2132,7 +2125,7 @@ namespace Sempiler.Parsing
         {
             var start = Pos;
             
-            while (S1.IsOctalDigit(S1.CharCodeAt(SourceText, Pos)))
+            while (TokenUtils.IsOctalDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
             {
                 Pos++;
             }
@@ -2153,7 +2146,7 @@ namespace Sempiler.Parsing
 
         private string ScanDirective()
         {
-            var directive = S1.DirectiveRegex.Match(SourceText.Substring(Pos)).Captures[0].Value;
+            var directive = TokenUtils.DirectiveRegex.Match(SourceText.Substring(Pos)).Captures[0].Value;
 
             Pos += directive.Length;
 
@@ -2162,7 +2155,7 @@ namespace Sempiler.Parsing
 
         private string ScanShebangTrivia()
         {
-            var shebang = S1.ShebangTriviaRegex.Match(SourceText).Captures[0].Value;
+            var shebang = TokenUtils.ShebangTriviaRegex.Match(SourceText).Captures[0].Value;
 
             Pos += shebang.Length;
 
@@ -2175,7 +2168,7 @@ namespace Sempiler.Parsing
             var value = 0;
             while (digits < minCount || scanAsManyAsPossible)
             {
-                var ch = S1.CharCodeAt(SourceText, Pos);
+                var ch = TokenUtils.CharCodeAt(SourceText, Pos);
                 if (ch >= (int)CharacterCodes._0 && ch <= (int)CharacterCodes._9)
                 {
                     value = value * 16 + ch - (int)CharacterCodes._0;
@@ -2209,18 +2202,18 @@ namespace Sempiler.Parsing
             Debug.Assert(0x0 <= codePoint && codePoint <= 0x10FFFF);
             if (codePoint <= 65535)
             {
-                return S1.StringFromCharCode(codePoint);
+                return TokenUtils.StringFromCharCode(codePoint);
             }
             var codeUnit1 = (int)Math.Floor(((double)codePoint - 65536) / 1024) + 0xD800;
             var codeUnit2 = ((codePoint - 65536) % 1024) + 0xDC00;
-            return S1.StringFromCharCode(codeUnit1, codeUnit2);
+            return TokenUtils.StringFromCharCode(codeUnit1, codeUnit2);
         }
 
         private int PeekUnicodeEscape()
         {
             var end = SourceText.Length;
 
-            if (Pos + 5 < end && S1.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.u)
+            if (Pos + 5 < end && TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.u)
             {
                 var start = Pos;
                 Pos += 2;
