@@ -4,18 +4,47 @@ using System.Threading;
 using System.Threading.Tasks;
 using Sempiler.AST;
 using Sempiler.Diagnostics;
+using System.Collections.Generic;
 
 namespace Proto
 {
     class Program
     {
+        const string PortSwitch = "--p";
+        const int DefaultPort = 8189;
+
         static int Main(string[] args)
         {
             var result = new Result<object>();
 
             try
             {
-                var task = Compile(args);
+                var inputPaths = new List<string>();
+                var port = DefaultPort;
+
+                for(int i = 0; i < args.Length; ++i)
+                {
+                    var arg = args[i];
+
+                    if(arg == "--p")
+                    {
+                        try
+                        {
+                            port = System.Int32.Parse(args[++i]);
+                        }
+                        catch(Exception e)
+                        {
+                            throw new System.Exception($"Expected integer to follow port switch '{PortSwitch}'");
+                        }
+                    }
+                    else
+                    {
+                        inputPaths.Add(arg);
+                    }
+                }
+
+
+                var task = Compile(port, inputPaths.ToArray());
 
                 task.Wait();
 
@@ -130,13 +159,11 @@ namespace Proto
             );
         }
 
-        async static Task<Result<object>> Compile(string[] inputPaths)
+        async static Task<Result<object>> Compile(int port, string[] inputPaths)
         {
             var result = new Result<object>();
 
             var server = new Sempiler.Core.DuplexSocketServer();
-
-            var port = 8189;
 
             result.AddMessages(server.BindPort(port));
 
