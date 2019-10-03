@@ -1636,6 +1636,7 @@ namespace Sempiler.Emission
                         
                             paramListParens = decl.Type != null || decl.Default != null;
                         }
+
                         result.AddMessages(
                             paramListParens ? 
                                 EmitFunctionParameters(node, childContext, token) : 
@@ -2378,25 +2379,29 @@ namespace Sempiler.Emission
             var type = node.Type;
             var @default = node.Default;
 
-            if (label != null)
+            if(node.Parent.Kind != SemanticKind.LambdaDeclaration)
             {
-                // [dho] only emit the label separately to the parameter name if the label
-                // is different from the name.. otherwise the name alone suffices to represent 
-                // both synctactically - 09/12/18
-                if(label.Kind != SemanticKind.Identifier ||
-                    ASTNodeHelpers.GetLexeme(label) != ASTNodeHelpers.GetLexeme(name))
+                if (label != null)
                 {
-                    result.AddMessages(
-                        EmitNode(label, childContext, token)
-                    );
+                    // [dho] only emit the label separately to the parameter name if the label
+                    // is different from the name.. otherwise the name alone suffices to represent 
+                    // both synctactically - 09/12/18
+                    if(label.Kind != SemanticKind.Identifier ||
+                        ASTNodeHelpers.GetLexeme(label) != ASTNodeHelpers.GetLexeme(name))
+                    {
+                        result.AddMessages(
+                            EmitNode(label, childContext, token)
+                        );
 
-                    context.Emission.Append(node, " ");
+                        context.Emission.Append(node, " ");
+                    }
+                }
+                else
+                {
+                    context.Emission.Append(node, "_ ");
                 }
             }
-            else
-            {
-                context.Emission.Append(node, "_ ");
-            }
+
 
             result.AddMessages(
                 EmitNode(name, childContext, token)

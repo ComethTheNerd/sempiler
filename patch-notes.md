@@ -1,5 +1,11 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 03/10/19
+- iOSBundler generated Podfile now specifier iOS 13.0 as target version, in lieu of making this configurable ultimately
+- Swift/iOSBundler automatic qualifying of instance symbols by prefixing `self.` to instance symbol references inside closures
+- `INamed` interface for AST Nodes that have a `Name` property
+- Fix for passing correct operator token when creating binary expression
+
 # 🗓 02/10/19
 - Fixed parsing conditional expressions (eg. `x ? y : z`) caused by bug in parsing maybe null (safe unwraps) (eg `x?.y`)
 - Fixed bug parsing not null expressions (eg. `x!.y`)

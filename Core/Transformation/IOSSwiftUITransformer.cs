@@ -86,49 +86,55 @@ namespace Sempiler.Transformation
 
             var parameters = node.Parameters;
 
+            {
+                // [dho] because we will emit a struct in SwiftUI, we need to qualify all references
+                // to the original ViewDeclaration parameters with `self.<name>` - 30/06/19
+                SwiftInstanceSymbolTransformer.QualifyReferencesToInstanceSymbols(session, ast, node.Body, parameters, true /* assume bindings */, token);
+            }
+
             // [dho] because we will emit a struct in SwiftUI, we need to qualify all references
                 // to the original ViewDeclaration parameters with `self.<name>` - 30/06/19
-                {
-                    for(int i = 0; i < parameters.Length; ++i)
-                    {
-                        var p = parameters[i];
+                // {
+                //     for(int i = 0; i < parameters.Length; ++i)
+                //     {
+                //         var p = parameters[i];
 
-                        System.Diagnostics.Debug.Assert(p.Kind == SemanticKind.ParameterDeclaration);
+                //         System.Diagnostics.Debug.Assert(p.Kind == SemanticKind.ParameterDeclaration);
 
-                        var parameter = ASTNodeFactory.ParameterDeclaration(ast, p);
+                //         var parameter = ASTNodeFactory.ParameterDeclaration(ast, p);
 
-                        var name = parameter.Name;
+                //         var name = parameter.Name;
                     
-                        var rawParamNameLexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)name).Lexeme;
+                //         var rawParamNameLexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)name).Lexeme;
 
-                        if(rawParamNameLexeme.StartsWith("$"))
-                        {
-                            // [dho] TODO CLEANUP in SwiftUI writing `$<name>` creates a binding reference
-                            // so for now we are reserving that to avoid clashes with the generated Swift code - 30/06/19
-                            result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Parameter cannot start with '$'", p)
-                                {
-                                    Hint = GetHint(p.Origin),
-                                    Tags = DiagnosticTags
-                                }
-                            );
-                        }
+                //         if(rawParamNameLexeme.StartsWith("$"))
+                //         {
+                //             // [dho] TODO CLEANUP in SwiftUI writing `$<name>` creates a binding reference
+                //             // so for now we are reserving that to avoid clashes with the generated Swift code - 30/06/19
+                //             result.AddMessages(
+                //                 new NodeMessage(MessageKind.Error, $"Parameter cannot start with '$'", p)
+                //                 {
+                //                     Hint = GetHint(p.Origin),
+                //                     Tags = DiagnosticTags
+                //                 }
+                //             );
+                //         }
 
-                        var bodyScope = new Scope(node.Body);
+                //         var bodyScope = new Scope(node.Body);
 
-                        bodyScope.Declarations[rawParamNameLexeme] = name;
-                        // [dho] incase it is used as a binding - 30/06/19
-                        // [dho] TODO CLEANUP having to do this..? - 30/06/19
-                        bodyScope.Declarations[$"${rawParamNameLexeme}"] = name;
+                //         bodyScope.Declarations[rawParamNameLexeme] = name;
+                //         // [dho] incase it is used as a binding - 30/06/19
+                //         // [dho] TODO CLEANUP having to do this..? - 30/06/19
+                //         bodyScope.Declarations[$"${rawParamNameLexeme}"] = name;
                     
-                        // var parameter = bodyScope.Declarations[paramName];
+                //         // var parameter = bodyScope.Declarations[paramName];
 
-                        QualifyParameterReferences(session, ast, bodyScope, node.Node, rawParamNameLexeme, token);
-                        // [dho] incase it is used as a binding - 30/06/19
-                        // [dho] TODO CLEANUP having to do this..? - 30/06/19
-                        QualifyParameterReferences(session, ast, bodyScope, node.Node, $"${rawParamNameLexeme}", token);
-                    }
-                }
+                //         QualifyReferences(session, ast, bodyScope, node.Node, rawParamNameLexeme, token);
+                //         // [dho] incase it is used as a binding - 30/06/19
+                //         // [dho] TODO CLEANUP having to do this..? - 30/06/19
+                //         QualifyReferences(session, ast, bodyScope, node.Node, $"${rawParamNameLexeme}", token);
+                //     }
+                // }
 
             // struct
             var swiftUIStructDecl = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
@@ -332,6 +338,7 @@ namespace Sempiler.Transformation
             return result;
         }
 
+
         private Result<Node> GeneratePreview(Session session, RawAST ast, ViewDeclaration node, string viewDeclNameLexeme, Node preview, Context context, CancellationToken token)
         {
             var result = new Result<Node>();
@@ -421,25 +428,6 @@ namespace Sempiler.Transformation
             return result;
         }
 
-        private void QualifyParameterReferences(Session session, RawAST ast, Scope scope, Node viewDecl, string name, CancellationToken token)
-        {
-            var references = LanguageSemantics.Swift.GetUnqualifiedReferenceMatches(session, ast, viewDecl, scope, name, token);
-
-            foreach(var reference in references)
-            {
-                // [dho] replace the unqualified reference to the parameter with a 
-                // qualified access of the form `self.<name>` - 30/06/19
-                var qa = NodeFactory.QualifiedAccess(ast, reference.Origin);
-                {
-                    var incident = NodeFactory.IncidentContextReference(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-                    var member = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), name);
-
-                    ASTHelpers.Connect(ast, qa.ID, new [] { incident.Node }, SemanticRole.Incident);
-                    ASTHelpers.Connect(ast, qa.ID, new [] { member.Node }, SemanticRole.Member);
-                }
-                ASTHelpers.Replace(ast, reference.ID, new [] { qa.Node });
-            }
-        }
 
         protected override Result<object> TransformViewConstruction(Session session, RawAST ast, ViewConstruction node, Context context, CancellationToken token)
         {

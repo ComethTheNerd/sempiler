@@ -68,6 +68,10 @@ namespace Sempiler.AST
         Node[] Arguments { get; } 
     }
 
+    public interface INamed 
+    {
+        Node Name { get; }
+    }
 
 
     public interface IModified
@@ -367,7 +371,7 @@ namespace Sempiler.AST
     }
 
 
-    public class Label : ASTNode
+    public class Label : ASTNode, INamed
     {
         
 
@@ -385,7 +389,7 @@ namespace Sempiler.AST
     /// <summary>
     ///  For expressing a type alias, import alias or some other remapping of symbols
     /// </summary>
-    public abstract class Alias : ASTNode
+    public abstract class Alias : ASTNode, INamed
     {
         
         
@@ -1140,7 +1144,7 @@ namespace Sempiler.AST
 
     // [dho] Equivalent in TypeScript to `T extends { attributes: infer A }` in 
     // `public attributes : T extends { attributes: infer A } ? A : undefined;` - 23/03/19
-    public class NamedTypeQuery : ASTNode
+    public class NamedTypeQuery : ASTNode, INamed
     {
         
         
@@ -1394,7 +1398,7 @@ namespace Sempiler.AST
         }
     }
 
-    public class NamedTypeReference : ASTNode, ITemplated, IAnnotated, IModified
+    public class NamedTypeReference : ASTNode, INamed, ITemplated, IAnnotated, IModified
     {
         public NamedTypeReference(RawAST ast, Node node) : base(ast, node)
         {
@@ -1424,7 +1428,7 @@ namespace Sempiler.AST
         }
     }
 
-    public class NamespaceReference : ASTNode, ITemplated
+    public class NamespaceReference : ASTNode, INamed, ITemplated
     {
 
         public NamespaceReference(RawAST ast, Node node) : base(ast, node)
@@ -1715,7 +1719,7 @@ namespace Sempiler.AST
         // }
     }
 
-    public class NamespaceDeclaration : Declaration, ITemplated
+    public class NamespaceDeclaration : Declaration, INamed, ITemplated
     {
         public NamespaceDeclaration(RawAST ast, Node node) : base(ast, node)
         {
@@ -1741,7 +1745,7 @@ namespace Sempiler.AST
         }
     }
 
-    public abstract class TypeDeclaration : Declaration, ITemplated
+    public abstract class TypeDeclaration : Declaration, INamed, ITemplated
     {
         public TypeDeclaration(RawAST ast, Node node) : base(ast, node)
         {
@@ -1803,14 +1807,8 @@ namespace Sempiler.AST
         { }
     }
 
-    public class FieldSignature : ASTNode, IAnnotated, IModified
+    public class FieldSignature : ASTNode, INamed, IAnnotated, IModified
     {
-        
-        
-        
-        
-        
-
         public FieldSignature(RawAST ast, Node node) : base(ast, node)
         {
             
@@ -1904,11 +1902,8 @@ namespace Sempiler.AST
         }
     }
 
-    public class EnumerationMemberDeclaration : Declaration
+    public class EnumerationMemberDeclaration : Declaration, INamed
     {
-                
-        
-
         public EnumerationMemberDeclaration(RawAST ast, Node node) : base(ast, node)
         {
         }
@@ -1932,7 +1927,7 @@ namespace Sempiler.AST
         Node Type { get; }
     }
 
-    public abstract class FunctionLikeDeclaration : Declaration, IFunctionLike
+    public abstract class FunctionLikeDeclaration : Declaration, INamed, IFunctionLike
     {
         
         protected FunctionLikeDeclaration(RawAST ast, Node node) : base(ast, node)
@@ -1970,7 +1965,7 @@ namespace Sempiler.AST
         }
     }
 
-    public abstract class FunctionLikeSignature : ASTNode, IFunctionLike
+    public abstract class FunctionLikeSignature : ASTNode, INamed, IFunctionLike
     {
         protected FunctionLikeSignature(RawAST ast, Node node) : base(ast, node)
         { }
@@ -2149,7 +2144,7 @@ namespace Sempiler.AST
     // as named type construction because `Foo()` (stack allocation - C++ etc.) would
     // just be treated as an Invocation (because we cannot verify `Foo` is a type, rather
     // than just a function name) - 04/10/18 
-    public class NamedTypeConstruction : ASTNode, ITemplated, IArgumented
+    public class NamedTypeConstruction : ASTNode, INamed, ITemplated, IArgumented
     {
     
         public NamedTypeConstruction(RawAST ast, Node node) : base(ast, node)
@@ -2359,7 +2354,7 @@ namespace Sempiler.AST
         }
     }
 
-    public class DestructuredMember : ASTNode
+    public class DestructuredMember : ASTNode, INamed
     {
         
         
@@ -2409,15 +2404,8 @@ namespace Sempiler.AST
         }
     }
 
-    public class ParameterDeclaration : Declaration, IAnnotated, IModified
+    public class ParameterDeclaration : Declaration, INamed, IAnnotated, IModified
     {
-        
-        
-        
-        
-        
-        
-
         public ParameterDeclaration(RawAST ast, Node node) : base(ast, node)
         { }
 
@@ -2442,7 +2430,7 @@ namespace Sempiler.AST
         }
     }
 
-    public class TypeParameterDeclaration : Declaration
+    public class TypeParameterDeclaration : Declaration, INamed
     {
         public TypeParameterDeclaration(RawAST ast, Node node) : base(ast, node)
         { }
@@ -2463,7 +2451,7 @@ namespace Sempiler.AST
         }
     }
 
-    public class FieldDeclaration : Declaration, IAnnotated, IModified
+    public class FieldDeclaration : Declaration, INamed, IAnnotated, IModified
     {
 
         public FieldDeclaration(RawAST ast, Node node) : base(ast, node)
@@ -2488,13 +2476,8 @@ namespace Sempiler.AST
     }
 
     // [dho] a property is a type member that has either an accessor, mutator or both - 23/03/19
-    public class PropertyDeclaration : Declaration
+    public class PropertyDeclaration : Declaration, INamed
     {
-        
-        
-        
-        
-
         public PropertyDeclaration(RawAST ast, Node node) : base(ast, node)
         {
         }
@@ -2522,13 +2505,8 @@ namespace Sempiler.AST
 
 
     // [dho] Equivalent in TypeScript to `var`, `let` or `const` - 23/03/19
-    public class DataValueDeclaration : Declaration, IAnnotated, IModified
+    public class DataValueDeclaration : Declaration, INamed, IAnnotated, IModified
     {
-        
-        
-        
-        
-        
 
         public DataValueDeclaration(RawAST ast, Node node) : base(ast, node)
         {
@@ -3173,10 +3151,8 @@ namespace Sempiler.AST
 
     // [dho] Equivalent in TypeScript to `new.target` - 23/03/19
     // [dho] https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/new.target - 23/03/19
-    public class MetaProperty : ASTNode
+    public class MetaProperty : ASTNode, INamed
     {
-        
-
         public MetaProperty(RawAST ast, Node node) : base(ast, node)
         {
         }
@@ -3194,7 +3170,7 @@ namespace Sempiler.AST
         }
     }
 
-    public class ViewConstruction : ASTNode
+    public class ViewConstruction : ASTNode, INamed
     {
         
         public ViewConstruction(RawAST ast, Node node) : base(ast, node)
@@ -3218,7 +3194,7 @@ namespace Sempiler.AST
         }
     }
 
-    public class ViewDeclaration : ASTNode, IParametered, ITemplated
+    public class ViewDeclaration : ASTNode, INamed, IParametered, ITemplated
     {
         public ViewDeclaration(RawAST ast, Node node) : base(ast, node)
         {   
