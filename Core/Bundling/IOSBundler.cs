@@ -194,7 +194,7 @@ $@"source 'https://cdn.cocoapods.org/'
 use_frameworks!
 
 target '{artifact.Name}' do
-  platform :ios, '8.0'
+  platform :ios, '13.0'
   {podfileContent.ToString()}
 end");
 
@@ -827,6 +827,9 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
                     }
                 }
 
+
+                
+
                 // {
                 //     var task = new Sempiler.Transformation.SwiftParameterTransformer().Transform(session, artifact, ast, token);
 
@@ -850,6 +853,21 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
         private static Result<ObjectTypeDeclaration> ConvertToInlinedObjectTypeDeclaration(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
         {
             var result = new Result<ObjectTypeDeclaration>();
+
+            {
+                var task = new Sempiler.Transformation.SwiftInstanceSymbolTransformer().Transform(session, artifact, ast, token);
+
+                task.Wait();
+
+                var newAST = result.AddMessages(task.Result);
+
+                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+                if (newAST != ast)
+                {
+                    result.AddMessages(new Message(MessageKind.Error, "Swift Instance Symbol Transformer unexpectedly returned a different AST that was discarded"));
+                }
+            }
 
             var inlinedObjectTypeDecl = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
 
