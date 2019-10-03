@@ -2020,7 +2020,7 @@ namespace Sempiler.Parsing
                     var range = new Range(startPos, lexer.Pos); // [dho] is this startPos always the same? - 20/02/19
 
                     exp = result.AddMessages(
-                        MakeBinaryExpression(left, token, right, range, lexer, expContext, ct)
+                        MakeBinaryExpression(left, operatorToken, right, range, lexer, expContext, ct)
                     );
 
 
