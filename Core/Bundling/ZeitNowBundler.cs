@@ -21,6 +21,8 @@ namespace Sempiler.Bundler
         const string APIDirName = "api";
         const string AppFileName = "app";
 
+        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ "node_modules" };
+
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
@@ -324,6 +326,17 @@ $@"{{
         private static Result<Component> CreateRouteHandler(Session session, Artifact artifact, RawAST ast, ServerInlining.ServerRouteInfo route, CancellationToken token)
         {
             var result = new Result<Component>();
+
+            // [dho] TODO support - 04/10/19
+            if(route.EnforceAuthAnnotation != null)
+            {
+                result.AddMessages(new Sempiler.AST.Diagnostics.NodeMessage(MessageKind.Error, "Authenticated routes are not currently supported", route.EnforceAuthAnnotation)
+                {
+                    Hint = GetHint(route.EnforceAuthAnnotation.Origin),
+                    Tags = DiagnosticTags
+                });
+            }
+
 
             var handlerAlias = "handler";
 

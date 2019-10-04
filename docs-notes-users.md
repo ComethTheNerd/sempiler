@@ -44,3 +44,7 @@ TODO
 
 ## API 
 TODO
+
+
+### Firebase Functions
+@enforceAuth annotation
