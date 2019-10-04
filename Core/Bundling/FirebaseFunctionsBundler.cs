@@ -25,7 +25,61 @@ namespace Sempiler.Bundler
         // [dho] NOTE for some reason firebase functions doesn't work properly if the name
         // we use here is long and complex (like a component ID).. but "api" seems to work fine...
         // It won't clash with any user code symbol called `api` either, because we use `exports.api = ...` - 24/09/19
-        static readonly string APISymbolicLexeme = "api";
+        const string APISymbolicLexeme = "api";
+
+        const string UserParserFunctionNameLexeme = "parseUserFromFirebaseIDToken";
+
+        // [dho] adapted from : https://github.com/firebase/functions-samples/blob/master/authorized-https-endpoint/functions/index.js#L26 - 04/10/19
+        static readonly string UserParserFunctionImplementation = $@"
+// Express middleware that validates Firebase ID Tokens passed in the Authorization HTTP header.
+// The Firebase ID token needs to be passed as a Bearer token in the Authorization HTTP header like this:
+// `Authorization: Bearer <Firebase ID Token>`.
+// when decoded successfully, the ID Token content will be added as `req.user`.
+async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : string }}>
+{{
+
+  if ((!req.headers.authorization || !req.headers.authorization.startsWith('Bearer ')) &&
+      !(req.cookies && req.cookies.__session)) 
+  {{
+    return Promise.resolve(null);
+  }}
+
+  let idToken;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) 
+  {{
+
+    // Read the ID Token from the Authorization header.
+    idToken = req.headers.authorization.split('Bearer ')[1];
+
+  }} 
+  else if(req.cookies) 
+  {{
+
+    // Read the ID Token from cookie.
+    idToken = req.cookies.__session;
+
+  }} 
+  else 
+  {{
+
+    // No cookie
+    return Promise.resolve(null);
+
+  }}
+
+  try {{
+    const decodedIDToken = await require(""firebase-admin"").auth().verifyIdToken(idToken);
+    
+    return Promise.resolve(decodedIDToken);
+
+  }} 
+  catch (error) 
+  {{
+    return Promise.resolve(null);
+  }}
+}};";
+
+        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ $"{UserCodeDirName}/node_modules" };
 
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
@@ -301,6 +355,7 @@ $@"{{
 $@"const express = require(""express"");
 const cors = require(""cors"");
 const app = express();
+{UserParserFunctionImplementation}
 app.use(cors({{ origin : true }}));").Node
                         );
 
@@ -678,6 +733,8 @@ app.use(cors({{ origin : true }}));").Node
         {
             var result = new Result<Invocation>();
 
+            // [dho] NOTE changing this will impact the code below!!! Do not just remove
+            // this guard without updating the rest of the code!! - 04/10/19
             if(route.Handler.Kind != SemanticKind.FunctionDeclaration)
             {
                 result.AddMessages(
@@ -686,7 +743,6 @@ app.use(cors({{ origin : true }}));").Node
 
                 return result;
             }
-
 
             var handler = ASTNodeFactory.FunctionDeclaration(ast, route.Handler);
 
@@ -698,6 +754,46 @@ app.use(cors({{ origin : true }}));").Node
             var qualifiedDelegateName = string.Join(".", route.QualifiedHandlerName);
 
             var handlerBodyContent = new List<Node>();
+
+            handlerBodyContent.Add(
+                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
+                    $"const user = await {UserParserFunctionNameLexeme}(req);"
+                ).Node
+            );
+
+            if(route.EnforceAuthAnnotation != null)
+            {
+                handlerBodyContent.Add(
+                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
+    $@"
+    if(user === null)
+    {{
+        res.statusCode = 401;
+
+        res.json({{ message : ""Unauthorized"" }});
+
+        return;
+    }}"
+                    ).Node
+                );
+            }
+
+         
+            // [dho] unwrap user for request in handler body - 04/10/19
+            {
+                var body = handler.Body;
+
+                if(body?.Kind == SemanticKind.Block)
+                {
+                    ASTHelpers.Connect(ast, body.ID, new [] {
+                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
+                            "const { user } = this;"
+                        ).Node
+                    }, SemanticRole.Content, 0);
+                }
+            }
+
+
 
             var invocationArguments = new InvocationArgument[parameters.Length];
 
@@ -730,9 +826,9 @@ app.use(cors({{ origin : true }}));").Node
                 reqBodyAccesses[i] = $"req.body['{paramNameLexeme}']";
 
 
-                var isRequired = (MetaHelpers.ReduceFlags(paramDecl) & MetaFlag.Optional) == 0;
+                var isRequiredParameter = (MetaHelpers.ReduceFlags(paramDecl) & MetaFlag.Optional) == 0;
 
-                if(isRequired)
+                if(isRequiredParameter)
                 {
                     // [dho] TODO check type of parameter!! Use joi? - 22/09/19 
                    handlerBodyContent.Add(
@@ -742,7 +838,7 @@ if({reqBodyAccesses[i]} === void 0)
 {{
     res.statusCode = 400;
 
-    res.json({{ error: ""Parameter '{paramNameLexeme}' is required"" }});
+    res.json({{ message: ""Parameter '{paramNameLexeme}' is required"" }});
 
     return;
 }}"
@@ -751,16 +847,17 @@ if({reqBodyAccesses[i]} === void 0)
                 }
             }
 
-            
+            // [dho] passing in `user` in execution context for function, and we insert a line in the handler
+            // to unwrap the user object and expose it to the function body scope - 04/10/19
             handlerBodyContent.Add(
                 NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
 $@"
 try {{
-    const data = await {qualifiedDelegateName}({string.Join(",", reqBodyAccesses)});
+    const data = await {qualifiedDelegateName}.apply({{ user }}, [{string.Join(",", reqBodyAccesses)}]);
 
     res.statusCode = 200;
 
-    res.json({{ data : data || void 0 }});
+    res.json(data || {{ }});
 }} catch ({{ message, stack, code }}) {{
     res.statusCode = 500;
 

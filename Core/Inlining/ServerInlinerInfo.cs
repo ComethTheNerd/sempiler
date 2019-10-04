@@ -13,6 +13,10 @@ namespace Sempiler.Inlining
 {
     public static class ServerInlining 
     {
+        // [dho] if the route declaration has this annotation then we will automatically parse
+        // the authorization for it - 04/10/19
+        public const string EnforceAuthAnnotationLexeme = "enforceAuth";
+
         public struct ServerInlinerInfo
         {
             public List<Node> Imports;
@@ -26,10 +30,11 @@ namespace Sempiler.Inlining
             public Node Handler;
             public string[] QualifiedHandlerName;
             public string[] APIRelPath;
+            public Node EnforceAuthAnnotation;
         }
 
         public static Result<ServerInlinerInfo> GetInlinerInfo(Session session, RawAST ast, Component component, BaseLanguageSemantics languageSemantics, string[] parentAPIRelPath, string[] parentQualifiedName, CancellationToken token)
-{
+        {
             var result = new Result<ServerInlinerInfo>();
 
             var inlinerInfo = new ServerInlinerInfo
@@ -81,7 +86,10 @@ namespace Sempiler.Inlining
                                         APIRelPath = apiRelPath,
                                         QualifiedHandlerName = qualifedHandlerName,
                                         SourceDeclaration = child,
-                                        Handler = clause
+                                        Handler = clause,
+                                        // [dho] NOTE syntactically the annotation will be on the export declaration,
+                                        // not the handler inside it - 04/10/19
+                                        EnforceAuthAnnotation = GetEnforceAuthAnnotationIfPresent(session, ast, exportDecl, token)
                                     });
                                 }
                                 else
@@ -171,6 +179,23 @@ namespace Sempiler.Inlining
             result.Value = inlinerInfo;
 
             return result;
+        }
+
+        private static Node GetEnforceAuthAnnotationIfPresent(Session session, RawAST ast, ExportDeclaration exportDecl, CancellationToken token)
+        {   
+            foreach(var node in exportDecl.Annotations)
+            {
+                System.Diagnostics.Debug.Assert(node.Kind == SemanticKind.Annotation);
+
+                var annotation = ASTNodeFactory.Annotation(ast, node);
+
+                if(ASTNodeHelpers.IsIdentifierWithName(ast, annotation.Expression, EnforceAuthAnnotationLexeme))
+                {
+                    return node;
+                }
+            }
+
+            return null;
         }
     }
 }
