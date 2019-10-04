@@ -28,6 +28,8 @@ namespace Sempiler.Bundler
         // public IEnumerable<string> FilePathsToInit;
 
         
+        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{};
+
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();

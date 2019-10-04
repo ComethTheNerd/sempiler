@@ -29,6 +29,8 @@ namespace Sempiler.Bundler
         // [dho] NOTE INCOMPLETE! TODO finish implementation of non inlined output - 31/08/19
         // const bool PerformInlining = true;
 
+        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ "Pods" };
+
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
@@ -283,6 +285,11 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+    <key>NSAppTransportSecurity</key>    
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
     {permissionPListContent.ToString()}
     {capabilitiesPListContent.ToString()}
 </dict>
@@ -854,20 +861,26 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
         {
             var result = new Result<ObjectTypeDeclaration>();
 
-            {
-                var task = new Sempiler.Transformation.SwiftInstanceSymbolTransformer().Transform(session, artifact, ast, token);
+            // [dho] disabling this because:
+            // - TypeScript semantics do not automatically qualify instance references, so the author would have to do this usually (assuming source language is TypeScript)
+            // - If the class extends another class then the inherited members would not be qualified using the current implementation
+            //
+            // 04/10/19
+            //
+            // {
+            //     var task = new Sempiler.Transformation.SwiftInstanceSymbolTransformer().Transform(session, artifact, ast, token);
 
-                task.Wait();
+            //     task.Wait();
 
-                var newAST = result.AddMessages(task.Result);
+            //     var newAST = result.AddMessages(task.Result);
 
-                if (HasErrors(result) || token.IsCancellationRequested) return result;
+            //     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-                if (newAST != ast)
-                {
-                    result.AddMessages(new Message(MessageKind.Error, "Swift Instance Symbol Transformer unexpectedly returned a different AST that was discarded"));
-                }
-            }
+            //     if (newAST != ast)
+            //     {
+            //         result.AddMessages(new Message(MessageKind.Error, "Swift Instance Symbol Transformer unexpectedly returned a different AST that was discarded"));
+            //     }
+            // }
 
             var inlinedObjectTypeDecl = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
 

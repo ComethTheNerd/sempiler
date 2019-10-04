@@ -1367,9 +1367,30 @@ namespace Sempiler.Core
             {
                 var absOutDirPath = FileSystem.Resolve(session.BaseDirectory.ToPathString(), $"{InferredConfig.OutDirName}/{artifact.Name}/");
 
-                var outDirLocation = FileSystem.ParseDirectoryLocation(absOutDirPath);
+                // [dho] first implementation of being able to keep some directories between builds to save time,
+                // such as the Pods that get downloaded and installed for an iOS project - these can be large dependencies
+                // so nuking that folder and reinstalling them for every build is time consuming and frustrating - 04/11/19
+                // [dho] TODO optimize deletions - 04/10/19
+                var preservedRelPaths = bundler.GetPreservedDebugEmissionRelPaths();
 
-                result.AddMessages(await FileSystem.Delete(new string[] { absOutDirPath }));
+                if(preservedRelPaths.Count > 0)
+                {
+                    // [dho] subdirectories - 04/10/19
+                    foreach (var absItemPath in Directory.EnumerateDirectories(absOutDirPath))
+                    {
+                        result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+                    }
+
+                    // [dho] files - 04/10/19                    
+                    foreach(var absItemPath in Directory.GetFiles(absOutDirPath, "*.*", SearchOption.AllDirectories))
+                    {
+                        result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+                    }
+                }
+                else
+                {
+                    result.AddMessages(await FileSystem.Delete(new string[] { absOutDirPath }));
+                }
 
                 if(HasErrors(result) || token.IsCancellationRequested) return result;
 
@@ -1381,7 +1402,31 @@ namespace Sempiler.Core
 
             return result;
         }
+        private static async Task<Result<object>> DeletePathIfNotPreserved(Artifact artifact, IList<string> preservedRelPaths, string absBaseDirPath, string absItemPath)
+        {
+            var result = new Result<object>();
+
+            var relItemPath = absItemPath.Substring(absBaseDirPath.Length + 1);
+
+            foreach(var preservedRelPath in preservedRelPaths)
+            {
+                if(relItemPath == preservedRelPath)
+                {
+                    result.AddMessages(new Message(MessageKind.Info, $"Compiler is preserving '{artifact.Name}' item '{relItemPath}' from previous build"));
+                    return result;
+                }
+                else if(relItemPath.IndexOf(preservedRelPath) == 0) // [dho] child path - 04/11/19
+                {
+                    return result;
+                }
+            }
+
+            result.AddMessages(await FileSystem.Delete(new string[] { absItemPath }));
+
+            return result;
+        }
     }
+
 
     public static class MetaProgramming
     {

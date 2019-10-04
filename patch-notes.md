@@ -1,5 +1,17 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 04/10/19
+- Bundlers can now specify files and directories to *preserve* (reuse) between debug emissions, such as folders containing dependencies that might otherwise be time consuming and frustrate to populate each time
+- Bug fixes around directive parsing meaning they can now be used robustly in more expression and statement contexts, such as inline in argument lists (eg. `foo(x, #codgen ..., y)`)
+- Added support for annotations and modifiers on `export` declarations
+- Added support for detecting `@enforceAuth` annotation on inferred server routes
+- Firebase Functions Bundler exposes `user` symbol implicitly in **all** route handler bodies (but value may be null if authorization is not enforced)
+- Firebase Functions Bundler returns `401 Unauthorized` when authorization fails to validate for routes with `@enforceAuth`
+- Disabling automatic qualification of incident symbol references in iOS Bundler because neither TypeScript semantics (source) or Swift semantics (target) do this implicitly, and also the current implementation does not account for inherited instance symbols
+- Fixed inconsistencies with Firebase Functions Bundler error response schema
+- Removed `data` wrapper around Firebase Functions Bundler response value
+- iOS Bundler now configures `Info.plist` to allow local networking without TLS
+
 # 🗓 03/10/19
 - iOSBundler generated Podfile now specifier iOS 13.0 as target version, in lieu of making this configurable ultimately
 - Swift/iOSBundler automatic qualifying of instance symbols by prefixing `self.` to instance symbol references inside closures

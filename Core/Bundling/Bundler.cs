@@ -14,6 +14,8 @@ namespace Sempiler.Bundler
         // [dho] creates a bundle of files that can be deployed and executed in the target platform, eg. inferring and injecting
         // a manifest file where none has been explicitly provided - 21/05/19
         Task<Sempiler.Diagnostics.Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token);
+
+        IList<string> GetPreservedDebugEmissionRelPaths();
     }
 
     public static class BundlerHelpers

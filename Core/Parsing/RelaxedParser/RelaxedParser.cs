@@ -817,22 +817,57 @@ namespace Sempiler.Parsing
             var expContext = ContextHelpers.Clone(context);
             expContext.Flags &= ~ContextFlags.DisallowInContext;
 
-            var operand = result.AddMessages(
-                name == Sempiler.Core.Directives.CTDirective.CodeGen ? 
-                ParseExpression(token, lexer, expContext, ct)
-                : ParseStatement(token, lexer, expContext, ct)
-            );
+            var operand = default(Node);
 
-            var range = new Range(startPos, lexer.Pos);
+            if(name == Sempiler.Core.Directives.CTDirective.CodeGen)
+            {
+                if(token.Kind == SyntaxKind.NoSubstitutionTemplateLiteral)
+                {
+                    var members = result.AddMessages(
+                        ParseNoSubstitutionTemplateLiteral(token, lexer, context, ct)
+                    );
 
-            Node directive = result.AddMessages(FinishNode(
-                NodeFactory.Directive(context.AST, CreateOrigin(range, lexer, context), name),
-                lexer, context, ct)
-            );
+                    var interp = NodeFactory.InterpolatedString(
+                        context.AST,
+                        CreateOrigin(token, lexer, context)
+                    );
 
-            result.AddMessages(AddOutgoingEdges(context.AST, directive, operand, SemanticRole.Operand));
+                    result.AddMessages(AddOutgoingEdges(interp, members, SemanticRole.Member));
+                    
+                    operand = result.AddMessages(FinishNode(interp, lexer, context, ct));
+                }
+                else if(token.Kind == SyntaxKind.TemplateHead)
+                {
+                    operand = result.AddMessages(ParseTemplateHead(token, lexer, expContext, ct));
+                }
+                else
+                {
+                    result.AddMessages(new Message(MessageKind.Error, $"Unexpected operand for '{Sempiler.Core.Directives.CTDirective.CodeGen}' directive")
+                    {
+                        Hint = GetHint(token, lexer, context),
+                        Tags = DiagnosticTags
+                    });
+                }
+            }
+            else
+            {
+                operand = result.AddMessages(ParseStatement(token, lexer, expContext, ct));
+            }
 
-            result.Value = directive;
+            if(!HasErrors(result) && !ct.IsCancellationRequested)
+            {
+                var range = new Range(startPos, lexer.Pos);
+
+                Node directive = result.AddMessages(FinishNode(
+                    NodeFactory.Directive(context.AST, CreateOrigin(range, lexer, context), name),
+                    lexer, context, ct)
+                );
+
+                result.AddMessages(AddOutgoingEdges(context.AST, directive, operand, SemanticRole.Operand));
+
+                result.Value = directive;
+            }
+
 
             return result;
         }
@@ -2521,6 +2556,8 @@ namespace Sempiler.Parsing
                             result.AddMessages(
                                 CreateUnsupportedTokenResult<Node>(op, lexer, context)
                             );
+
+                            return result;
                         }
                     }
                     break;
@@ -2684,26 +2721,7 @@ namespace Sempiler.Parsing
                     }
 
                 case SyntaxKind.TemplateHead:
-                    {
-                        var result = new Result<Node>();
-
-                        var startPos = token.StartPos;
-
-                        var members = result.AddMessages(
-                            ParseTemplateExpressionMembers(token, lexer, context, ct)
-                        );
-
-                        var interp = NodeFactory.InterpolatedString(
-                            context.AST,
-                            CreateOrigin(new Range(startPos, lexer.Pos), lexer, context)
-                        );
-
-                        result.AddMessages(AddOutgoingEdges(interp, members, SemanticRole.Member));
-
-                        result.Value = result.AddMessages(FinishNode(interp, lexer, context, ct));
-
-                        return result;
-                    }
+                    return ParseTemplateHead(token, lexer, context, ct);
 
                 default:
                     {
@@ -2759,6 +2777,7 @@ namespace Sempiler.Parsing
                     }
             }
         }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected Result<T> CreateErrorResult<T>(Token token, string description, Lexer lexer, Context context)
@@ -7340,6 +7359,28 @@ namespace Sempiler.Parsing
             return result;
         }
 
+        public Result<Node> ParseTemplateHead(Token token, Lexer lexer, Context context, CancellationToken ct)
+        {
+            var result = new Result<Node>();
+
+            var startPos = token.StartPos;
+
+            var members = result.AddMessages(
+                ParseTemplateExpressionMembers(token, lexer, context, ct)
+            );
+
+            var interp = NodeFactory.InterpolatedString(
+                context.AST,
+                CreateOrigin(new Range(startPos, lexer.Pos), lexer, context)
+            );
+
+            result.AddMessages(AddOutgoingEdges(interp, members, SemanticRole.Member));
+
+            result.Value = result.AddMessages(FinishNode(interp, lexer, context, ct));
+
+            return result;
+        }
+
         public Result<Node> ParseClassExpression(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
             return ParseClassLike(token, lexer, context, ct);
@@ -9935,6 +9976,16 @@ namespace Sempiler.Parsing
 
             var startPos = token.StartPos;
 
+            var (annotations, modifiers, hasEatenTokens) = result.AddMessages(
+                ParseOrnamentationComponents(token, lexer, context, ct)
+            );
+
+            // [dho] did we find decorators or modifier tokens to eat - 04/10/19
+            if (hasEatenTokens)
+            {
+                token = result.AddMessages(NextToken(lexer, context, ct));
+            }
+
             var role = GetSymbolRole(token, lexer, context, ct);
 
             if (role != SymbolRole.Export)
@@ -9945,17 +9996,6 @@ namespace Sempiler.Parsing
             token = result.AddMessages(NextToken(lexer, context, ct));
 
             if (HasErrors(result)) return result;
-
-            // [dho] NOTE removing parsing ornamentation because this should be attached to the declaration
-            // being exported, not eating by the export itself - 23/09/19
-            // var (annotations, modifiers, hasEatenTokens) = result.AddMessages(
-            //     ParseOrnamentationComponents(token, lexer, context, ct)
-            // );
-
-            // if (hasEatenTokens)
-            // {
-            //     token = result.AddMessages(NextToken(lexer, context, ct));
-            // }
 
             var clauses = default(Node[]);
             Node specifier = default(Node);
@@ -10024,10 +10064,8 @@ namespace Sempiler.Parsing
 
                 result.AddMessages(AddOutgoingEdges(decl, clauses, SemanticRole.Clause));
                 result.AddMessages(AddOutgoingEdges(decl, specifier, SemanticRole.Specifier));
-                // [dho] NOTE removing parsing ornamentation because this should be attached to the declaration
-                // being exported, not eating by the export itself - 23/09/19
-                // result.AddMessages(AddOutgoingEdges(decl, annotations, SemanticRole.Annotation));
-                // result.AddMessages(AddOutgoingEdges(decl, modifiers, SemanticRole.Modifier));
+                result.AddMessages(AddOutgoingEdges(decl, annotations, SemanticRole.Annotation));
+                result.AddMessages(AddOutgoingEdges(decl, modifiers, SemanticRole.Modifier));
 
                 result.Value = result.AddMessages(FinishNode(decl, lexer, context, ct));
             }
@@ -11038,6 +11076,9 @@ namespace Sempiler.Parsing
         {
             switch (token.Kind)
             {
+                case SyntaxKind.Directive:
+                    return ParseDirective(token, lexer, context, ct);
+
                 case SyntaxKind.PlusToken:
                 case SyntaxKind.MinusToken:
                 case SyntaxKind.TildeToken:
@@ -12023,6 +12064,7 @@ namespace Sempiler.Parsing
         {
             switch (token.Kind)
             {
+                case SyntaxKind.Directive:
                 case SyntaxKind.PlusToken:
                 case SyntaxKind.MinusToken:
                 case SyntaxKind.TildeToken:

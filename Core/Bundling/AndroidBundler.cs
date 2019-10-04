@@ -19,6 +19,8 @@ namespace Sempiler.Bundler
     {
         static readonly string[] DiagnosticTags = new string[] { "bundler", "android" };
 
+        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{};
+
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
