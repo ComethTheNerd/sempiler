@@ -569,6 +569,10 @@ namespace Sempiler.Core
             return "_" + System.Guid.NewGuid().ToString().Replace('-', '_');
         }
 
+
+        static object ctExecLock = new object();
+        static Dictionary<string, CancellationTokenSource> CTExecServerHandlerCTSCache = new Dictionary<string, CancellationTokenSource>();
+      
         private static async Task<Result<object>> CTExec(Session session, Artifact artifact, AST.RawAST ast, List<Component> newlyAddedComponents, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)
         {
             var result = new Result<object>();
@@ -659,44 +663,89 @@ namespace Sempiler.Core
 
             if(!token.IsCancellationRequested)
             {
-                var consumptionCTS = new CancellationTokenSource();
+                CancellationTokenSource consumptionCTS;
+                DuplexSocketServer.OnMessageDelegate messageHandler = null;
 
-                using (CancellationTokenRegistration ctr = token.Register(() => consumptionCTS.Cancel()))
+                lock(ctExecLock)
                 {
-                    DuplexSocketServer.OnMessageDelegate messageHandler = (socket, message) => {
-                        var command = CTProtocolHelpers.ParseCommand(message);
-
-                        // [dho] this message was meant for a different subscriber - 06/05/19
-                        if(command.ArtifactName != artifact.Name) return;
-
-                        Result<string> r;                        
-                        
-                        // [dho] NOTE no lock on ast because the caller provides a fresh clone to manipulate - 14/05/19
-                        r = HandleServerMessage(session, command, artifact, ast, sourceProvider, server, consumptionCTS.Token);
-                        
-                        result.AddMessages(r);
-
-                        if(HasErrors(r))
+                    if(CTExecServerHandlerCTSCache.ContainsKey(artifact.Name))
+                    {
+                        consumptionCTS = CTExecServerHandlerCTSCache[artifact.Name];
+                    }
+                    else
+                    {
+                        consumptionCTS = CTExecServerHandlerCTSCache[artifact.Name] = new CancellationTokenSource();
+    
+                        using (CancellationTokenRegistration ctr = token.Register(() => consumptionCTS.Cancel()))
                         {
-                            // [dho] kill the consumer if we get any errors - 06/05/19
-                            // [dho] NOTE because we have not called `Send`, the socket inside the CT program will be waiting,
-                            // and so is effectively paused, which is what we want - not for it to continue executing in an unknown
-                            // state - 20/04/19
-                            consumptionCTS.Cancel();
+                            var messageHistoryLock = new object();
+                            var messageHistory = new Dictionary<string, bool>();
+                
+                            messageHandler = (socket, message) => {
+                                var command = CTProtocolHelpers.ParseCommand(message);
+
+                                // [dho] this message was meant for a different subscriber - 06/05/19
+                                if(command.ArtifactName != artifact.Name) return;
+
+                                // System.Console.WriteLine("SERVER MESSAGE RECEIVED : " + command.ArtifactName);
+                                // System.Console.WriteLine(command.Kind);
+                                // System.Console.WriteLine(string.Join(",", command.Arguments));
+
+                                var isNewMessage = true;
+
+                                lock(messageHistoryLock)
+                                {
+                                    isNewMessage = !messageHistory.ContainsKey(command.MessageID);
+
+                                    messageHistory[command.MessageID] = true;
+                                }
+
+
+                                string response = default(string);
+
+                                if(isNewMessage)
+                                {
+                                    Result<string> r;                        
+                                    
+                                    // [dho] NOTE no lock on ast because the caller provides a fresh clone to manipulate - 14/05/19
+                                    r = HandleServerMessage(session, command, artifact, ast, sourceProvider, server, consumptionCTS.Token);
+                                    
+                                    result.AddMessages(r);
+
+                                    if(HasErrors(r))
+                                    {
+                                        // [dho] kill the consumer if we get any errors - 06/05/19
+                                        // [dho] NOTE because we have not called `Send`, the socket inside the CT program will be waiting,
+                                        // and so is effectively paused, which is what we want - not for it to continue executing in an unknown
+                                        // state - 20/04/19
+                                        consumptionCTS.Cancel();
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        response = r.Value;
+                                    }
+                                }
+
+
+                                server.Send(socket, response);
+                            };
+
+                            server.OnMessage += messageHandler;
                         }
-                        else
-                        {
-                            var response = r.Value;
+                    }
+                }
 
-                            server.Send(socket, response);
-                        }
-                    };
 
-                    server.OnMessage += messageHandler;
+                result.AddMessages(await consumer.Consume(session, artifact, ast, filesWritten, consumptionCTS.Token));
 
-                    result.AddMessages(await consumer.Consume(session, artifact, ast, filesWritten, consumptionCTS.Token));
-
-                    server.OnMessage -= messageHandler;
+                if(messageHandler != null)
+                {
+                    lock(ctExecLock)
+                    {
+                        System.Diagnostics.Debug.Assert(CTExecServerHandlerCTSCache.Remove(artifact.Name));
+                        server.OnMessage -= messageHandler;
+                    }
                 }
             }
             

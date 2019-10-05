@@ -22,6 +22,8 @@ namespace Sempiler.Bundler
 
         public const string EntrypointFileName = "app";
 
+        public const string MessageIDSymbolLexeme = "messageID";
+
         // public const string ExecRBScriptFileName = "ct-exec.rb";
 
     
@@ -207,6 +209,8 @@ $@"
     const {serverInteropHandleLexeme} = await (async function () {{
         async function createClient(host, port)
         {{
+            if(_client) return _client;
+
             const socket = new require('net').Socket();
             
             await new Promise((resolve, reject) => {{
@@ -232,89 +236,111 @@ $@"
             function destroy()
             {{
                 socket.destroy();
+                _client = null;
             }}
             
-            return {{ sendMessage, destroy }};
+            return _client = {{ sendMessage, destroy }};
         }}
-
-        // const client = await createClient(""{host}"", {port});
+        let _client = null;
 
 
 
         async function {CTAPISymbols.AddCapability}(name, value)
         {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
             if(Array.isArray(value))
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
             }}
             else 
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
             }}
         }}
 
         async function {CTAPISymbols.AddDependency}(name, version)
         {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
             if(arguments.length === 1)
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}})`);
             }}
             else
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}})`);
             }}
         }}
 
         async function {CTAPISymbols.AddEntitlement}(name, value)
         {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
             if(Array.isArray(value))
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
             }}
             else 
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
             }}
         }}
 
         async function {CTAPISymbols.AddPermission}(name, description)
         {{
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddPermission}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{description || ''}})`);
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddPermission}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{description || ''}})`);
         }}
 
         async function {CTAPISymbols.AddRawSources}(parentDirPath, ...includedPaths)
         {{
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddRawSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddRawSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
         }}
 
         async function {CTAPISymbols.AddSources}(parentDirPath, ...includedPaths)
         {{
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
         }}
 
         function {CTAPISymbols.IsTargetLanguage}(languageName)
         {{
+            // const {{ {MessageIDSymbolLexeme} }} = this;
+
             return languageName === '{artifact.TargetLang}';
         }}
 
         function {CTAPISymbols.IsTargetPlatform}(platformName)
         {{
+            // const {{ {MessageIDSymbolLexeme} }} = this;
+
             return platformName === '{artifact.TargetPlatform}';
         }}
 
         async function {CTAPISymbols.DeleteNode}(nodeID)
         {{
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.DeleteNode}(${{nodeID}})`);
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.DeleteNode}(${{nodeID}})`);
         }}
 
         async function {CTAPISymbols.ReplaceNodeByCodeConstant}(removeeID, codeConstant)
         {{
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.ReplaceNodeByCodeConstant}(${{removeeID}}{CTProtocolHelpers.ArgumentDelimiter}${{codeConstant}})`);
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.ReplaceNodeByCodeConstant}(${{removeeID}}{CTProtocolHelpers.ArgumentDelimiter}${{codeConstant}})`);
         }}
 
         async function {CTAPISymbols.InsertImmediateSiblingFromValueAndDeleteNode}(insertionPointID, value, removeeID)
         {{
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.InsertImmediateSiblingAndFromValueAndDeleteNode}(${{insertionPointID}}{CTProtocolHelpers.ArgumentDelimiter}${{value.constructor.name}}{CTProtocolHelpers.ArgumentDelimiter}${{value}}{CTProtocolHelpers.ArgumentDelimiter}${{removeeID}})`);
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.InsertImmediateSiblingAndFromValueAndDeleteNode}(${{insertionPointID}}{CTProtocolHelpers.ArgumentDelimiter}${{value.constructor.name}}{CTProtocolHelpers.ArgumentDelimiter}${{value}}{CTProtocolHelpers.ArgumentDelimiter}${{removeeID}})`);
         }}
 
         return {{ 
@@ -441,6 +467,10 @@ $@"
         private Result<DataValueDeclaration> InlineComponent(Session session, Artifact artifact, RawAST ast, Component component, BaseLanguageSemantics languageSemantics, ServerInteropFunctionIdentifiers serverInteropFnIDs, CancellationToken token, ref List<Node> imports, ref List<Node> hoistedDirectiveStatements, ref Dictionary<string, Node> hoistedNodes)
         {
             var result = new Result<DataValueDeclaration>();
+
+            result.AddMessages(
+                TransformCTAPIInvocations(session, ast, component, languageSemantics, token)
+            );
 
             // [dho] NOTE do this first to ensure we still compute directives inside nodes that we do not actually emit
             // in the CT exec program, eg. types, view declarations etc. - 12/07/19
@@ -956,16 +986,8 @@ $@"
         private Result<object> TransformCTCodeExecDirective(Session session, Artifact artifact, RawAST ast, Component component, Directive directive, BaseLanguageSemantics languageSemantics, ServerInteropFunctionIdentifiers serverInteropFnIDs, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
         {
             var result = new Result<object>();
-
-            result.AddMessages(
-                AwaitCTAPIInvocations(session, ast, component, languageSemantics, token)
-            );
-
+            
             var subject = directive.Subject;
-
-            result.AddMessages(
-                TransformCTSourceInvocations(session, ast, component, subject, languageSemantics, token)
-            );
 
             var content = new List<Node>();
 
@@ -1015,7 +1037,7 @@ $@"
 
                     invArguments.Add(
                         CreateInvocationArgument(ast,
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $"\"{directive.ID}\"").Node
+                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
                         ).Node
                     );
 
@@ -1029,10 +1051,10 @@ $@"
                     content.Add(subject);
 
                     invSubject = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), serverInteropFnIDs.DeleteNode).Node;
-                    
+
                     invArguments.Add(
                         CreateInvocationArgument(ast,
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $"\"{directive.ID}\"").Node
+                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
                         ).Node
                     );
                 }
@@ -1042,7 +1064,8 @@ $@"
                 ASTHelpers.Connect(ast, inv.ID, invArguments.ToArray(), SemanticRole.Argument);
             }
 
-
+            var messageID = directive.ID;
+            BindSubjectToPassMessageID(session, ast, inv.Node, messageID, token);
 
             InterimSuspension awaitInv = CreateAwait(ast, inv.Node).Item2;
 
@@ -1066,15 +1089,7 @@ $@"
         {
             var result = new Result<object>();
         
-            result.AddMessages(
-                AwaitCTAPIInvocations(session, ast, component, languageSemantics, token)
-            );
-
             var subject = directive.Subject;
-
-            result.AddMessages(
-                TransformCTSourceInvocations(session, ast, component, subject, languageSemantics, token)
-            );
 
             var content = new List<Node>();
 
@@ -1096,7 +1111,7 @@ $@"
                 
                 invArguments.Add(
                     CreateInvocationArgument(ast,
-                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $"\"{directive.ID}\"").Node
+                        NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
                     ).Node
                 );
 
@@ -1148,8 +1163,9 @@ $@"
                 ASTHelpers.Connect(ast, inv.ID, invArguments.ToArray(), SemanticRole.Argument);
             }
 
-
-
+            var messageID = directive.ID;
+            BindSubjectToPassMessageID(session, ast, inv.Node, messageID, token);
+            
             InterimSuspension awaitInv = CreateAwait(ast, inv.Node).Item2;
 
             // [dho] NOTE by this point, the static dependencies will have been renamed 
@@ -1168,11 +1184,27 @@ $@"
             return result;
         }
 
-        private Result<object> AwaitCTAPIInvocations(Session session, RawAST ast, Component component, BaseLanguageSemantics languageSemantics, CancellationToken token)
+        private Result<object> TransformCTAPIInvocations(Session session, RawAST ast, Component component, BaseLanguageSemantics languageSemantics, CancellationToken token)
         {
             var result = new Result<object>();
 
             var scope = new Scope(component.Node);
+
+
+            var parentDirPath = default(string);
+            {
+                var sourceWithLocation = ((SourceNodeOrigin)component.Node.Origin).Source as ISourceWithLocation<IFileLocation>;
+                {
+                    if (sourceWithLocation?.Location != null)
+                    {
+                        var location = sourceWithLocation.Location;
+
+                        // [dho] sources will be resolved relative to the same directory - 07/05/19
+                        parentDirPath = location.ParentDir.ToPathString();
+                    }
+                }
+            }
+
 
             foreach(var symbolName in CTAPISymbols.EnumerateCTAPISymbolNames())
             {
@@ -1180,12 +1212,31 @@ $@"
 
                 var references = languageSemantics.GetUnqualifiedReferenceMatches(session, ast, component.Node, scope, symbolName, token);    
 
+
+                if(parentDirPath != null)
+                {
+                    if(symbolName == CTAPISymbols.AddSources || symbolName == CTAPISymbols.AddRawSources)
+                    {
+                        foreach(var reference in references)
+                        {
+                            InjectParentDirPathArgument(ast, reference, parentDirPath);
+                        }
+                    }
+                }
+
+
                 foreach(var reference in references)
                 {
+                    // [dho] in order to ensure messages only get handled once (given how convoluted CT exec can get with sources dynamically added),
+                    // we will inject the message ID and the server side will keep track of which IDs it has seen, and only process messages for IDs it
+                    // has not yet seen - 05/10/19
+                    var messageID = reference.ID;
                     var inv = ASTHelpers.GetFirstAncestorOfKind(ast, reference.ID, SemanticKind.Invocation);
 
                     System.Diagnostics.Debug.Assert(inv != null);
-                    
+
+                    BindSubjectToPassMessageID(session, ast, inv, messageID, token);
+
                     var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
 
                     ASTHelpers.Replace(ast, inv.ID, new [] { parentheses.Node });
@@ -1199,62 +1250,46 @@ $@"
                 }
             }
 
+
             return result;
         }
 
-        private Result<object> TransformCTSourceInvocations(Session session, RawAST ast, Component component, Node subject, BaseLanguageSemantics languageSemantics, CancellationToken token)
+        // [dho] conversion from `hello(a, b, c)` to `hello.bind({ messageID : "x" })(a, b, c)` - 05/10/19
+        private void BindSubjectToPassMessageID(Session session, RawAST ast, Node inv, string messageID, CancellationToken token)
         {
-            var result = new Result<object>();
+            var previousInvSubject = ASTNodeFactory.Invocation(ast, inv).Subject;
 
-            // [dho] TODO CLEANUP currently the addRawSources and addSources APIS require being told the base path
-            // to resolve file paths against.. because of the current structure of the CT Exec generated code, we need
-            // to find the call sites and inject the paths... which is a bit clunky and time consuming - 12/07/19
-            
-            var scope = new Scope(subject);
-            scope.Declarations[CTAPISymbols.AddRawSources] = subject;
-            scope.Declarations[CTAPISymbols.AddSources] = subject;
+            var boundInv = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
 
-            var addRawSourcesRefs = languageSemantics.GetUnqualifiedReferenceMatches(session, ast, subject, scope, CTAPISymbols.AddRawSources, token);    
-            var addSourcesRefs = languageSemantics.GetUnqualifiedReferenceMatches(session, ast, subject, scope, CTAPISymbols.AddSources, token);
-
-            if(addRawSourcesRefs.Count > 0 || addSourcesRefs.Count > 0)
+            ASTHelpers.Replace(ast, previousInvSubject.ID, new [] { boundInv.Node });
             {
-                var sourceWithLocation = ((SourceNodeOrigin)component.Node.Origin).Source as ISourceWithLocation<IFileLocation>;
-                {
-                    if (sourceWithLocation?.Location != null)
+                ASTHelpers.Connect(ast, boundInv.ID, new [] {
+                    ASTNodeHelpers.ConvertToQualifiedAccessIfRequiredLTR(ast, new PhaseNodeOrigin(PhaseKind.Transformation), new [] {
+                        previousInvSubject,
+                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "bind").Node,
+                    })
+                }, SemanticRole.Subject);
+
+
+                var boundArg = NodeFactory.DynamicTypeConstruction(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                {   
+                    var messageIDField = NodeFactory.FieldDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                     {
-                        var location = sourceWithLocation.Location;
+                        ASTHelpers.Connect(ast, messageIDField.ID, new [] {
+                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), MessageIDSymbolLexeme).Node
+                        }, SemanticRole.Name);
 
-                        // [dho] sources will be resolved relative to the same directory - 07/05/19
-                        var parentDirPath = location.ParentDir.ToPathString();
-        
-                        foreach(var reference in addRawSourcesRefs)
-                        {
-                            InjectParentDirPathArgument(ast, reference, parentDirPath);
-                        }
-
-                        foreach(var reference in addSourcesRefs)
-                        {
-                            InjectParentDirPathArgument(ast, reference, parentDirPath);
-                        }
+                        ASTHelpers.Connect(ast, messageIDField.ID, new [] {
+                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), messageID).Node
+                        }, SemanticRole.Initializer);
                     }
-                    else
-                    {
-                        result.AddMessages(
-                            new NodeMessage(MessageKind.Error, $"Could not add sources because component has no associated source location, with which to resolve file paths against", component.Node)
-                            {
-                                Hint = GetHint(component.Node.Origin),
-                                Tags = DiagnosticTags
-                            }
-                        );
 
-                    }
+                    ASTHelpers.Connect(ast, boundArg.ID, new [] { messageIDField.Node }, SemanticRole.Member);
                 }
+                ASTHelpers.Connect(ast, boundInv.ID, new [] { CreateInvocationArgument(ast, boundArg.Node).Node }, SemanticRole.Argument);
             }
-            
-            return result;
+                    
         }
-
 
         private void InjectParentDirPathArgument(RawAST ast, Node reference, string parentDirPath)
         {
