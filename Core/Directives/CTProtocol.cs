@@ -71,6 +71,7 @@ namespace Sempiler.Core.Directives
     public struct CTProtocolCommand 
     {
         public string ArtifactName;
+        public string MessageID;
         public CTProtocolCommandKind Kind;
         public string[] Arguments;
         
@@ -169,34 +170,43 @@ namespace Sempiler.Core.Directives
 
             if(cmdStartIndex > 0)
             {
-                var artifactName = message.Substring(0, cmdStartIndex);
+                var preamble = message.Substring(0, cmdStartIndex);
                 
-                var parenIndex = message.IndexOf("(");
+                var preambleParts = preamble.Split(new string[] { ArgumentDelimiter }, System.StringSplitOptions.None);
 
-                if(parenIndex > 0 && message[message.Length - 1] == ')') // [dho] because we expect a number first - 20/04/19
+                if(preambleParts.Length == 2)
                 {
-                    try
+                    var artifactName = preambleParts[0];
+                    var messageID = preambleParts[1];
+
+                    var parenIndex = message.IndexOf("(");
+
+                    if(parenIndex > 0 && message[message.Length - 1] == ')') // [dho] because we expect a number first - 20/04/19
                     {
-                        var kindStartIndex = cmdStartIndex + CommandStartToken.Length;
-                        var kindEndIndex = parenIndex - kindStartIndex;
-
-                        var kind = (CTProtocolCommandKind)int.Parse(message.Substring(kindStartIndex, kindEndIndex));
-                    
-                        var argumentsStartIndex = parenIndex + 1;
-                        var argumentsEndIndex = message.Length - 1;
-
-                        var arguments = message.Substring(argumentsStartIndex, argumentsEndIndex - argumentsStartIndex).Split(new string[] { ArgumentDelimiter }, System.StringSplitOptions.None);
-
-                        return new CTProtocolCommand
+                        try
                         {
-                            ArtifactName = artifactName,
-                            Kind = kind,
-                            Arguments = arguments
-                        };
-                    }
-                    catch
-                    {
+                            var kindStartIndex = cmdStartIndex + CommandStartToken.Length;
+                            var kindEndIndex = parenIndex - kindStartIndex;
 
+                            var kind = (CTProtocolCommandKind)int.Parse(message.Substring(kindStartIndex, kindEndIndex));
+                        
+                            var argumentsStartIndex = parenIndex + 1;
+                            var argumentsEndIndex = message.Length - 1;
+
+                            var arguments = message.Substring(argumentsStartIndex, argumentsEndIndex - argumentsStartIndex).Split(new string[] { ArgumentDelimiter }, System.StringSplitOptions.None);
+
+                            return new CTProtocolCommand
+                            {
+                                ArtifactName = artifactName,
+                                MessageID = messageID,
+                                Kind = kind,
+                                Arguments = arguments
+                            };
+                        }
+                        catch
+                        {
+
+                        }
                     }
                 }
             }
@@ -204,6 +214,7 @@ namespace Sempiler.Core.Directives
             return new CTProtocolCommand
             {
                 ArtifactName = null,
+                MessageID = null,
                 Kind = CTProtocolCommandKind.Unknown,
                 Arguments = new string[]{}
             };

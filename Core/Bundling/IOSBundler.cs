@@ -189,13 +189,14 @@ project.save()
                     }
                 }
 
+                // [dho] from Pod docs : "Comment the next line if you're not using Swift and don't want to use dynamic frameworks" - 05/10/19
+                var useFrameworks = artifact.TargetLang == Sempiler.ArtifactTargetLang.Swift ? "use_frameworks!" : "";
 
                 AddRawFileIfMissing(ofc, $"Podfile",
 $@"source 'https://cdn.cocoapods.org/'
 
-use_frameworks!
-
 target '{artifact.Name}' do
+  {useFrameworks}
   platform :ios, '13.0'
   {podfileContent.ToString()}
 end");
