@@ -40,6 +40,7 @@ namespace Sempiler.Transformation
             { "Section", new [] { ("header", true), ("footer", true), ("content", true) } },
             { "Spacer", new [] { ("minLength", true) } },
             { "Stepper", new [] { ("label", false), ("value", true), ("in", true), ("step", true), ("onIncrement", true), ("onDecrement", true), ("onEditingChanged", true) } },
+            { "TabView", new [] { ("selection", true), ("content", true) } },
             { "Text", new [] { ( "text", false ), ( "verbatim", true ), ( "tableName", true ), ( "bundle", true ), ( "comment", true ) } },
             { "TextField", new [] { ("label", false), ("text", true), ("value", true), ("formatter", true), ("onEditingChanged", true), ("onCommit", true) } },
             { "Toggle", new[] { ("isOn", true), ("label", true) } }, 

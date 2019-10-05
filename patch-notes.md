@@ -1,5 +1,10 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 05/10/19
+- `use_frameworks!` only included in Pod if target language is Swift
+- Mapped `init` arguments for `TabView` in SwiftUI
+- Fundamental reimplementation of CT Exec code generation to fix bugs with CT API messages being replayed multiple times which caused an RST message that kills the socket connection
+
 # 🗓 04/10/19
 - Bundlers can now specify files and directories to *preserve* (reuse) between debug emissions, such as folders containing dependencies that might otherwise be time consuming and frustrate to populate each time
 - Bug fixes around directive parsing meaning they can now be used robustly in more expression and statement contexts, such as inline in argument lists (eg. `foo(x, #codgen ..., y)`)
