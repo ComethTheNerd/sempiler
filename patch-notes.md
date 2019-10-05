@@ -4,6 +4,7 @@
 - `use_frameworks!` only included in Pod if target language is Swift
 - Mapped `init` arguments for `TabView` in SwiftUI
 - Fundamental reimplementation of CT Exec code generation to fix bugs with CT API messages being replayed multiple times which caused an RST message that kills the socket connection
+- Fixed bug in iOS Bundler where `static` modifier was errantly added to declarations at file scope
 
 # 🗓 04/10/19
 - Bundlers can now specify files and directories to *preserve* (reuse) between debug emissions, such as folders containing dependencies that might otherwise be time consuming and frustrate to populate each time
