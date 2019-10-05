@@ -418,7 +418,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                         // [dho] any code that was outside an artifact root is just emitted without a class wrapper, so we have a way
                         // in the input sources of declaring global symbols, or things like protocols which cannot be nested inside other
                         // declarations in Swift - 18/07/19
-                        else if (BundlerHelpers.IsOutsideArtifactInferredSourceDir(session, component))
+                        else if (!WillInlineAsObjectTypeDeclaration(session, component))
                         {
                             globalStatements.AddRange(r.Value.Members);
                         }
@@ -942,6 +942,12 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
             return result;
         }
 
+        private static bool WillInlineAsObjectTypeDeclaration(Session session, Component component)
+        {
+            return !BundlerHelpers.IsOutsideArtifactInferredSourceDir(session, component);
+        }
+
+
         private static Result<List<Node>> GetInlinedMembers(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
         {
             var result = new Result<List<Node>>();
@@ -1045,18 +1051,29 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
             {
                 var fnDecls = new Node[inlinerInfo.FunctionDeclarations.Count];
 
-                for (int i = 0; i < fnDecls.Length; ++i)
+                if(WillInlineAsObjectTypeDeclaration(session, component))
                 {
-                    var methodDecl = result.AddMessages(
-                        BundlerHelpers.ConvertToStaticMethodDeclaration(session, ast, inlinerInfo.FunctionDeclarations[i], token)
-                    );
-
-                    // [dho] guard against case when conversion has errored - 29/06/19
-                    if (methodDecl != null)
+                    for (int i = 0; i < fnDecls.Length; ++i)
                     {
-                        fnDecls[i] = methodDecl.Node;
+                        var methodDecl = result.AddMessages(
+                            BundlerHelpers.ConvertToStaticMethodDeclaration(session, ast, inlinerInfo.FunctionDeclarations[i], token)
+                        );
+
+                        // [dho] guard against case when conversion has errored - 29/06/19
+                        if (methodDecl != null)
+                        {
+                            fnDecls[i] = methodDecl.Node;
+                        }
                     }
                 }
+                else
+                {
+                    for (int i = 0; i < fnDecls.Length; ++i)
+                    {
+                        fnDecls[i] = inlinerInfo.FunctionDeclarations[i].Node;
+                    }
+                }
+
 
                 members.AddRange(fnDecls);
             }
@@ -1288,6 +1305,8 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
 
             if (execOnLoads?.Count > 0)
             {
+                var shouldMakeTopLevelDeclsStatic = WillInlineAsObjectTypeDeclaration(session, component);
+
                 // var topLevelStatements = new List<Node>();
 
                 foreach (var execOnLoad in execOnLoads)
@@ -1296,7 +1315,7 @@ func sceneDidEnterBackground(_ scene: UIScene) {{
                     {
                         // [dho] need to make the declarations static at file level because we
                         // are putting them inside a class - 14/07/19
-                        if ((MetaHelpers.ReduceFlags(ast, execOnLoad) & MetaFlag.Static) == 0)
+                        if ((MetaHelpers.ReduceFlags(ast, execOnLoad) & MetaFlag.Static) == 0 && shouldMakeTopLevelDeclsStatic)
                         {
                             var staticFlag = NodeFactory.Meta(
                                 ast,
