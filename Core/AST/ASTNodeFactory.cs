@@ -280,13 +280,17 @@
             return new LiteralTypeReference(ast, node);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ComputedValue ComputedValue(RawAST ast, Node node)
+        {
+            return new ComputedValue(ast, node);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ConstructorDeclaration ConstructorDeclaration(RawAST ast, Node node)
         {
             return new ConstructorDeclaration(ast, node);
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ConstructorSignature ConstructorSignature(RawAST ast, Node node)

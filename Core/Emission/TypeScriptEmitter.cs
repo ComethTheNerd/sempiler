@@ -526,6 +526,23 @@ namespace Sempiler.Emission
             return EmitNode(node.Literal, context, token);
         }
 
+        public override Result<object> EmitComputedValue(ComputedValue node, Context context, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+
+            context.Emission.Append(node, "[");
+
+            result.AddMessages(
+                EmitNode(node.Subject, childContext, token)
+            );  
+        
+            context.Emission.Append(node, "]");
+
+            return result;
+        }
+
         const MetaFlag ConstructorDeclarationFlags = TypeDeclarationMemberFlags | MetaFlag.Optional | MetaFlag.Abstract;
 
         public override Result<object> EmitConstructorDeclaration(ConstructorDeclaration node, Context context, CancellationToken token)

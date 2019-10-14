@@ -744,7 +744,52 @@ namespace Sempiler.Emission
 
         public override Result<object> EmitDynamicTypeConstruction(DynamicTypeConstruction node, Context context, CancellationToken token)
         {
-            return base.EmitDynamicTypeConstruction(node, context, token);
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+
+            context.Emission.Append(node, "[");
+
+            context.Emission.Indent();
+            {
+                foreach (var (member, hasNext) in ASTNodeHelpers.IterateMembers(node.Members))
+                {
+                    if(member.Kind == SemanticKind.FieldDeclaration)
+                    {
+                        var fieldDecl = ASTNodeFactory.FieldDeclaration(node.AST, member);
+                        var fieldName = fieldDecl.Name;
+
+                        if(fieldName?.Kind == SemanticKind.Identifier)
+                        {
+                            context.Emission.AppendBelow(member, "\"");
+
+                            result.AddMessages(
+                                EmitNode(fieldName, childContext, token)
+                            );
+
+                            context.Emission.Append(member, "\" : ");
+
+                            result.AddMessages(
+                                EmitNode(fieldDecl.Initializer, childContext, token)
+                            );
+
+                            context.Emission.Append(member, ",");
+                            
+                            continue;
+                        }
+                    }
+
+                    result.AddMessages(
+                        CreateUnsupportedFeatureResult(member, $"Dynamic type construction members of type '{member.Kind}'")
+                    );
+                }
+
+            }
+            context.Emission.Outdent();
+
+            context.Emission.AppendBelow(node, "]");
+
+            return result;
         }
 
         public override Result<object> EmitDynamicTypeReference(DynamicTypeReference node, Context context, CancellationToken token)

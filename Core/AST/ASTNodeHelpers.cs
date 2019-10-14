@@ -44,7 +44,7 @@ namespace Sempiler.AST
 
             // System.Console.WriteLine("\n\nEDGES for " + nodeID);
 
-            foreach (var edge in ASTHelpers.GetEdges(ast, nodeID))
+            foreach (var edge in ASTHelpers.GetLiveEdges(ast, nodeID))
             {
                 if (ASTHelpers.IsChildEdge(edge) && ASTHelpers.IsLive(ast, nodeID))
                 {

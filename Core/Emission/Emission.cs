@@ -179,6 +179,9 @@ namespace Sempiler.Emission
                 case SemanticKind.Component:
                     return EmitComponent(ASTNodeFactory.Component(context.AST, (DataNode<string>)node), context, token);
 
+                case SemanticKind.ComputedValue:
+                    return EmitComputedValue(ASTNodeFactory.ComputedValue(context.AST, node), context, token);
+
                 case SemanticKind.Concatenation:
                     return EmitConcatenation(ASTNodeFactory.Concatenation(context.AST, node), context, token);
 
@@ -820,6 +823,11 @@ namespace Sempiler.Emission
         }
 
         public virtual Result<object> EmitLiteralTypeReference(LiteralTypeReference node, Context context, CancellationToken token)
+        {
+            return CreateUnsupportedFeatureResult(node);
+        }
+
+        public virtual Result<object> EmitComputedValue(ComputedValue node, Context context, CancellationToken token)
         {
             return CreateUnsupportedFeatureResult(node);
         }
