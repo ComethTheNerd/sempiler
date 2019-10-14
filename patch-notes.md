@@ -1,5 +1,16 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 14/10/19
+- Fix for CT Exec choking on Compiler Hint nodes (eg. `declare let x : any`), now they are discarded from the AST used for compile time evaluation
+- Fix for computed properties for single identifiers (eg. `[x] : ...`) being treated as normal identifiers (ie. `x`)
+- Added new `SemanticKind` for `ComputedValue`
+- Added emission support for `ComputedValue` in TypeScript Emitter
+- Added limited emission support for `DynamicTypeConstruction` in Swift Emitter, specifically only when keys are identifiers
+
+# 🗓 06/10/19
+- Fixed bug where new AST edges were connected with indices based on live edges rather than all edges
+- Renamed `GetEdges` helper function to `GetLiveEdges` to provide clarity
+
 # 🗓 05/10/19
 - `use_frameworks!` only included in Pod if target language is Swift
 - Mapped `init` arguments for `TabView` in SwiftUI

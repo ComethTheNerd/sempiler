@@ -739,7 +739,6 @@ $@"
                 //     }
                 // }
 
-
                 if(node.Kind == SemanticKind.ForcedCast || node.Kind == SemanticKind.SafeCast)
                 {
                     var subject = ASTHelpers.QueryEdgeNodes(ast, node.ID, SemanticRole.Subject)[0];
@@ -752,7 +751,10 @@ $@"
                 }
 
 
-                if(node.Kind == SemanticKind.InterfaceDeclaration || node.Kind == SemanticKind.TypeAliasDeclaration)
+                if(node.Kind == SemanticKind.InterfaceDeclaration || 
+                    node.Kind == SemanticKind.TypeAliasDeclaration || 
+                    // [dho] eg. `declare let x : any` - 14/10/19
+                    node.Kind == SemanticKind.CompilerHint)
                 {
                     nodesToRemove.Add(node.ID);
                     return false;
@@ -986,7 +988,7 @@ $@"
         private Result<object> TransformCTCodeExecDirective(Session session, Artifact artifact, RawAST ast, Component component, Directive directive, BaseLanguageSemantics languageSemantics, ServerInteropFunctionIdentifiers serverInteropFnIDs, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
         {
             var result = new Result<object>();
-            
+
             var subject = directive.Subject;
 
             var content = new List<Node>();

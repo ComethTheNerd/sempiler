@@ -6066,7 +6066,20 @@ namespace Sempiler.Parsing
                     EatIfNextOrError(SyntaxKind.CloseBracketToken, lexer, context, ct)
                 );
 
-                result.Value = exp;
+
+                if(!HasErrors(result))
+                {
+                    var range = new Range(startPos, lexer.Pos);
+
+                    var origin = CreateOrigin(range, lexer, context);
+
+                    var computedValue = NodeFactory.ComputedValue(context.AST, origin);
+                   
+                    result.AddMessages(AddOutgoingEdges(computedValue, exp, SemanticRole.Operand));
+
+                    result.Value = result.AddMessages(FinishNode(computedValue, lexer, context, ct));
+                }
+
 
                 return result;
             }
