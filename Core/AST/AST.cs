@@ -86,7 +86,7 @@ namespace Sempiler.AST
             }
         }
 
-        public static IEnumerable<Edge> GetEdges(RawAST ast, NodeID nodeID)
+        public static IEnumerable<Edge> GetLiveEdges(RawAST ast, NodeID nodeID)
         {
             List<Edge> edges = new List<Edge>();
 
@@ -179,7 +179,9 @@ namespace Sempiler.AST
         {
             lock(ast)
             {
-                var combinedEdges = new List<Edge>(GetEdges(ast, parentID));
+                // [dho] NOTE use of **all** edges, not just _live_ edges, because
+                // the indexes need to account for all connected edges from a node - 06/10/19
+                var combinedEdges = ast.Edges.ContainsKey(parentID) ? new List<Edge>(ast.Edges[parentID]) : new List<Edge>();
 
                 var insertedEdges = new Edge[newNodes.Length];
 

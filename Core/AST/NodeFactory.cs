@@ -512,6 +512,18 @@ namespace Sempiler.AST
             return ASTNodeFactory.LiteralTypeReference(ast, node);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ComputedValue ComputedValue(RawAST ast, INodeOrigin origin)
+        {
+            NodeID id = ASTHelpers.NextID();
+
+            var node = new Node(id, SemanticKind.ComputedValue, origin);
+
+            ASTHelpers.RegisterNode(ast, node);
+
+            return ASTNodeFactory.ComputedValue(ast, node);
+        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ConstructorDeclaration ConstructorDeclaration(RawAST ast, INodeOrigin origin)

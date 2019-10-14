@@ -39,6 +39,7 @@
         BridgeInvocation,
         ClauseBreak,
         CodeConstant,
+        ComputedValue,
         CollectionDestructuring,
         CompilerHint,
         Component,

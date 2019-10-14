@@ -3225,4 +3225,17 @@ namespace Sempiler.AST
             get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
         }
     }
+
+    public class ComputedValue : ASTNode
+    {
+        public ComputedValue(RawAST ast, Node node) : base(ast, node)
+        {
+        }
+
+        public Node Subject
+        {
+            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+        }
+    }
+
 }
