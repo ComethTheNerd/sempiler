@@ -1,5 +1,32 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 24/10/19
+- FirebaseBundler now infers HTTP response code based on type of error thrown, and whether it was expected or not (`TypeError`, `ReferenceError`, `RangeError` etc)
+
+# 🗓 21/10/19
+- Fix for live lock during CT Exec when nested sources were waiting on Duplex Socket Server to accept new connections
+
+# 🗓 20/10/19
+- Added SwiftUI definition for built-in `Alert` component
+- Resources are now per Ancillary, rather than per Artifact, to allow for Ancillaries to use their own distinct resources without clashes
+
+# 🗓 19/10/19
+- Fixed bugs in `IOSBundler` around share extension generation
+
+# 🗓 18/10/19
+- Added AST `DeepRegister(...)` helper function that registers all nodes from a source subtree in a destination subtree, for quick _copying_ of arbitrarily deep subtrees
+- `IOSBundler` no longer generates `AppDelegate` and `SceneDelegate` automatically
+- `IOSBundler` no longer inlines all components into single output file, due to constraints of this abstraction when generating arbitrarily complex source programs in a way that stays true to the source. Components are emitted to separate files and shared between multiple ancillary schemes in the manifest
+- `IOSBundler` now omits empty components from the emitted artifact bundle for more compact output
+
+# 🗓 17/10/19
+- Fixed `IOSBundler` so it now produces a valid `.xcodeproj` with schemes and Podfile for main app and share extension
+- Added compile time API support for Ancillary creation with `addAncillary(role, entrypointSource)`
+- Cleaned up naming convention for AST manipulation API
+
+# 🗓 16/10/19
+- Artifacts can now have ancillaries (such as an iOS share extension) that define the multiple entrypoints/usages in context
+
 # 🗓 14/10/19
 - Fix for CT Exec choking on Compiler Hint nodes (eg. `declare let x : any`), now they are discarded from the AST used for compile time evaluation
 - Fix for computed properties for single identifiers (eg. `[x] : ...`) being treated as normal identifiers (ie. `x`)

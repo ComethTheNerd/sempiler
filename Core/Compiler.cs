@@ -39,6 +39,7 @@ namespace Sempiler
             else
             {
                 domain = Sempiler.AST.NodeFactory.Domain(ast, new PhaseNodeOrigin(PhaseKind.Parsing));
+                ASTHelpers.Register(ast, domain.Node);
             }
             
 
@@ -138,7 +139,7 @@ namespace Sempiler
         // }
 
 
-        public static Result<OutFileCollection> Bundle(IBundler bundler, Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        public static Result<OutFileCollection> Bundle(IBundler bundler, Session session, Artifact artifact, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -146,9 +147,9 @@ namespace Sempiler
 
             var outFileCollection = default(OutFileCollection);
 
-            var root = ASTHelpers.GetRoot(ast);
+            var ancillaries = session.Ancillaries[artifact.Name];
 
-            var task = bundler.Bundle(session, artifact, ast, token);
+            var task = bundler.Bundle(session, artifact, ancillaries, token);
 
             var pkgMessages = default(MessageCollection);
 

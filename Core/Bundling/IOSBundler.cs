@@ -26,12 +26,16 @@ namespace Sempiler.Bundler
         const string AppDelegateClassSymbolName = "AppDelegate";
         const string SceneDelegateClassSymbolName = "SceneDelegate";
 
+
+        const string MainAppTargetName = "app";
+        const string ProjectBundleIdentifier = "com.sempiler"; // [dho] TODO dynamic!! - 19/10/19
+
         // [dho] NOTE INCOMPLETE! TODO finish implementation of non inlined output - 31/08/19
         // const bool PerformInlining = true;
 
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ "Pods" };
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -45,83 +49,226 @@ namespace Sempiler.Bundler
                 return result;
             }
 
+            var ofc = result.AddMessages(
+                SupportingFiles(session, artifact, ancillaries, token)
+            );
+            // var ofc = new OutFileCollection();
 
-            var ofc = new OutFileCollection();
-
-            var relResourcePaths = result.AddMessages(AddResourceFiles(session, artifact, ofc, "Resources/"));
+            // var relResourcePaths = result.AddMessages(AddResourceFiles(session, artifact, ofc, "Resources/"));
 
 
-            var emittedFiles = default(OutFileCollection);
-            // var mainActivity = default(ObjectTypeDeclaration);
+//             var emittedFiles = default(OutFileCollection);
+//             // var mainActivity = default(ObjectTypeDeclaration);
 
-            // [dho] emit source files - 21/05/19
+//             // [dho] emit source files - 21/05/19
+//             {
+//                 var emitter = default(IEmitter);
+
+//                 if (artifact.TargetLang == ArtifactTargetLang.Swift)
+//                 {
+//                     result.AddMessages(SwiftInlining(session, artifact, ast, token));
+
+//                     if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+//                     emitter = new SwiftEmitter();
+
+//                     emittedFiles = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ast, token));
+
+//                     foreach (var emittedFile in emittedFiles)
+//                     {
+//                         ofc[FileSystem.ParseFileLocation($"./{artifact.Name}/{emittedFile.Path}")] = emittedFile.Emission;
+//                     }
+//                 }
+//                 else
+//                 {
+//                     result.AddMessages(
+//                         new Message(MessageKind.Error,
+//                             $"No bundler exists for target role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
+//                     );
+//                 }
+
+//                 if (HasErrors(result) || token.IsCancellationRequested) return result;
+//             }
+
+//             // [dho] synthesize any requisite files for the target platform - 25/06/19
+//             {
+//                 // [dho] create each file we need to compile for iOS, and add a reference to it
+//                 // in the target app, so that the membership is set correctly and the file gets included
+//                 // in the build by xcode etc. - 01/07/19
+//                 var initRBContent = new System.Text.StringBuilder();
+//                 {
+//                     foreach (var emittedFile in emittedFiles)
+//                     {
+//                         initRBContent.Append($"target.source_build_phase.add_file_reference(src.new_file('./{artifact.Name}/{emittedFile.Path}'))");
+//                         initRBContent.AppendLine();
+//                     }
+
+//                     foreach (var relResourcePath in relResourcePaths)
+//                     {
+//                         // [dho] TODO CLEANUP make into one call to `add_resources` with a populated array - 19/07/19
+//                         initRBContent.Append($"target.add_resources([res.new_file('{relResourcePath}')])");
+//                         initRBContent.AppendLine();
+//                     }
+//                 }
+
+//                 var entitlementsRBContent = new System.Text.StringBuilder();
+//                 var entitlementsPListContent = new System.Text.StringBuilder();
+//                 {
+//                     foreach (var entitlement in session.Entitlements[artifact.Name])
+//                     {
+//                         entitlementsRBContent.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
+
+//                         entitlementsPListContent.Append($"<key>{entitlement.Name}</key>");
+//                         entitlementsPListContent.AppendLine();
+
+//                         PListSerialize(entitlement.Type, entitlement.Values, ref entitlementsPListContent);
+//                     }
+//                 }
+
+
+//                 // [dho] entitlements adapted from : https://stackoverflow.com/questions/40673116/ionic-cordova-how-to-add-push-capability-with-fastlane-or-xcodebuild - 15/09/19
+//                 AddRawFileIfMissing(ofc, $"init.rb",
+// $@"
+// # try to install xcodeproj if missing
+// `gem list '^xcodeproj$' -i || sudo gem install xcodeproj`
+// require 'xcodeproj'
+
+// # create project from scratch
+// project = Xcodeproj::Project.new('./{artifact.Name}.xcodeproj')
+
+// # target represents the app artifact being produced by the build
+// target = project.new_target(:application, '{artifact.Name}', :ios, nil, nil, :swift)
+
+// # entitlements inject adapted from 
+// # entitlement_path = '{artifact.Name}/{artifact.Name}.entitlements'
+
+// # file = project.new_file(entitlement_path)
+
+
+// attributes = {{}}
+// project.targets.each do |target|
+//     attributes[target.uuid] = {{'SystemCapabilities' => {{ {entitlementsRBContent.ToString()} }} }}
+//     # target.add_file_references([file])
+//     puts 'Added to target: ' + target.uuid
+// end
+// project.root_object.attributes['TargetAttributes'] = attributes
+
+
+// # grouping the emitted files under a folder with the same name as artifact
+// src = project.new_group('{artifact.Name}')
+
+// res = src.new_group('Resources')
+
+
+// # Note Info.plist is not included in target, but is pointed to by build configuration for target instead
+// src.new_file('./{artifact.Name}/Info.plist')
+
+// src.new_file('./{artifact.Name}/Entitlements.plist')
+
+
+// {initRBContent.ToString() /* include all the emitted files */}
+
+
+// target.build_configurations.each do |config|
+//     # Make sure the Info.plist is configured for all configs in the target
+//     config.build_settings['INFOPLIST_FILE'] = './{artifact.Name}/Info.plist'
+//     config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = '{EmittedPackageName}'
+//     config.build_settings['CODE_SIGN_ENTITLEMENTS'] = './{artifact.Name}/Entitlements.plist'
+// end
+
+// project.save()
+
+// `pod install`");
+
+//                 var podfileContent = new System.Text.StringBuilder();
+//                 {
+//                     foreach (var dependency in session.Dependencies[artifact.Name])
+//                     {
+//                         podfileContent.Append($"pod '{dependency.Name}'");
+
+//                         if (dependency.Version != null)
+//                         {
+//                             podfileContent.Append($", '~> {dependency.Version}'");
+//                         }
+
+//                         podfileContent.AppendLine();
+//                     }
+//                 }
+
+//                 // [dho] from Pod docs : "Comment the next line if you're not using Swift and don't want to use dynamic frameworks" - 05/10/19
+//                 var useFrameworks = artifact.TargetLang == Sempiler.ArtifactTargetLang.Swift ? "use_frameworks!" : "";
+
+//                 AddRawFileIfMissing(ofc, $"Podfile",
+// $@"source 'https://cdn.cocoapods.org/'
+
+// target '{artifact.Name}' do
+//   {useFrameworks}
+//   platform :ios, '13.0'
+//   {podfileContent.ToString()}
+// end");
+
+                
+
+
+                result.Value = ofc;
+            // }
+
+
+            return result;
+        }
+
+        private static void PListSerialize(ConfigurationPrimitive type, string[] values, ref System.Text.StringBuilder pListContent)
+        {
+            switch(type)
             {
-                var emitter = default(IEmitter);
-
-                if (artifact.TargetLang == ArtifactTargetLang.Swift)
-                {
-                    result.AddMessages(SwiftInlining(session, artifact, ast, token));
-
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
-
-                    emitter = new SwiftEmitter();
-
-                    emittedFiles = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ast, token));
-
-                    foreach (var emittedFile in emittedFiles)
-                    {
-                        ofc[FileSystem.ParseFileLocation($"./{artifact.Name}/{emittedFile.Path}")] = emittedFile.Emission;
-                    }
+                case ConfigurationPrimitive.String:{
+                    System.Diagnostics.Debug.Assert(values.Length == 1);
+                    pListContent.Append($"<string>{values[0]}</string>");
+                    pListContent.AppendLine();
                 }
-                else
-                {
-                    result.AddMessages(
-                        new Message(MessageKind.Error,
-                            $"No bundler exists for target role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
+                break;
+
+                case ConfigurationPrimitive.StringArray:{
+                    pListContent.Append($"<array>");
+                    pListContent.AppendLine();
+                    foreach(var value in values)
+                    {
+                        pListContent.Append($"<string>{value}</string>");
+                        pListContent.AppendLine();
+                    }
+                    pListContent.Append($"</array>");
+                    pListContent.AppendLine();
+                }
+                break;
+
+                default:{
+                    System.Diagnostics.Debug.Assert(
+                        false,
+                        $"Unhandled Entitlement Type for '{((ConfigurationPrimitive)type).ToString()}' in IOS Bundler"
                     );
                 }
-
-                if (HasErrors(result) || token.IsCancellationRequested) return result;
+                break;
             }
+        }
 
-            // [dho] synthesize any requisite files for the target platform - 25/06/19
-            {
-                // [dho] create each file we need to compile for iOS, and add a reference to it
-                // in the target app, so that the membership is set correctly and the file gets included
-                // in the build by xcode etc. - 01/07/19
-                var initRBContent = new System.Text.StringBuilder();
-                {
-                    foreach (var emittedFile in emittedFiles)
-                    {
-                        initRBContent.Append($"target.source_build_phase.add_file_reference(src.new_file('./{artifact.Name}/{emittedFile.Path}'))");
-                        initRBContent.AppendLine();
-                    }
+        private static Result<OutFileCollection> SupportingFiles(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
+        {
+            var result = new Result<OutFileCollection>();
 
-                    foreach (var relResourcePath in relResourcePaths)
-                    {
-                        // [dho] TODO CLEANUP make into one call to `add_resources` with a populated array - 19/07/19
-                        initRBContent.Append($"target.add_resources([res.new_file('{relResourcePath}')])");
-                        initRBContent.AppendLine();
-                    }
-                }
+            var ofc = new OutFileCollection();
+            
+            
+            if(HasErrors(result) || token.IsCancellationRequested) return result;
+            
+            // [dho] from Pod docs : "Comment the next line if you're not using Swift and don't want to use dynamic frameworks" - 05/10/19
+            var useFrameworks = artifact.TargetLang == Sempiler.ArtifactTargetLang.Swift ? "use_frameworks!" : "";
 
-                var entitlementsRBContent = new System.Text.StringBuilder();
-                var entitlementsPListContent = new System.Text.StringBuilder();
-                {
-                    foreach (var entitlement in session.Entitlements[artifact.Name])
-                    {
-                        entitlementsRBContent.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
+            var podfileContent = new System.Text.StringBuilder();
 
-                        entitlementsPListContent.Append($"<key>{entitlement.Name}</key>");
-                        entitlementsPListContent.AppendLine();
-
-                        PListSerialize(entitlement.Type, entitlement.Values, ref entitlementsPListContent);
-                    }
-                }
+            var initRBContent = new System.Text.StringBuilder();
 
 
-                // [dho] entitlements adapted from : https://stackoverflow.com/questions/40673116/ionic-cordova-how-to-add-push-capability-with-fastlane-or-xcodebuild - 15/09/19
-                AddRawFileIfMissing(ofc, $"init.rb",
+            initRBContent.Append(
 $@"
 # try to install xcodeproj if missing
 `gem list '^xcodeproj$' -i || sudo gem install xcodeproj`
@@ -130,80 +277,281 @@ require 'xcodeproj'
 # create project from scratch
 project = Xcodeproj::Project.new('./{artifact.Name}.xcodeproj')
 
-# target represents the app artifact being produced by the build
-target = project.new_target(:application, '{artifact.Name}', :ios, nil, nil, :swift)
-
-# entitlements inject adapted from 
-# entitlement_path = '{artifact.Name}/{artifact.Name}.entitlements'
-
-# file = project.new_file(entitlement_path)
-
-
 attributes = {{}}
-project.targets.each do |target|
-    attributes[target.uuid] = {{'SystemCapabilities' => {{ {entitlementsRBContent.ToString()} }} }}
-    # target.add_file_references([file])
-    puts 'Added to target: ' + target.uuid
-end
+
+
+###### https://github.com/CocoaPods/Xcodeproj/issues/408
+embed_extensions_phase = project.new(Xcodeproj::Project::Object::PBXCopyFilesBuildPhase)
+embed_extensions_phase.name = 'Embed App Extensions'
+embed_extensions_phase.symbol_dst_subfolder_spec = :plug_ins
+"
+            );
+
+
+            var artifactRelPath = $"./{artifact.Name}";
+            var combinedAST = new RawAST();
+            {
+                var newDomain = NodeFactory.Domain(combinedAST, new PhaseNodeOrigin(PhaseKind.Bundling));
+
+                ASTHelpers.Register(combinedAST, newDomain.Node);
+            }
+            
+            var componentNamesProcessed = new Dictionary<string, (bool, string)>();
+        
+
+
+            foreach(var ancillary in ancillaries)
+            {
+                var targetInfo = default(TargetInfo);
+
+                // emittedFiles
+                if(ancillary.Role == AncillaryRole.MainApp)
+                {
+                    targetInfo = result.AddMessages(
+                        EmitMainAppTarget(session, artifact, ancillary, artifactRelPath, token)
+                    );
+
+                    initRBContent.Append(
+                        result.AddMessages(
+                            EmitMainAppInitRBContent(session, artifact, ancillary, targetInfo,
+                            componentNamesProcessed, combinedAST, ofc, artifactRelPath, token)
+                        ) ?? System.String.Empty
+                    );
+                }
+                else if(ancillary.Role == AncillaryRole.ShareExtension)
+                {
+                    targetInfo = result.AddMessages(
+                        EmitShareExtensionTargetInfo(session, artifact, ancillary, artifactRelPath, token)
+                    );
+
+                    initRBContent.Append(
+                        result.AddMessages(
+                            EmitShareExtensionInitRBContent(session, artifact, ancillary, targetInfo,
+                            componentNamesProcessed, combinedAST, ofc, artifactRelPath, token)
+                        ) ?? System.String.Empty
+                    );
+                }
+                else
+                {
+                    result.AddMessages(
+                        new Message(MessageKind.Error,
+                            $"Unsupported ancillary role '{ancillary.Role.ToString()} in bundler for artifact role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
+                    );
+                    
+                }
+
+
+
+
+             
+                
+          
+                podfileContent.Append(
+$@"target '{targetInfo.Name}' do
+  {useFrameworks}
+  platform :ios, '13.0'");
+
+                podfileContent.AppendLine();
+
+                foreach (var dependency in ancillary.Dependencies)
+                {
+                    podfileContent.Append($"pod '{dependency.Name}'");
+
+                    if (dependency.Version != null)
+                    {
+                        podfileContent.Append($", '~> {dependency.Version}'");
+                    }
+
+                    podfileContent.AppendLine();
+                }   
+
+                podfileContent.Append("end"); 
+                podfileContent.AppendLine();
+
+     
+            }
+
+
+            initRBContent.Append(
+$@"
 project.root_object.attributes['TargetAttributes'] = attributes
-
-
-# grouping the emitted files under a folder with the same name as artifact
-src = project.new_group('{artifact.Name}')
-
-res = src.new_group('Resources')
-
-
-# Note Info.plist is not included in target, but is pointed to by build configuration for target instead
-src.new_file('./{artifact.Name}/Info.plist')
-
-src.new_file('./{artifact.Name}/Entitlements.plist')
-
-
-{initRBContent.ToString() /* include all the emitted files */}
-
-
-target.build_configurations.each do |config|
-    # Make sure the Info.plist is configured for all configs in the target
-    config.build_settings['INFOPLIST_FILE'] = './{artifact.Name}/Info.plist'
-    config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = '{EmittedPackageName}'
-    config.build_settings['CODE_SIGN_ENTITLEMENTS'] = './{artifact.Name}/Entitlements.plist'
-end
 
 project.save()
 
-`pod install`");
+`pod install`"
+            );
 
-                var podfileContent = new System.Text.StringBuilder();
-                {
-                    foreach (var dependency in session.Dependencies[artifact.Name])
-                    {
-                        podfileContent.Append($"pod '{dependency.Name}'");
 
-                        if (dependency.Version != null)
-                        {
-                            podfileContent.Append($", '~> {dependency.Version}'");
-                        }
 
-                        podfileContent.AppendLine();
-                    }
-                }
+            // [dho] entitlements adapted from : https://stackoverflow.com/questions/40673116/ionic-cordova-how-to-add-push-capability-with-fastlane-or-xcodebuild - 15/09/19
+            AddRawFileIfMissing(ofc, $"init.rb", initRBContent.ToString());
 
-                // [dho] from Pod docs : "Comment the next line if you're not using Swift and don't want to use dynamic frameworks" - 05/10/19
-                var useFrameworks = artifact.TargetLang == Sempiler.ArtifactTargetLang.Swift ? "use_frameworks!" : "";
-
+               
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            {
                 AddRawFileIfMissing(ofc, $"Podfile",
 $@"source 'https://cdn.cocoapods.org/'
 
-target '{artifact.Name}' do
-  {useFrameworks}
-  platform :ios, '13.0'
   {podfileContent.ToString()}
-end");
+");
+            }
 
+
+            // [dho] TODO REMOVE these transformers.. they should be called in the user's source, not done
+            // implicitly by the bundler - 19/10/19
+
+            // [dho] use SwiftUI API in the AST - 29/06/19
+            {
+                var task = new Sempiler.Transformation.IOSSwiftUITransformer().Transform(session, artifact, combinedAST, token);
+
+                task.Wait();
+
+                var newAST = result.AddMessages(task.Result);
+
+                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+                if (newAST != combinedAST)
+                {
+                    result.AddMessages(
+                        new Message(MessageKind.Error, "iOS SwiftUI Transformer unexpectedly returned a different AST that was discarded")
+                    );
+                }
+            }
+
+
+            {
+                var task = new Sempiler.Transformation.SwiftNamedArgumentsTransformer().Transform(session, artifact, combinedAST, token);
+
+                task.Wait();
+
+                var newAST = result.AddMessages(task.Result);
+
+                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+                if (newAST != combinedAST)
+                {
+                    result.AddMessages(new Message(MessageKind.Error, "Swift Named Arguments Transformer unexpectedly returned a different AST that was discarded"));
+                }
+            }
+
+
+            {
+                var task = new Sempiler.Transformation.SwiftEnforceMutatingMethodsTransformer().Transform(session, artifact, combinedAST, token);
+
+                task.Wait();
+
+                var newAST = result.AddMessages(task.Result);
+
+                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+                if (newAST != combinedAST)
+                {
+                    result.AddMessages(new Message(MessageKind.Error, "Swift Enforce Mutating Methods Transformer unexpectedly returned a different AST that was discarded"));
+                }
+            }
+
+
+
+
+            var emitter = new SwiftEmitter();
+
+            var emittedFiles = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, combinedAST, token));
+
+            if(emittedFiles != null)
+            {
+                foreach (var emittedFile in emittedFiles)
+                {
+                    ofc[FileSystem.ParseFileLocation($"{artifactRelPath}/{emittedFile.Path}")] = emittedFile.Emission;
+                }
+            
+
+                result.Value = ofc;
+            }
+
+
+            return result;
+
+        }   
+
+        struct TargetInfo
+        {
+            public TargetInfo(string name, Artifact artifact)
+            {
+                Name = name;
+                Artifact = artifact;
+                FilesNotReferencedInScheme = new OutFileCollection();
+                FilesReferencedInScheme = new OutFileCollection();
+                ComponentNamesReferenced = new List<string>();
+                InfoPListFileName = null;
+                EntitlementsPListFileName = null;
+            }
+            public readonly string Name;
+            public readonly Artifact Artifact;
+
+            // public string AncillaryName {
+            //     get => Name + "_target";
+            // }
+            
+            public string SrcName {
+                get => Name + "_src";
+            }
+
+            public string ResName{
+                get => Name + "_res";
+            }
+
+            public string RelPath {
+                get => $"{Artifact.Name}/{Name}";
+            }
+
+
+
+            public OutFileCollection FilesNotReferencedInScheme;
+
+            public OutFileCollection FilesReferencedInScheme;
+
+            public List<string> ComponentNamesReferenced;
+
+            public string InfoPListFileName{ get; set; }
+            public string EntitlementsPListFileName { get; set; }
+        }
+
+        private static Result<TargetInfo> EmitMainAppTarget(Session session, Artifact artifact, Ancillary ancillary, string artifactRelPath, CancellationToken token)
+        {
+            var result = new Result<TargetInfo>();
+            var targetInfo = new TargetInfo(MainAppTargetName, artifact);
+
+
+            foreach(var cNode in ASTNodeFactory.Domain(ancillary.AST, ASTHelpers.GetRoot(ancillary.AST)).Components)
+            {
+                targetInfo.ComponentNamesReferenced.Add(
+                    ASTNodeFactory.Component(ancillary.AST, (DataNode<string>)cNode).Name
+                );
+            }
+
+
+            // // [dho] source files - 17/10/19
+            // {
+            //     result.AddMessages(
+            //         XXXX(session, artifact, ancillary, token)
+            //     );
+
+            //     if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+            //     var emitter = new SwiftEmitter();
+
+            //     targetInfo.EmittedSourceFiles = result.AddMessages(
+            //         CompilerHelpers.Emit(emitter, session, artifact, ancillary.AST, token)
+            //     );
+            // }
+
+            // [dho] manifest files - 17/10/19
+            {
                 var permissionPListContent = new System.Text.StringBuilder();
                 {
-                    foreach (var permission in session.Permissions[artifact.Name])
+                    foreach (var permission in ancillary.Permissions)
                     {
                         permissionPListContent.Append($"<key>{permission.Name}</key>");
                         permissionPListContent.AppendLine();
@@ -215,7 +563,7 @@ end");
 
                 var capabilitiesPListContent = new System.Text.StringBuilder();
                 {
-                    foreach (var capability in session.Capabilities[artifact.Name])
+                    foreach (var capability in ancillary.Capabilities)
                     {
                         capabilitiesPListContent.Append($"<key>{capability.Name}</key>");
                         capabilitiesPListContent.AppendLine();
@@ -224,8 +572,9 @@ end");
                     }
                 }
 
+                // targetInfo.FilesNotReferencedInScheme = new OutFileCollection();
 
-                AddRawFileIfMissing(ofc, $"./{artifact.Name}/Info.plist",
+                AddRawFileIfMissing(targetInfo.FilesNotReferencedInScheme, targetInfo.InfoPListFileName = $"Info.plist",
 $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
 <plist version=""1.0"">
@@ -297,55 +646,826 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 </plist>");
 
 
-                AddRawFileIfMissing(ofc, $"./{artifact.Name}/Entitlements.plist",
+
+                AddRawFileIfMissing(
+                    targetInfo.FilesNotReferencedInScheme, 
+                    targetInfo.EntitlementsPListFileName = $"Entitlements.plist", 
+                    SerializeEntitlements(ancillary.Entitlements)
+                );
+
+
+                targetInfo.FilesReferencedInScheme = new OutFileCollection();
+
+            }
+
+
+
+
+            result.Value = targetInfo;
+            return result;
+        }
+
+        private static Result<string> EmitMainAppInitRBContent(
+            Session session, Artifact artifact, Ancillary ancillary, TargetInfo targetInfo, 
+            Dictionary<string, (bool, string)> componentNamesProcessed, RawAST combinedAST, 
+            OutFileCollection ofc, string artifactRelPath, CancellationToken token
+        )
+        {
+            var result = new Result<string>();
+            var content = new System.Text.StringBuilder();
+
+            result.AddMessages(
+                MoveComponentsToCombinedAST(session, artifact, ancillary, combinedAST, componentNamesProcessed, token)
+            );
+
+            var relResourcePaths = result.AddMessages(
+                AddResourceFiles(session, artifact, ancillary, ofc, $"{targetInfo.RelPath}/Resources/")
+            );
+
+            if(HasErrors(result) || token.IsCancellationRequested) return result;
+
+            content.Append(
+$@"
+# target represents the app artifact being produced by the build
+{targetInfo.Name} = project.new_target(:application, '{targetInfo.Name}', :ios, nil, nil, :swift)
+
+{targetInfo.Name}.build_phases << embed_extensions_phase
+
+attributes[{targetInfo.Name}.uuid] = {{'SystemCapabilities' => {{ 
+"
+            );
+
+            foreach (var entitlement in ancillary.Entitlements)
+            {
+                content.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
+            }
+
+            content.Append(
+$@"
+}} }}
+
+# grouping the emitted files under a folder with the same name as artifact
+{targetInfo.SrcName} = project.new_group('{targetInfo.Name}')
+
+{targetInfo.ResName} = {targetInfo.SrcName}.new_group('Resources')
+
+# Note Info.plist is not included in target, but is pointed to by build configuration for target instead
+{targetInfo.SrcName}.new_file('{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
+{targetInfo.SrcName}.new_file('{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
+"
+            );
+
+
+            
+            foreach (var name in targetInfo.ComponentNamesReferenced)
+            {
+                var willEmit = componentNamesProcessed[name].Item1;
+
+                if(willEmit)
+                {
+                    var emittedFileName = componentNamesProcessed[name].Item2;
+                    
+                    var p = $"{artifactRelPath}/{emittedFileName}.swift";
+
+                    content.Append($"{targetInfo.Name}.source_build_phase.add_file_reference({targetInfo.SrcName}.new_file('{p}'))");
+                    content.AppendLine();
+                }
+            }
+
+            foreach(var synthManifestFile in targetInfo.FilesNotReferencedInScheme)
+            {
+                var p = $"{targetInfo.RelPath}/{synthManifestFile.Path}";
+
+                ofc[FileSystem.ParseFileLocation(p)] = synthManifestFile.Emission;
+            }
+
+            foreach (var synthSourceFile in targetInfo.FilesReferencedInScheme)
+            {
+                var p = $"{targetInfo.RelPath}/{synthSourceFile.Path}";
+
+                ofc[FileSystem.ParseFileLocation(p)] = synthSourceFile.Emission;
+            
+            
+                content.Append($"{targetInfo.Name}.source_build_phase.add_file_reference({targetInfo.SrcName}.new_file('{p}'))");
+                content.AppendLine();
+            }
+
+
+            foreach (var relResourcePath in relResourcePaths)
+            {
+                // [dho] TODO CLEANUP make into one call to `add_resources` with a populated array - 19/07/19
+                content.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{relResourcePath}')])");
+                content.AppendLine();
+            }
+        
+
+
+            content.Append(
+$@"
+{targetInfo.Name}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
+{targetInfo.Name}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
+{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{ProjectBundleIdentifier}')
+# {targetInfo.Name}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
+"
+            );
+
+
+            result.Value = content.ToString();
+
+            return result;
+        }
+
+        private static Result<TargetInfo> EmitShareExtensionTargetInfo(Session session, Artifact artifact, Ancillary ancillary, string artifactRelPath, CancellationToken token)
+        {
+            var result = new Result<TargetInfo>();
+            var targetInfo = new TargetInfo(ancillary.Role.ToString().ToLower(), artifact);
+
+
+            foreach(var cNode in ASTNodeFactory.Domain(ancillary.AST, ASTHelpers.GetRoot(ancillary.AST)).Components)
+            {
+                targetInfo.ComponentNamesReferenced.Add(
+                    ASTNodeFactory.Component(ancillary.AST, (DataNode<string>)cNode).Name
+                );
+            }
+
+            // // [dho] source files - 17/10/19
+            // {
+            //     // result.AddMessages(
+            //     //     SwiftInlining(session, artifact, ancillary.AST, token)
+            //     // );
+
+            //     // if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+            //     var emitter = new SwiftEmitter();
+
+            //     targetInfo.EmittedSourceFiles = result.AddMessages(
+            //         CompilerHelpers.Emit(emitter, session, artifact, ancillary.AST, token)
+            //     );
+            // }
+
+            // [dho] manifest files - 17/10/19
+            {
+                var permissionPListContent = new System.Text.StringBuilder();
+                {
+                    foreach (var permission in ancillary.Permissions)
+                    {
+                        permissionPListContent.Append($"<key>{permission.Name}</key>");
+                        permissionPListContent.AppendLine();
+
+                        permissionPListContent.Append($"<string>{permission.Description}</string>");
+                        permissionPListContent.AppendLine();
+                    }
+                }
+
+                var capabilitiesPListContent = new System.Text.StringBuilder();
+                {
+                    foreach (var capability in ancillary.Capabilities)
+                    {
+                        capabilitiesPListContent.Append($"<key>{capability.Name}</key>");
+                        capabilitiesPListContent.AppendLine();
+
+                        PListSerialize(capability.Type, capability.Values, ref capabilitiesPListContent);
+                    }
+                }
+
+                // targetInfo.FilesNotReferencedInScheme = new OutFileCollection();
+
+                AddRawFileIfMissing(targetInfo.FilesNotReferencedInScheme, targetInfo.InfoPListFileName = $"Info.plist",
+$@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
+<plist version=""1.0"">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>{targetInfo.Name}</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>NSExtensionActivationRule</key>
+			<dict>
+				<key>NSExtensionActivationSupportsText</key>
+				<integer>1</integer>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>1</integer>
+			</dict>
+			<!-- <key>NSExtensionJavaScriptPreprocessingFile</key>
+			<string>GetURL</string> -->
+		</dict>
+		<key>NSExtensionMainStoryboard</key>
+		<string>MainInterface</string>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.share-services</string>
+	</dict>
+    <key>NSAppTransportSecurity</key>    
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    {permissionPListContent.ToString()}
+    {capabilitiesPListContent.ToString()}
+</dict>
+</plist>
+");
+
+
+
+
+                AddRawFileIfMissing(
+                    targetInfo.FilesNotReferencedInScheme, 
+                    targetInfo.EntitlementsPListFileName = $"{targetInfo.Name}.entitlements", 
+                    SerializeEntitlements(ancillary.Entitlements)
+                );
+
+
+
+                targetInfo.FilesReferencedInScheme = new OutFileCollection();
+                // [dho] TODO dynamic, fully qualified? - 17/10/19
+                var shareViewController = "ShareViewController";
+
+
+                AddRawFileIfMissing(targetInfo.FilesReferencedInScheme, $"MainInterface.storyboard",
+$@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<document type=""com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB"" version=""3.0"" toolsVersion=""13122.16"" targetRuntime=""iOS.CocoaTouch"" propertyAccessControl=""none"" useAutolayout=""YES"" useTraitCollections=""YES"" useSafeAreas=""YES"" colorMatched=""YES"" initialViewController=""j1y-V4-xli"">
+    <dependencies>
+        <plugIn identifier=""com.apple.InterfaceBuilder.IBCocoaTouchPlugin"" version=""13104.12""/>
+        <capability name=""Safe area layout guides"" minToolsVersion=""9.0""/>
+        <capability name=""documents saved in the Xcode 8 format"" minToolsVersion=""8.0""/>
+    </dependencies>
+    <scenes>
+        <!--Share View Controller-->
+        <scene sceneID=""ceB-am-kn3"">
+            <objects>
+                <viewController id=""j1y-V4-xli"" customClass=""{shareViewController}"" customModuleProvider=""target"" sceneMemberID=""viewController"">
+                    <view key=""view"" opaque=""NO"" contentMode=""scaleToFill"" id=""wbc-yd-nQP"">
+                        <rect key=""frame"" x=""0.0"" y=""0.0"" width=""375"" height=""667""/>
+                        <autoresizingMask key=""autoresizingMask"" widthSizable=""YES"" heightSizable=""YES""/>
+                        <color key=""backgroundColor"" red=""0.0"" green=""0.0"" blue=""0.0"" alpha=""0.0"" colorSpace=""custom"" customColorSpace=""sRGB""/>
+                        <viewLayoutGuide key=""safeArea"" id=""1Xd-am-t49""/>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier=""IBFirstResponder"" id=""CEy-Cv-SGf"" userLabel=""First Responder"" sceneMemberID=""firstResponder""/>
+            </objects>
+        </scene>
+    </scenes>
+</document>
+");
+
+
+            }
+
+
+
+            result.Value = targetInfo;
+            return result;
+        }
+
+
+        private static Result<OutFileCollection> XXXXMainAppPLists(Session session, Artifact artifact, Ancillary ancillary, CancellationToken token)
+        {
+            var result = new Result<OutFileCollection>();
+
+            var ofc = new OutFileCollection();
+
+            var permissionPListContent = new System.Text.StringBuilder();
+            {
+                foreach (var permission in ancillary.Permissions)
+                {
+                    permissionPListContent.Append($"<key>{permission.Name}</key>");
+                    permissionPListContent.AppendLine();
+
+                    permissionPListContent.Append($"<string>{permission.Description}</string>");
+                    permissionPListContent.AppendLine();
+                }
+            }
+
+            var capabilitiesPListContent = new System.Text.StringBuilder();
+            {
+                foreach (var capability in ancillary.Capabilities)
+                {
+                    capabilitiesPListContent.Append($"<key>{capability.Name}</key>");
+                    capabilitiesPListContent.AppendLine();
+
+                    PListSerialize(capability.Type, capability.Values, ref capabilitiesPListContent);
+                }
+            }
+
+
+            AddRawFileIfMissing(ofc, $"Info.plist",
+$@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
+<plist version=""1.0"">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UILaunchStoryboardName</key>
+					<string>LaunchScreen</string>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).{SceneDelegateClassSymbolName}</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+    <key>NSAppTransportSecurity</key>    
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+    {permissionPListContent.ToString()}
+    {capabilitiesPListContent.ToString()}
+</dict>
+</plist>");
+
+
+
+            var entitlementsRBContent = new System.Text.StringBuilder();
+            var entitlementsPListContent = new System.Text.StringBuilder();
+            {
+                foreach (var entitlement in ancillary.Entitlements)
+                {
+                    entitlementsRBContent.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
+
+                    entitlementsPListContent.Append($"<key>{entitlement.Name}</key>");
+                    entitlementsPListContent.AppendLine();
+
+                    PListSerialize(entitlement.Type, entitlement.Values, ref entitlementsPListContent);
+                }
+            }
+
+
+            AddRawFileIfMissing(ofc, $"Entitlements.plist", SerializeEntitlements(ancillary.Entitlements));
+
+            result.Value = ofc;
+
+            return result;
+        }
+
+        private static Result<string> EmitShareExtensionInitRBContent(
+            Session session, Artifact artifact, Ancillary ancillary, TargetInfo targetInfo, 
+            Dictionary<string, (bool, string)> componentNamesProcessed, RawAST combinedAST, 
+            OutFileCollection ofc, string artifactRelPath, CancellationToken token
+        )
+        {
+            var result = new Result<string>();
+            var content = new System.Text.StringBuilder();
+
+            result.AddMessages(
+                MoveComponentsToCombinedAST(session, artifact, ancillary, combinedAST, componentNamesProcessed, token)
+            );
+
+            var relResourcePaths = result.AddMessages(
+                AddResourceFiles(session, artifact, ancillary, ofc, $"{targetInfo.RelPath}/Resources/")
+            );
+
+            if(HasErrors(result) || token.IsCancellationRequested) return result;
+
+
+            content.Append(
+$@"
+{targetInfo.SrcName} = project.main_group.find_subpath('ShareExtension', true)
+
+{targetInfo.Name} = project.new_target(:app_extension, '{targetInfo.Name}', :ios, '13.0')
+
+attributes[{targetInfo.Name}.uuid] = {{'SystemCapabilities' => {{ 
+"
+            );
+
+
+            foreach (var entitlement in ancillary.Entitlements)
+            {
+                content.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
+            }
+
+            content.Append(
+$@"
+}} }}
+
+{targetInfo.ResName} = {targetInfo.SrcName}.new_group('Resources')
+
+# Note Info.plist is not included in target, but is pointed to by build configuration for target instead
+{targetInfo.SrcName}.new_file('{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
+{targetInfo.SrcName}.new_file('{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
+
+{targetInfo.Name}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
+{targetInfo.Name}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
+{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{ProjectBundleIdentifier}.{targetInfo.Name}')
+# {targetInfo.Name}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
+
+"
+            );
+
+            
+            foreach (var name in targetInfo.ComponentNamesReferenced)
+            {
+                var willEmit = componentNamesProcessed[name].Item1;
+
+                if(willEmit)
+                {
+                    var emittedFileName = componentNamesProcessed[name].Item2;
+                    
+                    var p = $"{artifactRelPath}/{emittedFileName}.swift";
+
+
+                    content.Append($"{targetInfo.Name}.add_file_references([{targetInfo.SrcName}.new_file('{p}')])");
+                    content.AppendLine();
+                }
+            }
+
+            foreach(var synthManifestFile in targetInfo.FilesNotReferencedInScheme)
+            {
+                var p = $"{targetInfo.RelPath}/{synthManifestFile.Path}";
+
+                ofc[FileSystem.ParseFileLocation(p)] = synthManifestFile.Emission;
+            }
+
+            foreach (var synthSourceFile in targetInfo.FilesReferencedInScheme)
+            {
+                var p = $"{targetInfo.RelPath}/{synthSourceFile.Path}";
+
+                ofc[FileSystem.ParseFileLocation(p)] = synthSourceFile.Emission;
+            
+                content.Append($"{targetInfo.Name}.add_file_references([{targetInfo.SrcName}.new_file('{p}')])");
+                content.AppendLine();
+            }
+
+
+            foreach (var relResourcePath in relResourcePaths)
+            {
+                // [dho] TODO CLEANUP make into one call to `add_resources` with a populated array - 19/07/19
+                content.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{relResourcePath}')])");
+                content.AppendLine();
+            }
+        
+
+            content.Append(
+$@"
+{MainAppTargetName}.add_dependency({targetInfo.Name})
+embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).settings = {{ 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }}
+"
+            );
+
+            result.Value = content.ToString();
+
+            return result;
+        }
+
+
+
+        public static Result<List<string>> AddResourceFiles(Session session, Artifact artifact, Ancillary ancillary, OutFileCollection ofc, string relResourcesOutputPath)
+        {
+            var result = new Result<List<string>>();
+
+            var relResourcePaths = new List<string>();
+
+            foreach(var resource in ancillary.Resources)
+            {
+                switch(resource.Kind)
+                {
+                    case SourceKind.File:{
+
+                        var sourceFile = (ISourceFile)resource;
+
+                        var srcPath = sourceFile.Location.ToPathString();
+                
+                        // var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
+                        //     srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
+                        // }").ToPathString();
+
+                        // [dho] for now we just strip off the 
+                        // parent path components and just use the filename - 20/10/19 
+                        var relPath = FileSystem.ParseFileLocation(
+                            $@"{relResourcesOutputPath}{sourceFile.Location.Name}.{sourceFile.Location.Extension}"
+                        ).ToPathString();
+
+                        /* if(*/AddCopyOfFileIfMissing(ofc, relPath, srcPath);//)
+                        // {
+                            relResourcePaths.Add(relPath);
+                        // }
+                        // else
+                        // {
+                        //     result.AddMessages(
+                        //         new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
+                        //     );
+                        // }
+                    }
+                    break;
+
+                    case SourceKind.Literal:{
+                        var sourceLiteral = (ISourceLiteral)resource;
+                        var srcPath = sourceLiteral.Location.ToPathString();
+                
+                        // var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
+                        //     srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
+                        // }").ToPathString();
+
+                        // [dho] for now we just strip off the 
+                        // parent path components and just use the filename - 20/10/19 
+                        var relPath = FileSystem.ParseFileLocation(
+                            $@"{relResourcesOutputPath}{sourceLiteral.Location.Name}.{sourceLiteral.Location.Extension}"
+                        ).ToPathString();
+
+
+                        AddRawFileIfMissing(ofc, relPath, sourceLiteral.Text);
+                        // if(AddRawFileIfMissing(ofc, relPath, ((ISourceLiteral)resource).Text))
+                        // {
+                            relResourcePaths.Add(relPath);
+                        // }
+                        // else
+                        // {
+                        //     result.AddMessages(
+                        //         new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
+                        //     );
+                        // }
+                    }
+                    break;
+
+                    default:
+                    {
+                        result.AddMessages(
+                            new Message(MessageKind.Error, $"'{artifact.Name}' resource has unsupported kind '{resource.Kind}'")
+                        );
+                    }
+                    break;
+                }
+            }
+
+            result.Value = relResourcePaths;
+
+            return result;
+        }
+
+   
+        private static string SerializeEntitlements(IEnumerable<Entitlement> entitlements)
+        {
+            var entitlementsRBContent = new System.Text.StringBuilder();
+                var entitlementsPListContent = new System.Text.StringBuilder();
+                {
+                    foreach (var entitlement in entitlements)
+                    {
+                        entitlementsRBContent.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
+
+                        entitlementsPListContent.Append($"<key>{entitlement.Name}</key>");
+                        entitlementsPListContent.AppendLine();
+
+                        PListSerialize(entitlement.Type, entitlement.Values, ref entitlementsPListContent);
+                    }
+                }
+
+
+                return (
 $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
 <plist version=""1.0"">
 <dict>
     {entitlementsPListContent.ToString()}
 </dict>
-</plist>");
+</plist>"
+                );
+        }
 
-                result.Value = ofc;
+        /** [dho] `componentNamesProcessed` indicates whether the component will be emitted, and if so what the filename wil be - 18/10/19 */
+        private static Result<object> MoveComponentsToCombinedAST(Session session, Artifact artifact, Ancillary ancillary, RawAST combinedAST, Dictionary<string, (bool, string)> componentNamesProcessed, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            var oldAST = ancillary.AST.Clone();
+
+            var root = ASTHelpers.GetRoot(oldAST);
+
+            System.Diagnostics.Debug.Assert(root?.Kind == SemanticKind.Domain);
+
+            var newComponentNodes = new List<Node>();
+
+            // var ancillaryComponentMainFuncBodyContent = new System.Text.StringBuilder();
+
+            foreach (var cNode in ASTNodeFactory.Domain(oldAST, root).Components)
+            {
+                var oldComponent = ASTNodeFactory.Component(oldAST, (DataNode<string>)cNode);
+                var oldComponentName = oldComponent.Name;
+                
+                var topLevelExpressionsFuncNameLexeme = $"{oldComponent.ID}_TOPLEVELEXP";
+
+                // [dho] check if we have already processed this component - 17/10/19
+                if(!componentNamesProcessed.ContainsKey(oldComponentName))
+                {
+                    // var r = ClientInlining.GetInlinerInfo(session, oldComponent.AST, cNode, LanguageSemantics.Swift, token);
+
+                    // var inlinerInfo = result.AddMessages(r);
+
+                    // if(HasErrors(r))
+                    // {
+                    //     continue;
+                    // }
+
+                    
+                    
+                    var oldComponentEdgeNodes = ASTHelpers.QueryEdgeNodes(oldComponent.AST, oldComponent.ID, x => x.Role != SemanticRole.Parent);
+                    
+                    if(oldComponentEdgeNodes.Length > 0)
+                    {
+                        var newComponent = NodeFactory.Component(combinedAST, new PhaseNodeOrigin(PhaseKind.Bundling), oldComponent.ID);
+                        {
+                            ASTHelpers.DeepRegister(ancillary.AST, combinedAST, oldComponentEdgeNodes);
+
+                            ASTHelpers.Connect(combinedAST, newComponent.ID, oldComponentEdgeNodes, SemanticRole.None);
+                        
+
+                            var r = ClientInlining.GetInlinerInfo(session, oldComponent.AST, cNode, LanguageSemantics.Swift, token);
+
+                            var inlinerInfo = result.AddMessages(r);
+
+                            if(HasErrors(r))
+                            {
+                                continue;
+                            }
+
+                            var imports = new List<Node>();
+                            result.AddMessages(
+                                ProcessImports(session, artifact, combinedAST, newComponent, inlinerInfo.ImportDeclarations, token, ref imports)
+                            );
+                        }
+
+                        newComponentNodes.Add(newComponent.Node);
+
+                        componentNamesProcessed[oldComponentName] = (true, oldComponent.ID);
+                    }
+                    else
+                    {
+                        componentNamesProcessed[oldComponentName] = (false, null);
+                    }
+                
+
+
+
+                    // var topLevelExpressionsFunc = NodeFactory.FunctionDeclaration(oldAST, new PhaseNodeOrigin(PhaseKind.Bundling));
+                    // {
+                    //     var publicFlag = NodeFactory.Meta(oldAST, new PhaseNodeOrigin(PhaseKind.Bundling), MetaFlag.WorldVisibility);
+                    //     var name = NodeFactory.Identifier(oldAST, new PhaseNodeOrigin(PhaseKind.Bundling), topLevelExpressionsFuncNameLexeme);
+                    //     var body = NodeFactory.Block(oldAST, new PhaseNodeOrigin(PhaseKind.Bundling));
+                    //     {
+                    //         ASTHelpers.Connect(oldAST, body.ID, inlinerInfo.ExecOnLoads.ToArray(), SemanticRole.Content);
+                    //     }
+
+                    //     ASTHelpers.Connect(oldAST, topLevelExpressionsFunc.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
+                    //     ASTHelpers.Connect(oldAST, topLevelExpressionsFunc.ID, new [] { name.Node }, SemanticRole.Name);
+                    //     ASTHelpers.Connect(oldAST, topLevelExpressionsFunc.ID, new [] { body.Node }, SemanticRole.Body);
+                    // }
+                    // ASTHelpers.Connect(oldAST, oldComponent.ID, new [] { topLevelExpressionsFunc.Node }, SemanticRole.None);
+
+
+                    
+                } 
+                else
+                {
+                    int i = 0;
+                }
+
+                // ancillaryComponentMainFuncBodyContent.Append($"{topLevelExpressionsFuncNameLexeme}();");
+                // ancillaryComponentMainFuncBodyContent.AppendLine();
+
+                newComponentNodes.Add(oldComponent.Node);
             }
+            
+            // // [dho] invoke the 'main' method in the user's code - 17/10/19
+            // // ancillaryComponentMainFuncBodyContent.Append($"{entrypointName}();");
+            // // ancillaryComponentMainFuncBodyContent.AppendLine();
 
+
+            // var ancillaryComponentNameLexeme = ancillary.Role.ToString();
+            // var ancillaryComponent = NodeFactory.Component(combinedAST, new PhaseNodeOrigin(PhaseKind.Bundling), ancillaryComponentNameLexeme);
+            // {
+            //     var ancillaryMainFuncNameLexeme = $"{ancillaryComponent.ID}_MAIN";
+            //     var ancillaryMainFunc = NodeFactory.FunctionDeclaration(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling));
+            //     {
+            //         var publicFlag = NodeFactory.Meta(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling), MetaFlag.WorldVisibility);
+            //         var name = NodeFactory.Identifier(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling), ancillaryMainFuncNameLexeme);
+            //         var body = NodeFactory.Block(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling));
+            //         {
+            //             ASTHelpers.Connect(ancillaryComponent.AST, body.ID, new [] {
+            //                 NodeFactory.CodeConstant(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling), ancillaryComponentMainFuncBodyContent.ToString()).Node
+            //             }, SemanticRole.Content);
+            //         }
+                    
+            //         ASTHelpers.Connect(ancillaryComponent.AST, ancillaryMainFunc.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
+            //         ASTHelpers.Connect(ancillaryComponent.AST, ancillaryMainFunc.ID, new [] { name.Node }, SemanticRole.Name);
+            //         ASTHelpers.Connect(ancillaryComponent.AST, ancillaryMainFunc.ID, new [] { body.Node }, SemanticRole.Body);
+            //     }
+            //     ASTHelpers.Connect(ancillaryComponent.AST, ancillaryComponent.ID, new [] { ancillaryMainFunc.Node }, SemanticRole.None);
+
+            //     newComponentNodes.Add(ancillaryComponent.Node);
+            // }
+
+            // [dho] need to add the nodes to the new AST - 17/10/19
+            // ASTHelpers.DeepRegister(ancillary.AST, combinedAST, newComponentNodes.ToArray());
+
+            // [dho] connect the new components in the combined AST - 17/10/19
+            ASTHelpers.Connect(
+                combinedAST, 
+                ASTHelpers.GetRoot(combinedAST).ID, 
+                newComponentNodes.ToArray(), 
+                SemanticRole.Component
+            );
 
             return result;
         }
 
-        private static void PListSerialize(ConfigurationPrimitive type, string[] values, ref System.Text.StringBuilder pListContent)
-        {
-            switch(type)
-            {
-                case ConfigurationPrimitive.String:{
-                    System.Diagnostics.Debug.Assert(values.Length == 1);
-                    pListContent.Append($"<string>{values[0]}</string>");
-                    pListContent.AppendLine();
-                }
-                break;
+        // private static Result<object> XXXX(Session session, Artifact artifact, Ancillary ancillary, RawAST combinedAST, CancellationToken token)
+        // {
+        //     var result = new Result<object>();
 
-                case ConfigurationPrimitive.StringArray:{
-                    pListContent.Append($"<array>");
-                    pListContent.AppendLine();
-                    foreach(var value in values)
-                    {
-                        pListContent.Append($"<string>{value}</string>");
-                        pListContent.AppendLine();
-                    }
-                    pListContent.Append($"</array>");
-                    pListContent.AppendLine();
-                }
-                break;
+        //     var ancillaryComponentNameLexeme = ancillary.Role.ToString();
+        //     var ancillaryComponent = NodeFactory.Component(combinedAST, new PhaseNodeOrigin(PhaseKind.Bundling), ancillaryComponentNameLexeme);
+        //     {
+        //         var ancillaryMainFuncNameLexeme = $"{ancillaryComponent.ID}_MAIN";
+        //         var ancillaryMainFunc = NodeFactory.FunctionDeclaration(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling));
+        //         {
+        //             var publicFlag = NodeFactory.Meta(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling), MetaFlag.WorldVisibility);
+        //             var name = NodeFactory.Identifier(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling), ancillaryMainFuncNameLexeme);
+        //             var body = NodeFactory.Block(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling));
+        //             {
+        //                 ASTHelpers.Connect(ancillaryComponent.AST, body.ID, new [] {
+        //                     NodeFactory.CodeConstant(ancillaryComponent.AST, new PhaseNodeOrigin(PhaseKind.Bundling), ancillaryComponentMainFuncBodyContent.ToString()).Node
+        //                 }, SemanticRole.Content);
+        //             }
+                    
+        //             ASTHelpers.Connect(ancillaryComponent.AST, ancillaryMainFunc.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
+        //             ASTHelpers.Connect(ancillaryComponent.AST, ancillaryMainFunc.ID, new [] { name.Node }, SemanticRole.Name);
+        //             ASTHelpers.Connect(ancillaryComponent.AST, ancillaryMainFunc.ID, new [] { body.Node }, SemanticRole.Body);
+        //         }
+        //         ASTHelpers.Connect(ancillaryComponent.AST, ancillaryComponent.ID, new [] { ancillaryMainFunc.Node }, SemanticRole.None);
+        //     }
 
-                default:{
-                    System.Diagnostics.Debug.Assert(
-                        false,
-                        $"Unhandled Entitlement Type for '{((ConfigurationPrimitive)type).ToString()}' in IOS Bundler"
-                    );
-                }
-                break;
-            }
-        }
+
+        //     ASTHelpers.Connect(
+        //         combinedAST, 
+        //         ASTHelpers.GetRoot(combinedAST).ID, 
+        //         new [] { ancillaryComponent.Node }, 
+        //         SemanticRole.Component
+        //     );
+
+        //     return result;
+        // }
 
 
         private static Result<object> SwiftInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)

@@ -81,7 +81,7 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
 
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ $"{UserCodeDirName}/node_modules" };
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -95,7 +95,10 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
                 return result;
             }
 
-            
+            // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
+            var ancillary = ancillaries[0];
+
+
             var inlined = default(Component);
             var ofc = default(OutFileCollection);//new OutFileCollection();
 
@@ -105,13 +108,13 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
 
                 if (artifact.TargetLang == ArtifactTargetLang.TypeScript)
                 {
-                    inlined = result.AddMessages(TypeScriptInlining(session, artifact, ast, token));
+                    inlined = result.AddMessages(TypeScriptInlining(session, artifact, ancillary.AST, token));
 
                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
                     emitter = new TypeScriptEmitter();
 
-                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ast, token));
+                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ancillary.AST, token));
                 }
                 // [dho] TODO JavaScript! - 01/06/19
                 else
@@ -142,7 +145,7 @@ $@"{{
   }}
 }}");
                 var dependenciesContent = new System.Text.StringBuilder();
-                var dependencies = session.Dependencies[artifact.Name];
+                var dependencies = ancillary.Dependencies;
                 
                 if(dependencies.Count > 0)
                 {
@@ -858,8 +861,18 @@ try {{
     res.statusCode = 200;
 
     res.json(data || {{ }});
-}} catch ({{ message, stack, code }}) {{
-    res.statusCode = 500;
+}} catch (error) {{
+    
+    const {{ message, stack, code }} = error;
+
+    const isUnexpectedError = ( 
+        error instanceof TypeError || 
+        error instanceof ReferenceError || 
+        error instanceof EvalError ||
+        error instanceof RangeError
+    );
+
+    res.statusCode = isUnexpectedError ? 500 : 400;
 
     res.json({{ message, stack, code }});
 }}"

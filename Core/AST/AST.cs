@@ -78,7 +78,29 @@ namespace Sempiler.AST
             return null;
         }
 
-        public static void RegisterNode(RawAST ast, Node node)
+        public static void DeepRegister(RawAST oldAST, RawAST newAST, params Node[] nodes)
+        {
+            foreach(var node in nodes)
+            {
+                Register(newAST, node);
+
+                var edges = ASTHelpers.QueryEdges(oldAST, node.ID, x => x.Role != SemanticRole.Parent);
+                var edgeNodes = new Node[edges.Length];
+                
+                for(int i = 0; i < edgeNodes.Length; ++i) 
+                {
+                    var edge = edges[i];
+                    var role = GetPosition(oldAST, edge).Role;
+                    
+                    Connect(newAST, node.ID, new [] { edgeNodes[i] = ASTHelpers.GetNode(oldAST, edge) }, role);
+                }
+
+                DeepRegister(oldAST, newAST, edgeNodes);
+            }
+        }
+
+
+        public static void Register(RawAST ast, Node node)
         {
             lock(ast)
             {
@@ -202,7 +224,7 @@ namespace Sempiler.AST
                     //     }
                     // }
 
-
+                
                     // [dho] if the new node was previously deleted, now undelete it! - 13/05/18
                     ast.Removed.Remove(newNode.ID);
 
@@ -543,6 +565,21 @@ namespace Sempiler.AST
 
             return nodes;
         }
+
+        public static Node[] QueryEdgeNodes(RawAST ast, NodeID id, EdgePredicate predicate)
+        {
+            var edges = QueryEdges(ast, id, predicate);
+
+            var nodes = new Node[edges.Length];
+
+            for(int i = 0; i < edges.Length; ++i)
+            {
+                nodes[i] = GetNode(ast, edges[i]);
+            }
+
+            return nodes;
+        }
+
 
         public static NodeID[] QueryEdges(RawAST ast, NodeID id, SemanticRole role) => QueryEdges(ast, id, e => e.Role == role);
 

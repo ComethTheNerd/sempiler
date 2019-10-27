@@ -10,6 +10,8 @@ namespace Sempiler
         public readonly string Name;
         public readonly string TargetLang;
         public readonly string TargetPlatform;
+
+
         // public readonly Dictionary<string, OutFile> FilesWritten;
     
         // public Artifact(ArtifactRole role, string name, string targetLang, string targetPlatform) 
@@ -21,14 +23,15 @@ namespace Sempiler
             Name = name;
             TargetLang = targetLang;
             TargetPlatform = targetPlatform;
+            
             // FilesWritten = filesWritten;
         }
         
 
-        public Artifact Clone()
-        {
-            return new Artifact(Role, Name, TargetLang, TargetPlatform/* , new Dictionary<string, OutFile>(FilesWritten)*/);
-        }
+        // public Artifact Clone()
+        // {
+        //     return new Artifact(Role, Name, TargetLang, TargetPlatform/* , new Dictionary<string, OutFile>(FilesWritten)*/);
+        // }
     }
 
 
