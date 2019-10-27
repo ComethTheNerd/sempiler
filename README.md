@@ -1,6 +1,12 @@
-🔜 **I'm in the process of migrating the project to this repo and writing good docs... Feedback welcome! 🙈**
-
 # Sempiler 💎
+
+🚀 **Latest Patch Notes** 
+can be found [here](https://github.com/QuantumCommune/sempiler/blob/master/patch-notes.md)
+
+🔜 **Documentation** is a high priority... waiting for an incoming API _rejig_ to land first 🙈
+
+## Overview
+
 Popular solutions for x-platform programming offer convenience to the developer at the expense of the user experience. 
 
 These solutions abstract away the semantics of the target environment (APIs, memory model, rules etc), giving the impression that these platforms can be considered equivalent. 
@@ -170,8 +176,9 @@ The compiler API is barebones at present, but allows for the following:
 - `addDependency(name : string, version? : string)` declares a dependency that the artifact requires (eg. Stripe)
 - `addEntitlement(name : string, value : string | string[])` declares a target platform entitlement that the artifact requires (eg. Apple Pay) 
 - `addPermission(name : string, description : string)` declares a target platform permission that the artifact requires (eg. camera access)
-- `addRawSourceFiles(...relativePaths : string[])` adds verbatim files to the artifact (ie. they will *not* be parsed/transformed)
-- `addSourceFiles(...relativePaths : string[])` add files that will be parsed/transformed and added to the artifact
+- `addRawSources(...relativePaths : string[])` adds verbatim files to the artifact (ie. they will *not* be parsed/transformed)
+- `addSources(...relativePaths : string[])` add files that will be parsed/transformed and added to the artifact
+- `addAncillary(role : AncillaryRole, entrypointSource : string)` add ancillary (eg share extension) to the Artifact
 - `isTargetPlatform(name : string) : bool` to check whether the artifact being generated is for the given target platform
 - `isTargetLanguage(name : string) : bool` to check whether the artifact being generated is for the given target language
 
