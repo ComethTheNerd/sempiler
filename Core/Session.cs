@@ -31,21 +31,23 @@ namespace Sempiler
 
         public Dictionary<string, Artifact> Artifacts { get; set; }
 
+        public Dictionary<string, List<Ancillary>> Ancillaries { get; set; }
+
         // public Dictionary<string, string> GUIDs { get; set; }
 
-        public Dictionary<string, RawAST> ASTs { get; set; }
+        // public Dictionary<string, RawAST> ASTs { get; set; }
 
-        public Dictionary<string, List<ISource>> Resources { get; set; }
+        // public Dictionary<string, List<ISource>> Resources { get; set; }
 
-        public Dictionary<string, List<Capability>> Capabilities { get; set; }
-        public Dictionary<string, List<Dependency>> Dependencies { get; set; }
+        // public Dictionary<string, List<Capability>> Capabilities { get; set; }
+        // public Dictionary<string, List<Dependency>> Dependencies { get; set; }
 
-        public Dictionary<string, List<Entitlement>> Entitlements { get; set; }
+        // public Dictionary<string, List<Entitlement>> Entitlements { get; set; }
 
-        public Dictionary<string, List<Permission>> Permissions { get; set; }
+        // public Dictionary<string, List<Permission>> Permissions { get; set; }
 
-        ///<summary>Key is *source* artifact name (ie. where the bridge intent was found), *NOT* the *target* artifact it wants to talk to</summary>
-        public Dictionary<string, List<Directive>> BridgeIntents { get; set; }
+        // ///<summary>Key is *source* artifact name (ie. where the bridge intent was found), *NOT* the *target* artifact it wants to talk to</summary>
+        // public Dictionary<string, List<Directive>> BridgeIntents { get; set; }
 
         public Dictionary<string, Dictionary<string, OutFile>> FilesWritten { get; set; }
     }

@@ -137,17 +137,19 @@
             ).TrimEnd(Path.DirectorySeparatorChar);
         }
 
-        public static Result<IEnumerable<string>> EnumerateFiles(string path, string searchPattern)
+        public static Result<IEnumerable<string>> EnumerateFiles(string basePath, string searchPattern)
         {
             var result = new Result<IEnumerable<string>>();
 
-            var attrs = result.AddMessages(GetAttributes(path));
+            var resolvedPath = Resolve(basePath, searchPattern);
+
+            var attrs = result.AddMessages(GetAttributes(resolvedPath));
 
             if((attrs & FileAttributes.Directory) == FileAttributes.Directory)
             {
                 try
                 {   
-                    result.Value = Directory.EnumerateFiles(path, searchPattern, System.IO.SearchOption.AllDirectories);
+                    result.Value = Directory.EnumerateFiles(resolvedPath, "*.*", System.IO.SearchOption.AllDirectories);
                 }
                 catch(Exception exception)
                 {
@@ -159,7 +161,7 @@
             else if(attrs > 0)
             {
                 result.Value = new [] {
-                    Resolve(path, searchPattern)
+                    resolvedPath
                 };
             }
 
@@ -319,7 +321,7 @@
                     }
                     else if(Directory.Exists(absPath))
                     {
-                        System.IO.Directory.Delete(absPath, true /* recursive */);
+                        DeleteDirectory(absPath);
                         didDelete = true;
                     }   
 
@@ -344,6 +346,28 @@
             result.Value = deleted;
 
             return Task.FromResult(result);
+        }
+
+        // [dho] adapted from : https://stackoverflow.com/a/1703799 - 19/10/19
+        private static void DeleteDirectory(string path)
+        {
+            foreach (string directory in Directory.GetDirectories(path))
+            {
+                DeleteDirectory(directory);
+            }
+
+            try
+            {
+                Directory.Delete(path, true);
+            }
+            catch (IOException) 
+            {
+                Directory.Delete(path, true);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Directory.Delete(path, true);
+            }
         }
     }
 }

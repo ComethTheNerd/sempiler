@@ -21,7 +21,9 @@ namespace Sempiler.Core.Directives
         AddEntitlement,
         AddPermission,
         AddSources,
+        AddRes,
         AddRawSources,
+        AddAncillary,
         IllegalBridgeDirectiveNode
 
         // [dho] Propagate an error that originated in user code - 13/04/19
@@ -71,6 +73,7 @@ namespace Sempiler.Core.Directives
     public struct CTProtocolCommand 
     {
         public string ArtifactName;
+        public int AncillaryIndex;
         public string MessageID;
         public CTProtocolCommandKind Kind;
         public string[] Arguments;
@@ -122,9 +125,22 @@ namespace Sempiler.Core.Directives
         public const int DescriptionIndex = 1;
     }
 
+    public static class CTProtocolAddAncillaryCommand
+    {
+        public const int BaseDirPathIndex = 0;
+        public const int RoleIndex = 1;
+        public const int SourcePathIndex = 2;
+    }
+
     public static class CTProtocolAddSourcesCommand
     {
         public const int BaseDirPathIndex = 0;
+    }
+
+    public static class CTProtocolAddResCommand
+    {
+        public const int BaseDirPathIndex = 0;
+        public const int SourcePathIndex = 1;
     }
 
     public static class CTProtocolAddRawSourcesCommand
@@ -174,10 +190,11 @@ namespace Sempiler.Core.Directives
                 
                 var preambleParts = preamble.Split(new string[] { ArgumentDelimiter }, System.StringSplitOptions.None);
 
-                if(preambleParts.Length == 2)
+                if(preambleParts.Length == 3)
                 {
                     var artifactName = preambleParts[0];
-                    var messageID = preambleParts[1];
+                    var ancillaryIndex = System.Int32.Parse(preambleParts[1]);
+                    var messageID = preambleParts[2];
 
                     var parenIndex = message.IndexOf("(");
 
@@ -198,6 +215,7 @@ namespace Sempiler.Core.Directives
                             return new CTProtocolCommand
                             {
                                 ArtifactName = artifactName,
+                                AncillaryIndex = ancillaryIndex,
                                 MessageID = messageID,
                                 Kind = kind,
                                 Arguments = arguments

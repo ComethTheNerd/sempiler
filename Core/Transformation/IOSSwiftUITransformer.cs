@@ -24,6 +24,7 @@ namespace Sempiler.Transformation
         public static readonly Dictionary<string, (string, bool)[]> SwiftUIViewInitArguments = new Dictionary<string, (string, bool)[]>
         {          
             // { "AnyView", new [] { ("", false) }},
+            { "Alert", new [] { ("title", true), ("message", true), ("dismissButton", true), ("primaryButton", true), ("secondaryButton", true) } },
             { "Button", new [] { ("action", true), ("label", true) } },
             { "EditButton", new (string,bool)[] { } },
             { "ForEach", new [] { ("data",false), ("content", true) }  },

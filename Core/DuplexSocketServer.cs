@@ -125,7 +125,7 @@ namespace Sempiler.Core
             {
                 while (!token.IsCancellationRequested) {  
                     // Set the event to nonsignaled state.  
-                    allDone.Reset();  
+                    // allDone.Reset();  
     
                     if(token.IsCancellationRequested) break;
 
@@ -136,7 +136,7 @@ namespace Sempiler.Core
                         listener);  
     
                     // Wait until a connection is made before continuing.  
-                    allDone.WaitOne();  
+                    // allDone.WaitOne();  
                 }
             }
         } 

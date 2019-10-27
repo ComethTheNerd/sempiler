@@ -52,36 +52,19 @@ namespace Sempiler.Core
 
 
             var artifacts = session.Artifacts = result.AddMessages(ParseArtifacts(ast, token));
+            
 
-        
             if(HasErrors(result) || token.IsCancellationRequested) return result;
 
+
+            session.Ancillaries = new Dictionary<string, List<Ancillary>>(artifacts.Count);
+
             {
-                session.ASTs = new Dictionary<string, RawAST>();
-
-                session.Resources = new Dictionary<string, List<ISource>>();
-
-                session.BridgeIntents = new Dictionary<string, List<Directive>>();
-
-                session.Capabilities = new Dictionary<string, List<Capability>>();
-
-                session.Dependencies = new Dictionary<string, List<Dependency>>();
-
-                session.Entitlements = new Dictionary<string, List<Entitlement>>();
-
-                session.Permissions = new Dictionary<string, List<Permission>>();
-
                 foreach(var kv in artifacts)
                 {
                     var artifactName = kv.Key;
 
-                    // [dho] each artifact mutates it's own clone of the input AST - 15/05/19
-                    session.ASTs[artifactName] = ast.Clone();
-
-                    session.Capabilities[artifactName] = new List<Capability>();
-                    session.Dependencies[artifactName] = new List<Dependency>();
-                    session.Entitlements[artifactName] = new List<Entitlement>();
-                    session.Permissions[artifactName] = new List<Permission>();
+                    session.Ancillaries[artifactName] = new List<Ancillary>();
                 }
             }
 
@@ -89,9 +72,10 @@ namespace Sempiler.Core
                 session.FilesWritten = new Dictionary<string, Dictionary<string, OutFile>>();
             }
 
+            // [dho] disabling inferred folders - 20/10/19
+            /* 
             var baseDirPath = baseDirectory.ToPathString();
 
-            
             var srcDirPath = (baseDirPath + "/" + InferredConfig.SourceDirName);
             var inferSources = Directory.Exists(srcDirPath);
 
@@ -110,7 +94,7 @@ namespace Sempiler.Core
                 result.AddMessages(new Message(MessageKind.Info, 
                     $"Will not infer resources because expected resource path does not exist : '{resDirPath}'"));
             }
-        
+            */
         
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,12 +109,19 @@ namespace Sempiler.Core
                 Parallel.ForEach(artifacts, (kv, state) => {
                     
                     var artifact = kv.Value;
-                    var artifactAST = session.ASTs[artifact.Name].Clone();
+                    var ancillary = new Ancillary(AncillaryRole.MainApp, ast.Clone());
+
+                    session.Ancillaries[artifact.Name].Add(ancillary);
+
+
+                    // var artifactAST = session.ASTs[artifact.Name].Clone();
 
                     var artifactSeedComponents = new List<Component>(initiallyParsedComponents);
 
                     try
                     {
+                        // [dho] disabling inferred folders - 20/10/19
+                        /*
                         if(inferSources)
                         {
                             var inferredArtifactSrcDirPath = srcDirPath + $"/{artifact.Name}";
@@ -145,7 +136,7 @@ namespace Sempiler.Core
                                 };
 
                                 var inferredComponentsFromSourcePaths = result.AddMessages(
-                                    ParseNewSources(inputs, session, artifact, artifactAST, sourceProvider, server, token)
+                                    ParseNewSources(inputs, session, artifact, ancillary.AST, sourceProvider, server, token)
                                 );
 
                                 if(HasErrors(result) || token.IsCancellationRequested) return;
@@ -159,7 +150,7 @@ namespace Sempiler.Core
                             }
                         }
 
-                        var artifactResources = new List<ISource>();
+                        // var artifactResources = new List<ISource>();
                         
                         if(inferRes)
                         {
@@ -178,7 +169,10 @@ namespace Sempiler.Core
                                 
                                 if(inferredResources != null)
                                 {
-                                    artifactResources.AddRange(inferredResources);
+                                    lock(l)
+                                    {
+                                        ancillary.Resources.AddRange(inferredResources);
+                                    }
                                 }
 
                                 if(HasErrors(result) || token.IsCancellationRequested) return;
@@ -188,23 +182,18 @@ namespace Sempiler.Core
                                 result.AddMessages(new Message(MessageKind.Info, 
                                     $"Will not infer resources for '{artifact.Name}' because expected resource path does not exist : '{inferredArtifactResDirPath}'"));
                             }
-                        }
-
-                        lock(l)
-                        {
-                            session.Resources[artifact.Name] = artifactResources;
-                        }
+                        }*/
 
 
                         // [dho] processing artifact and any compile time directives - 21/05/19
                         {
-                            var task = ProcessArtifact(session, artifact, artifactAST, artifactSeedComponents, sourceProvider, server, token);
+                            var task = ProcessArtifact(session, artifact, ancillary, artifactSeedComponents, sourceProvider, server, token);
                             
                             task.Wait();
 
                             lock(l) 
                             {
-                                session.ASTs[artifact.Name] = artifactAST = result.AddMessages(task.Result);
+                                ancillary.AST = result.AddMessages(task.Result);
                             }
 
                             if(HasErrors(task.Result)) return;
@@ -224,23 +213,23 @@ namespace Sempiler.Core
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            {
-                if(HasErrors(result) || token.IsCancellationRequested) return result;
+            // {
+            //     if(HasErrors(result) || token.IsCancellationRequested) return result;
 
-                foreach(var kv in session.BridgeIntents)
-                {
-                    var sourceArtifactName = kv.Key;
+            //     foreach(var kv in session.BridgeIntents)
+            //     {
+            //         var sourceArtifactName = kv.Key;
                     
-                    foreach(var bridgeIntent in kv.Value)
-                    {
-                        result.AddMessages(
-                            Bridging.ProcessBridgeIntent(session, sourceArtifactName, bridgeIntent, token)
-                        );
+            //         foreach(var bridgeIntent in kv.Value)
+            //         {
+            //             result.AddMessages(
+            //                 Bridging.ProcessBridgeIntent(session, sourceArtifactName, bridgeIntent, token)
+            //             );
 
-                        if(HasErrors(result) || token.IsCancellationRequested) return result;
-                    }
-                }
-            }
+            //             if(HasErrors(result) || token.IsCancellationRequested) return result;
+            //         }
+            //     }
+            // }
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -254,11 +243,10 @@ namespace Sempiler.Core
                 Parallel.ForEach(artifacts, (kv, state) => {
                     
                     var artifact = kv.Value;
-                    var artifactAST = session.ASTs[artifact.Name];
 
                     try
                     {
-                        var task = BundleAndWriteArtifact(session, artifact, artifactAST, token);
+                        var task = BundleAndWriteArtifact(session, artifact, token);
                         
                         task.Wait();
 
@@ -500,7 +488,7 @@ namespace Sempiler.Core
             return result;
         }
 
-        private static async Task<Result<RawAST>> ProcessArtifact(Session session, Artifact artifact, AST.RawAST ast, List<Component> newlyAddedComponents, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)
+        private static async Task<Result<RawAST>> ProcessArtifact(Session session, Artifact artifact, Ancillary ancillary, List<Component> newlyAddedComponents, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)
         {
             var result = new Result<RawAST>();
         
@@ -512,7 +500,7 @@ namespace Sempiler.Core
             {
                 var tsSyntaxPolyfillTransformer = new Sempiler.Transformation.TypeScriptSyntaxPolyfillTransformer();
 
-                /* ast = */result.AddMessages(await tsSyntaxPolyfillTransformer.Transform(session, artifact, ast, token));
+                /* ast = */result.AddMessages(await tsSyntaxPolyfillTransformer.Transform(session, artifact, ancillary.AST, token));
 
                 if (HasErrors(result) || token.IsCancellationRequested) return result;
             }
@@ -522,17 +510,17 @@ namespace Sempiler.Core
             {
                 var viewDeclIntentTransformer = new Sempiler.Transformation.ViewDeclarationIntentTransformer();
 
-                /* ast = */result.AddMessages(await viewDeclIntentTransformer.Transform(session, artifact, ast, token));
+                /* ast = */result.AddMessages(await viewDeclIntentTransformer.Transform(session, artifact, ancillary.AST, token));
 
                 if (HasErrors(result) || token.IsCancellationRequested) return result;
             }
 
-            result.Value = ast;
+            result.Value = ancillary.AST;
 
 
             // [dho] NOTE we look for MPInfo on *only* the newly added components, not the entire AST as we may
             // be subcompiling a subset of the tree because of injecting new sources etc. - 30/05/19
-            var mpInfo = MetaProgramming.GetMetaProgrammingInfo(session, ast, newlyAddedComponents, token);
+            var mpInfo = MetaProgramming.GetMetaProgrammingInfo(session, ancillary.AST, newlyAddedComponents, token);
 
             // [dho] the source contains expressions that require compile time code execution to evaluate - 30/05/19
             var requiresCTExec = mpInfo.CTDirectives.Count > 0;
@@ -540,24 +528,24 @@ namespace Sempiler.Core
             if(requiresCTExec)
             {
                 // [dho] NOTE no lock on ast because the caller provides a fresh clone to manipulate - 14/05/19
-                result.AddMessages(await CTExec(session, artifact, ast, newlyAddedComponents, sourceProvider, server, token));
+                result.AddMessages(await CTExec(session, artifact, ancillary, newlyAddedComponents, sourceProvider, server, token));
                 
                 if (HasErrors(result) || token.IsCancellationRequested) return result;
 
                 // [dho] TODO OPTIMIZE we naively reload the meta programming info after CTExec in case the 
                 // AST has been modified and includes new bridge intents etc as a result of the evaluation - 30/05/19
-                mpInfo = MetaProgramming.GetMetaProgrammingInfo(session, ast, newlyAddedComponents, token);
+                mpInfo = MetaProgramming.GetMetaProgrammingInfo(session, ancillary.AST, newlyAddedComponents, token);
             }
 
             // [dho] only acquire lock if we found bridge intent directives - 30/05/19
             if(mpInfo.BridgeIntentDirectives.Count > 0)
             {
-                lock(session.BridgeIntents)
+                lock(ancillary.BridgeIntents)
                 {
                     // [dho] NOTE we use `AddRange` because the `ProcessArtifact` function may get called multiple
                     // times during the compilation of an artifact, so we do not want to squash anything by wiping out
                     // the existing data in the map each time - 30/05/19 
-                    session.BridgeIntents[artifact.Name].AddRange(mpInfo.BridgeIntentDirectives);
+                    ancillary.BridgeIntents.AddRange(mpInfo.BridgeIntentDirectives);
                 }
             }
 
@@ -573,7 +561,7 @@ namespace Sempiler.Core
         static object ctExecLock = new object();
         static Dictionary<string, CancellationTokenSource> CTExecServerHandlerCTSCache = new Dictionary<string, CancellationTokenSource>();
       
-        private static async Task<Result<object>> CTExec(Session session, Artifact artifact, AST.RawAST ast, List<Component> newlyAddedComponents, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)
+        private static async Task<Result<object>> CTExec(Session session, Artifact artifact, Ancillary ancillary, List<Component> newlyAddedComponents, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)
         {
             var result = new Result<object>();
 
@@ -622,7 +610,10 @@ namespace Sempiler.Core
             // }
             // else
             {
-                var task = new CTExecTypeScriptBundler().Bundle(session, artifact, ast, token);
+
+
+                var task = new CTExecTypeScriptBundler().Bundle(session, artifact,  new List<Ancillary>() { ancillary }, token);
+
                 task.Wait();
 
                 var outFileCollection = result.AddMessages(task.Result);
@@ -681,55 +672,7 @@ namespace Sempiler.Core
                             var messageHistoryLock = new object();
                             var messageHistory = new Dictionary<string, bool>();
                 
-                            messageHandler = (socket, message) => {
-                                var command = CTProtocolHelpers.ParseCommand(message);
-
-                                // [dho] this message was meant for a different subscriber - 06/05/19
-                                if(command.ArtifactName != artifact.Name) return;
-
-                                // System.Console.WriteLine("SERVER MESSAGE RECEIVED : " + command.ArtifactName);
-                                // System.Console.WriteLine(command.Kind);
-                                // System.Console.WriteLine(string.Join(",", command.Arguments));
-
-                                var isNewMessage = true;
-
-                                lock(messageHistoryLock)
-                                {
-                                    isNewMessage = !messageHistory.ContainsKey(command.MessageID);
-
-                                    messageHistory[command.MessageID] = true;
-                                }
-
-
-                                string response = default(string);
-
-                                if(isNewMessage)
-                                {
-                                    Result<string> r;                        
-                                    
-                                    // [dho] NOTE no lock on ast because the caller provides a fresh clone to manipulate - 14/05/19
-                                    r = HandleServerMessage(session, command, artifact, ast, sourceProvider, server, consumptionCTS.Token);
-                                    
-                                    result.AddMessages(r);
-
-                                    if(HasErrors(r))
-                                    {
-                                        // [dho] kill the consumer if we get any errors - 06/05/19
-                                        // [dho] NOTE because we have not called `Send`, the socket inside the CT program will be waiting,
-                                        // and so is effectively paused, which is what we want - not for it to continue executing in an unknown
-                                        // state - 20/04/19
-                                        consumptionCTS.Cancel();
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        response = r.Value;
-                                    }
-                                }
-
-
-                                server.Send(socket, response);
-                            };
+                            messageHandler = CreateOnMessageDelegate(session, artifact, sourceProvider, server, consumptionCTS, result);
 
                             server.OnMessage += messageHandler;
                         }
@@ -737,7 +680,7 @@ namespace Sempiler.Core
                 }
 
 
-                result.AddMessages(await consumer.Consume(session, artifact, ast, filesWritten, consumptionCTS.Token));
+                result.AddMessages(await consumer.Consume(session, artifact, ancillary.AST, filesWritten, consumptionCTS.Token));
 
                 if(messageHandler != null)
                 {
@@ -766,9 +709,67 @@ namespace Sempiler.Core
         }
 
 
-        
+        private static DuplexSocketServer.OnMessageDelegate CreateOnMessageDelegate(Session session, Artifact artifact, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationTokenSource cts, Result<object> result)
+        {
+            var messageHistoryLock = new object();
+            var messageHistory = new Dictionary<string, bool>();
+                
+            return (socket, message) => {
+                var command = CTProtocolHelpers.ParseCommand(message);
 
-        private static Result<string> HandleServerMessage(Session session, CTProtocolCommand command, Artifact artifact, RawAST ast, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)
+                // [dho] this message was meant for a different subscriber - 06/05/19
+                if(command.ArtifactName != artifact.Name) return;
+
+                // System.Console.WriteLine("THREAD #" + System.Threading.Thread.CurrentThread.ManagedThreadId + " -> " +  command.MessageID + " COMMAND ARTIFACT NAME : " + command.ArtifactName);
+                // System.Console.WriteLine("THREAD #" + System.Threading.Thread.CurrentThread.ManagedThreadId + " -> " + command.MessageID + " COMMAND TARGET X INDEX : " + command.AncillaryIndex);
+                // System.Console.WriteLine("THREAD #" + System.Threading.Thread.CurrentThread.ManagedThreadId + " -> " + command.MessageID + " COMMAND KIND : " + command.Kind);
+                // System.Console.WriteLine("THREAD #" + System.Threading.Thread.CurrentThread.ManagedThreadId + " -> " + command.MessageID + " COMMAND ARGUMENTS : " + string.Join(",", command.Arguments));
+
+
+                var isNewMessage = true;
+
+                lock(messageHistoryLock)
+                {
+                    isNewMessage = !messageHistory.ContainsKey(command.MessageID);
+
+                    messageHistory[command.MessageID] = true;
+                }
+
+
+                string response = default(string);
+
+                if(isNewMessage)
+                {
+                    Result<string> r;                        
+                    
+                    var ancillary = session.Ancillaries[artifact.Name][command.AncillaryIndex];
+
+                    // [dho] NOTE no lock on ast because the caller provides a fresh clone to manipulate - 14/05/19
+                    r = HandleServerMessage(session, command, artifact, ancillary, sourceProvider, server, cts.Token);
+                    
+                    result.AddMessages(r);
+
+                    if(HasErrors(r))
+                    {
+                        // [dho] kill the consumer if we get any errors - 06/05/19
+                        // [dho] NOTE because we have not called `Send`, the socket inside the CT program will be waiting,
+                        // and so is effectively paused, which is what we want - not for it to continue executing in an unknown
+                        // state - 20/04/19
+                        cts.Cancel();
+                        return;
+                    }
+                    else
+                    {
+                        response = r.Value;
+                    }
+                }
+
+
+                server.Send(socket, response);
+            };
+        }
+
+        private static Result<string> HandleServerMessage(Session session, CTProtocolCommand command, Artifact artifact, Ancillary ancillary, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)
         {
             var result = new Result<string>();
 
@@ -780,7 +781,7 @@ namespace Sempiler.Core
                     var values = new string[command.Arguments.Length - 2];
                     Array.Copy(command.Arguments, 2, values, 0, values.Length);
 
-                    session.Capabilities[artifact.Name].Add(
+                    ancillary.Capabilities.Add(
                         new Capability {
                             Name = name,
                             Type = type,
@@ -799,7 +800,7 @@ namespace Sempiler.Core
                     {
                         var version = command.Arguments[CTProtocolAddDependencyCommand.VersionIndex];
 
-                        session.Dependencies[artifact.Name].Add(
+                        ancillary.Dependencies.Add(
                             new Dependency {
                                 Name = name,
                                 Version = version
@@ -810,7 +811,7 @@ namespace Sempiler.Core
                     }
                     else
                     {
-                        session.Dependencies[artifact.Name].Add(
+                        ancillary.Dependencies.Add(
                             new Dependency {
                                 Name = name
                             }
@@ -827,7 +828,7 @@ namespace Sempiler.Core
                     var values = new string[command.Arguments.Length - 2];
                     Array.Copy(command.Arguments, 2, values, 0, values.Length);
 
-                    session.Entitlements[artifact.Name].Add(
+                    ancillary.Entitlements.Add(
                         new Entitlement {
                             Name = name,
                             Type = type,
@@ -843,7 +844,7 @@ namespace Sempiler.Core
                     var name = command.Arguments[CTProtocolAddPermissionCommand.NameIndex];
                     var description = command.Arguments[CTProtocolAddPermissionCommand.DescriptionIndex];
                     
-                    session.Permissions[artifact.Name].Add(
+                    ancillary.Permissions.Add(
                         new Permission {
                             Name = name,
                             Description = description
@@ -857,11 +858,11 @@ namespace Sempiler.Core
                 case CTProtocolCommandKind.DeleteNode:
                     {
                         var nodeID = command.Arguments[CTProtocolDeleteNodeCommand.NodeIDIndex];
-                        var node = ASTHelpers.GetNode(ast, nodeID);
+                        var node = ASTHelpers.GetNode(ancillary.AST, nodeID);
 
                         if (node != null)
                         {
-                            ASTHelpers.RemoveNodes(ast, node.ID);
+                            ASTHelpers.RemoveNodes(ancillary.AST, node.ID);
                             result.Value = ("Deleted node " + node.ID);
                             break;
                             // if (ASTHelpers.DeregisterNode(ast, node))
@@ -991,58 +992,80 @@ namespace Sempiler.Core
                 //     }
                 //     break;
 
+                case CTProtocolCommandKind.AddAncillary: // #run add_sources("foo.ts", "hello-world.ts") 
+                {
+                    var role = command.Arguments[CTProtocolAddAncillaryCommand.RoleIndex];
+
+                    var newAncillary = default(Ancillary);
+
+                    if(role == "share-extension")
+                    {
+                        var newAST = new RawAST();
+                        var newDomain = NodeFactory.Domain(newAST, new PhaseNodeOrigin(PhaseKind.Transformation));
+
+                        ASTHelpers.Register(newAST, newDomain.Node);
+
+                        // [dho] TODO CHECK do we want to clone `ancillary.AST` here, or use a fresh AST? - 16/10/19
+                        newAncillary = new Ancillary(AncillaryRole.ShareExtension, newAST);
+
+                        session.Ancillaries[artifact.Name].Add(newAncillary);
+                    }
+                    else
+                    {
+                        result.AddMessages(
+                            new Message(MessageKind.Error, $"Unsupported ancillary role '{role}'")
+                        );
+                    }
+
+                    if(!HasErrors(result) && !token.IsCancellationRequested)
+                    {
+                        var baseDirPath = command.Arguments[CTProtocolAddAncillaryCommand.BaseDirPathIndex];
+
+                        var sourcePath = command.Arguments[CTProtocolAddAncillaryCommand.SourcePathIndex];
+
+                        var patterns = new string[] { sourcePath };
+
+                        result.AddMessages(
+                            // [dho] NOTE passing in new target! - 16/10/19
+                            AncillaryFoo(session, artifact, newAncillary, sourceProvider, server, baseDirPath, patterns, token)
+                        );
+                    }
+                }
+                break;
+
                 case CTProtocolCommandKind.AddSources: // #run add_sources("foo.ts", "hello-world.ts") 
                     {
                         var baseDirPath = command.Arguments[CTProtocolAddSourcesCommand.BaseDirPathIndex];
 
-                        List<SourceFilePatternMatchInput> inputs = new List<SourceFilePatternMatchInput>();
+                        var patternsStartIndex = CTProtocolAddSourcesCommand.BaseDirPathIndex + 1;
+                        var patterns = new string[command.Arguments.Length - patternsStartIndex];
+                       
+                        Array.Copy(command.Arguments, patternsStartIndex, patterns, 0, patterns.Length);
 
-                        // [dho] should be resillient to the case where the input path is a directory or regex - 06/05/19
-                        for (int i = CTProtocolAddSourcesCommand.BaseDirPathIndex + 1; i < command.Arguments.Length; ++i)
-                        {
-                            var pattern = command.Arguments[i];
-                            var @base = pattern.StartsWith(".") ? baseDirPath : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-                            inputs.Add(new SourceFilePatternMatchInput(@base, pattern));
-                        }
-
-                        if(HasErrors(result) || token.IsCancellationRequested) return result;
-                        
-                        var parsedSources = result.AddMessages(
-                            ParseNewSources(inputs, session, artifact, ast, sourceProvider, server, token)
+                        result.AddMessages(
+                            AncillaryFoo(session, artifact, ancillary, sourceProvider, server, baseDirPath, patterns, token)
                         );
-
-                        if(parsedSources.TotalPaths?.Count == 0)
-                        {
-                            var pathList = new List<string>();
-
-                            foreach(var input in inputs)
-                            {
-                                pathList.Add($"\"{input.BaseDirPath}/{input.SearchPattern}\"");
-                            }
-
-                            result.AddMessages(
-                                new Message(MessageKind.Error, $"Could not find file(s) at specified path(s) : {string.Join(",", pathList)}")
-                            );
-                        }
-
-                        if(HasErrors(result) || token.IsCancellationRequested) return result;
-
-
-                        try
-                        {
-                            var task = ProcessArtifact(session, artifact, ast, parsedSources.NewComponents, sourceProvider, server, token);
-
-                            task.Wait();
-
-                            result.AddMessages(task.Result);
-                        }
-                        catch (Exception e)
-                        {
-                            result.AddMessages(CreateErrorFromException(e));
-                        }
                     }
                     break;
+
+                case CTProtocolCommandKind.AddRes:
+                {
+                    var baseDirPath = command.Arguments[CTProtocolAddResCommand.BaseDirPathIndex];
+
+                    var sourcePath = command.Arguments[CTProtocolAddResCommand.SourcePathIndex];
+
+                    List<SourceFilePatternMatchInput> inputs = new List<SourceFilePatternMatchInput>()
+                    {
+                        new SourceFilePatternMatchInput(baseDirPath, sourcePath)
+                    };
+
+                    var sourceFiles = result.AddMessages(SourceHelpers.EnumerateSourceFilePatternMatches(inputs));
+
+                    if(HasErrors(result) || token.IsCancellationRequested) return result;
+
+                    ancillary.Resources.AddRange(sourceFiles);
+                }
+                break;
 
                 // [dho] NOT parsed! - 08/07/19
                 case CTProtocolCommandKind.AddRawSources: // #compiler add_raw_sources("foo.ts", "hello-world.ts") 
@@ -1063,7 +1086,7 @@ namespace Sempiler.Core
                     if(HasErrors(result) || token.IsCancellationRequested) return result;
                     
                     var parsedPaths = result.AddMessages(
-                        FilterNewSourceFilePaths(session, ast, inputs, token)
+                        FilterNewSourceFilePaths(session, ancillary.AST, inputs, token)
                     );
 
                     var newPaths = parsedPaths.NewPaths;
@@ -1089,10 +1112,10 @@ namespace Sempiler.Core
                                 continue;
                             }
 
-                            var newComponent = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Parsing), path);
+                            var newComponent = NodeFactory.Component(ancillary.AST, new PhaseNodeOrigin(PhaseKind.Parsing), path);
                             {
-                                ASTHelpers.Connect(ast, newComponent.ID, new [] {
-                                    NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Parsing), text).Node
+                                ASTHelpers.Connect(ancillary.AST, newComponent.ID, new [] {
+                                    NodeFactory.CodeConstant(ancillary.AST, new PhaseNodeOrigin(PhaseKind.Parsing), text).Node
                                 }, SemanticRole.None);
                             }
                             
@@ -1102,11 +1125,11 @@ namespace Sempiler.Core
                         if(HasErrors(result) || token.IsCancellationRequested) return result;
                         
 
-                        var root = ASTHelpers.GetRoot(ast);
+                        var root = ASTHelpers.GetRoot(ancillary.AST);
 
                         System.Diagnostics.Debug.Assert(root?.Kind == SemanticKind.Domain);
 
-                        ASTHelpers.Connect(ast, root.ID, newComponents, SemanticRole.Component);
+                        ASTHelpers.Connect(ancillary.AST, root.ID, newComponents, SemanticRole.Component);
                     }
                     else if(parsedPaths.TotalPaths.Count == 0)
                     {
@@ -1127,7 +1150,7 @@ namespace Sempiler.Core
                 case CTProtocolCommandKind.ReplaceNodeByCodeConstant:{
                     var removeeID = command.Arguments[CTReplaceNodeByCodeConstantCommand.RemoveeIDIndex];
                         
-                    var pos = ASTHelpers.GetPosition(ast, removeeID);
+                    var pos = ASTHelpers.GetPosition(ancillary.AST, removeeID);
                     
                     if (pos.Index > -1) // [dho] NOTE this implies that it is not possible to replace the root - 14/07/19
                     {
@@ -1136,8 +1159,8 @@ namespace Sempiler.Core
                             var codeConstant = command.Arguments[CTReplaceNodeByCodeConstantCommand.CodeConstantIndex];
 
                             // [dho] TODO origin! - 14/07/19
-                            ASTHelpers.Replace(ast, removeeID, new [] { 
-                                NodeFactory.CodeConstant(ast, pos.Node.Origin, codeConstant).Node
+                            ASTHelpers.Replace(ancillary.AST, removeeID, new [] { 
+                                NodeFactory.CodeConstant(ancillary.AST, pos.Node.Origin, codeConstant).Node
                             });
                         }
 
@@ -1161,7 +1184,7 @@ namespace Sempiler.Core
                 case CTProtocolCommandKind.InsertImmediateSiblingAndFromValueAndDeleteNode:{
                     var insertionPointID = command.Arguments[CTInsertImmediateSiblingFromValueAndDeleteNodeCommand.InsertionPointIDIndex];
                         
-                    var pos = ASTHelpers.GetPosition(ast, insertionPointID);
+                    var pos = ASTHelpers.GetPosition(ancillary.AST, insertionPointID);
                     
                     if (pos.Index > -1) // [dho] NOTE this implies that it is not possible to replace the root - 14/05/19
                     {
@@ -1173,9 +1196,9 @@ namespace Sempiler.Core
                             if (type == "java.lang.Integer") // [dho] TODO make this language agnostic!!! - 14/05/19
                             {
                                 // [dho] TODO origin! - 23/04/19
-                                var replacement = NodeFactory.NumericConstant(ast, pos.Node.Origin, value);
+                                var replacement = NodeFactory.NumericConstant(ancillary.AST, pos.Node.Origin, value);
 
-                                ASTHelpers.Connect(ast, pos.Parent.ID, new [] { replacement.Node }, pos.Role, pos.Index);
+                                ASTHelpers.Connect(ancillary.AST, pos.Parent.ID, new [] { replacement.Node }, pos.Role, pos.Index);
                             }
                             else
                             {
@@ -1189,7 +1212,7 @@ namespace Sempiler.Core
                         {
                             var removeeID = command.Arguments[CTInsertImmediateSiblingFromValueAndDeleteNodeCommand.RemoveeIDIndex];
 
-                            ASTHelpers.RemoveNodes(ast, new string[] { removeeID });
+                            ASTHelpers.RemoveNodes(ancillary.AST, new string[] { removeeID });
                         }
 
                         break;
@@ -1204,7 +1227,7 @@ namespace Sempiler.Core
                 case CTProtocolCommandKind.InsertImmediateSiblingAndDeleteNode:{
                     var insertionPoint = command.Arguments[CTInsertImmediateSiblingAndDeleteNodeCommand.InsertionPointIDIndex];
 
-                    var pos = ASTHelpers.GetPosition(ast, insertionPoint);
+                    var pos = ASTHelpers.GetPosition(ancillary.AST, insertionPoint);
 
                     if(pos.Node != null)
                     {
@@ -1212,11 +1235,11 @@ namespace Sempiler.Core
 
                         // [dho] insertion - 18/05/19
                         {
-                            var insertee = ASTHelpers.GetNode(ast, command.Arguments[CTInsertImmediateSiblingAndDeleteNodeCommand.InserteeIDIndex]);
+                            var insertee = ASTHelpers.GetNode(ancillary.AST, command.Arguments[CTInsertImmediateSiblingAndDeleteNodeCommand.InserteeIDIndex]);
 
                             if(insertee != null)
                             {
-                                ASTHelpers.Connect(ast, pos.Parent.ID, new [] { insertee }, pos.Role, pos.Index);
+                                ASTHelpers.Connect(ancillary.AST, pos.Parent.ID, new [] { insertee }, pos.Role, pos.Index);
 
 
                             }
@@ -1226,7 +1249,7 @@ namespace Sempiler.Core
                         {
                             var removeeID = command.Arguments[CTInsertImmediateSiblingAndDeleteNodeCommand.RemoveeIDIndex];
 
-                            ASTHelpers.RemoveNodes(ast, new string[] { removeeID });
+                            ASTHelpers.RemoveNodes(ancillary.AST, new string[] { removeeID });
                         }
                     }
                 }
@@ -1234,7 +1257,7 @@ namespace Sempiler.Core
             
                 case CTProtocolCommandKind.IllegalBridgeDirectiveNode:{
                     var nodeID = command.Arguments[CTProtocolIllegalBridgeDirectiveNodeCommand.NodeIDIndex];
-                    var node = ASTHelpers.GetNode(ast, nodeID);
+                    var node = ASTHelpers.GetNode(ancillary.AST, nodeID);
 
                     if (node != null)
                     {
@@ -1258,6 +1281,61 @@ namespace Sempiler.Core
 
             return result;
         }
+
+        static Result<object> AncillaryFoo(Session session, Artifact artifact, Ancillary ancillary, ISourceProvider sourceProvider, DuplexSocketServer server, string baseDirPath, string[] patterns, CancellationToken token)
+        {  
+            var result = new Result<object>();
+
+            List<SourceFilePatternMatchInput> inputs = new List<SourceFilePatternMatchInput>();
+
+            // [dho] should be resillient to the case where the input path is a directory or regex - 06/05/19
+            for (int i = 0; i < patterns.Length; ++i)
+            {
+                var pattern = patterns[i];
+                var @base = pattern.StartsWith(".") ? baseDirPath : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+                inputs.Add(new SourceFilePatternMatchInput(@base, pattern));
+            }
+
+            if(HasErrors(result) || token.IsCancellationRequested) return result;
+            
+            var parsedSources = result.AddMessages(
+                ParseNewSources(inputs, session, artifact, ancillary.AST, sourceProvider, server, token)
+            );
+
+            if(parsedSources.TotalPaths?.Count == 0)
+            {
+                var pathList = new List<string>();
+
+                foreach(var input in inputs)
+                {
+                    pathList.Add($"\"{input.BaseDirPath}/{input.SearchPattern}\"");
+                }
+
+                result.AddMessages(
+                    new Message(MessageKind.Error, $"Could not find file(s) at specified path(s) : {string.Join(",", pathList)}")
+                );
+            }
+
+            if(HasErrors(result) || token.IsCancellationRequested) return result;
+
+
+            try
+            {
+                var task = ProcessArtifact(session, artifact, ancillary, parsedSources.NewComponents, sourceProvider, server, token);
+
+                task.Wait();
+
+                result.AddMessages(task.Result);
+            }
+            catch (Exception e)
+            {
+                result.AddMessages(CreateErrorFromException(e));
+            }
+
+            return result;
+        }
+
 
         struct ParseNewSourceFilesResult 
         {
@@ -1371,7 +1449,7 @@ namespace Sempiler.Core
             return result;
         }
 
-        private static async Task<Result<Dictionary<string, OutFile>>> BundleAndWriteArtifact(Session session, Artifact artifact, AST.RawAST ast, CancellationToken token)
+        private static async Task<Result<Dictionary<string, OutFile>>> BundleAndWriteArtifact(Session session, Artifact artifact, CancellationToken token)
         {
             var result = new Result<Dictionary<string, OutFile>>();
 
@@ -1407,7 +1485,7 @@ namespace Sempiler.Core
                 }
             }
 
-            var outFileCollection = result.AddMessages(CompilerHelpers.Bundle(bundler, session, artifact, ast, token));
+            var outFileCollection = result.AddMessages(CompilerHelpers.Bundle(bundler, session, artifact, token));
         
             if(HasErrors(result) || token.IsCancellationRequested) return result;
 
@@ -1425,16 +1503,20 @@ namespace Sempiler.Core
                 if(preservedRelPaths.Count > 0)
                 {
                     // [dho] subdirectories - 04/10/19
-                    foreach (var absItemPath in Directory.EnumerateDirectories(absOutDirPath))
+                    if(Directory.Exists(absOutDirPath))
                     {
-                        result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+                        foreach (var absItemPath in Directory.EnumerateDirectories(absOutDirPath))
+                        {
+                            result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+                        }
+                    
+                        // [dho] files - 04/10/19                    
+                        foreach(var absItemPath in Directory.GetFiles(absOutDirPath, "*.*", SearchOption.AllDirectories))
+                        {
+                            result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+                        }
                     }
 
-                    // [dho] files - 04/10/19                    
-                    foreach(var absItemPath in Directory.GetFiles(absOutDirPath, "*.*", SearchOption.AllDirectories))
-                    {
-                        result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
-                    }
                 }
                 else
                 {
