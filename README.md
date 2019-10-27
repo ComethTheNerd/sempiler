@@ -3,6 +3,8 @@
 🚀 **Latest Patch Notes** 
 can be found [here](https://github.com/QuantumCommune/sempiler/blob/master/patch-notes.md)
 
+🐛 **Q&D Issue Tracker** can be found [here](https://github.com/QuantumCommune/sempiler/blob/master/compiler-issues.md)
+
 🔜 **Documentation** is a high priority... waiting for an incoming API _rejig_ to land first 🙈
 
 ## Overview
