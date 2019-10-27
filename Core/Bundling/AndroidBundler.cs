@@ -21,9 +21,10 @@ namespace Sempiler.Bundler
 
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{};
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
+
 
             if (artifact.Role != ArtifactRole.Client)
             {
@@ -35,6 +36,8 @@ namespace Sempiler.Bundler
                 return result;
             }
 
+            // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
+            var ast = ancillaries[0].AST;
 
 
             var appDirRelPath = $"./app/";

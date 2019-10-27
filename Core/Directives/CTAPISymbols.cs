@@ -8,8 +8,11 @@ namespace Sempiler.Core.Directives
         public const string AddDependency = "addDependency";
         public const string AddEntitlement = "addEntitlement";
         public const string AddPermission = "addPermission";
+        public const string AddRes = "addRes";
         public const string AddRawSources = "addRawSources";
         public const string AddSources = "addSources";
+        public const string AddAncillary = "addAncillary";
+        public const string IsArtifactName = "isArtifactName";
         public const string IsTargetLanguage = "isTargetLanguage";
         public const string IsTargetPlatform = "isTargetPlatform";
         public const string Build = "build";
@@ -23,8 +26,10 @@ namespace Sempiler.Core.Directives
             yield return AddDependency;
             yield return AddEntitlement;
             yield return AddPermission;
+            yield return AddRes;
             yield return AddRawSources;
             yield return AddSources;
+            yield return AddAncillary;
             yield return IsTargetLanguage;
             yield return IsTargetPlatform;
             yield return Build;

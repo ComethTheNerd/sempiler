@@ -13,7 +13,7 @@ namespace Sempiler.Bundler
     { 
         // [dho] creates a bundle of files that can be deployed and executed in the target platform, eg. inferring and injecting
         // a manifest file where none has been explicitly provided - 21/05/19
-        Task<Sempiler.Diagnostics.Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token);
+        Task<Sempiler.Diagnostics.Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token);
 
         IList<string> GetPreservedDebugEmissionRelPaths();
     }
@@ -67,72 +67,6 @@ namespace Sempiler.Bundler
         public static string GetNameOfExpectedArtifactEntrypointComponent(Session session, Artifact artifact)
         {
             return $"/{Sempiler.Core.Main.InferredConfig.SourceDirName}/{artifact.Name}/{Sempiler.Core.Main.InferredConfig.EntrypointFileName}".ToLower();
-        }
-
-
-        public static Result<List<string>> AddResourceFiles(Session session, Artifact artifact, OutFileCollection ofc, string relResourcesOutputPath)
-        {
-            var result = new Result<List<string>>();
-
-            var relResourcePaths = new List<string>();
-
-            foreach(var resource in session.Resources[artifact.Name])
-            {
-                switch(resource.Kind)
-                {
-                    case SourceKind.File:{
-                        var srcPath = ((ISourceFile)resource).Location.ToPathString();
-                
-                        var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
-                            srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
-                        }").ToPathString();
-
-                        if(AddCopyOfFileIfMissing(ofc, relPath, srcPath))
-                        {
-                            relResourcePaths.Add(relPath);
-                        }
-                        else
-                        {
-                            result.AddMessages(
-                                new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
-                            );
-                        }
-                    }
-                    break;
-
-                    case SourceKind.Literal:{
-                        var srcPath = ((ISourceLiteral)resource).Location.ToPathString();
-                
-                        var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
-                            srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
-                        }").ToPathString();
-
-                        if(AddRawFileIfMissing(ofc, relPath, ((ISourceLiteral)resource).Text))
-                        {
-                            relResourcePaths.Add(relPath);
-                        }
-                        else
-                        {
-                            result.AddMessages(
-                                new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
-                            );
-                        }
-                    }
-                    break;
-
-                    default:
-                    {
-                        result.AddMessages(
-                            new Message(MessageKind.Error, $"'{artifact.Name}' resource has unsupported kind '{resource.Kind}'")
-                        );
-                    }
-                    break;
-                }
-            }
-
-            result.Value = relResourcePaths;
-
-            return result;
         }
 
         public static bool AddRawFileIfMissing(OutFileCollection ofc, string relPath, string content)

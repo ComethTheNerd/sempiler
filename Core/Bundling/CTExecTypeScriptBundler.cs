@@ -32,9 +32,15 @@ namespace Sempiler.Bundler
         
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{};
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
+            
+
+            System.Diagnostics.Debug.Assert(ancillaries.Count == 1);
+            var ancillary = ancillaries[0];
+            var ast = ancillary.AST;
+
 
             // if (artifact.Role != ArtifactRole.Client)
             // {
@@ -59,7 +65,7 @@ namespace Sempiler.Bundler
 
                 // if (artifact.TargetLang == ArtifactTargetLang.TypeScript)
                 // {
-                    inlinedComponent = result.AddMessages(TypeScriptInlining(session, artifact, ctAST, token));
+                    inlinedComponent = result.AddMessages(TypeScriptInlining(session, artifact, ancillary, ctAST, token));
 
                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
@@ -169,9 +175,11 @@ namespace Sempiler.Bundler
             public string DeleteNode;
         }
 
-        private Result<Component> TypeScriptInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        private Result<Component> TypeScriptInlining(Session session, Artifact artifact, Ancillary ancillary, RawAST ast, CancellationToken token)
         {
             var result = new Result<Component>();
+
+            var ancillaryIndex = session.Ancillaries[artifact.Name].IndexOf(ancillary);
 
             var domain = ASTHelpers.GetRoot(ast);
 
@@ -251,11 +259,11 @@ $@"
 
             if(Array.isArray(value))
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
             }}
             else 
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
             }}
         }}
 
@@ -265,11 +273,11 @@ $@"
 
             if(arguments.length === 1)
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}})`);
             }}
             else
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}})`);
             }}
         }}
 
@@ -279,11 +287,11 @@ $@"
 
             if(Array.isArray(value))
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
             }}
             else 
             {{
-                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
+                return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddEntitlement}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
             }}
         }}
 
@@ -291,21 +299,42 @@ $@"
         {{
             const {{ {MessageIDSymbolLexeme} }} = this;
 
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddPermission}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{description || ''}})`);
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddPermission}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{description || ''}})`);
+        }}
+
+        async function {CTAPISymbols.AddRes}(parentDirPath, sourcePath)
+        {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddRes}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{sourcePath}})`);
         }}
 
         async function {CTAPISymbols.AddRawSources}(parentDirPath, ...includedPaths)
         {{
             const {{ {MessageIDSymbolLexeme} }} = this;
 
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddRawSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddRawSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
         }}
 
         async function {CTAPISymbols.AddSources}(parentDirPath, ...includedPaths)
         {{
             const {{ {MessageIDSymbolLexeme} }} = this;
 
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+        }}
+
+        async function {CTAPISymbols.AddAncillary}(parentDirPath, role, sourcePath)
+        {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddAncillary}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{role}}{CTProtocolHelpers.ArgumentDelimiter}${{sourcePath}})`);
+        }}
+
+        function {CTAPISymbols.IsArtifactName}(artifactName)
+        {{
+            // const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return artifactName === '{artifact.Name}';
         }}
 
         function {CTAPISymbols.IsTargetLanguage}(languageName)
@@ -326,21 +355,21 @@ $@"
         {{
             const {{ {MessageIDSymbolLexeme} }} = this;
 
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.DeleteNode}(${{nodeID}})`);
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.DeleteNode}(${{nodeID}})`);
         }}
 
         async function {CTAPISymbols.ReplaceNodeByCodeConstant}(removeeID, codeConstant)
         {{
             const {{ {MessageIDSymbolLexeme} }} = this;
 
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.ReplaceNodeByCodeConstant}(${{removeeID}}{CTProtocolHelpers.ArgumentDelimiter}${{codeConstant}})`);
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.ReplaceNodeByCodeConstant}(${{removeeID}}{CTProtocolHelpers.ArgumentDelimiter}${{codeConstant}})`);
         }}
 
         async function {CTAPISymbols.InsertImmediateSiblingFromValueAndDeleteNode}(insertionPointID, value, removeeID)
         {{
             const {{ {MessageIDSymbolLexeme} }} = this;
 
-            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.InsertImmediateSiblingAndFromValueAndDeleteNode}(${{insertionPointID}}{CTProtocolHelpers.ArgumentDelimiter}${{value.constructor.name}}{CTProtocolHelpers.ArgumentDelimiter}${{value}}{CTProtocolHelpers.ArgumentDelimiter}${{removeeID}})`);
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.InsertImmediateSiblingAndFromValueAndDeleteNode}(${{insertionPointID}}{CTProtocolHelpers.ArgumentDelimiter}${{value.constructor.name}}{CTProtocolHelpers.ArgumentDelimiter}${{value}}{CTProtocolHelpers.ArgumentDelimiter}${{removeeID}})`);
         }}
 
         return {{ 
@@ -349,7 +378,10 @@ $@"
             {CTAPISymbols.AddEntitlement},
             {CTAPISymbols.AddPermission},
             {CTAPISymbols.AddRawSources},
+            {CTAPISymbols.AddRes},
             {CTAPISymbols.AddSources}, 
+            {CTAPISymbols.AddAncillary}, 
+            {CTAPISymbols.IsArtifactName},
             {CTAPISymbols.IsTargetLanguage},
             {CTAPISymbols.IsTargetPlatform},
             {CTAPISymbols.ReplaceNodeByCodeConstant},
@@ -364,8 +396,11 @@ $@"
         {CTAPISymbols.AddDependency}, 
         {CTAPISymbols.AddEntitlement}, 
         {CTAPISymbols.AddPermission}, 
+        {CTAPISymbols.AddRes},
         {CTAPISymbols.AddRawSources}, 
         {CTAPISymbols.AddSources},
+        {CTAPISymbols.AddAncillary}, 
+        {CTAPISymbols.IsArtifactName},
         {CTAPISymbols.IsTargetLanguage},
         {CTAPISymbols.IsTargetPlatform},
     }} = {serverInteropHandleLexeme};").Node
@@ -387,17 +422,21 @@ $@"
 
                     var c = ASTNodeFactory.Component(ast, (DataNode<string>)child);
                     
-                    var inlinedComponent = result.AddMessages(
-                        InlineComponent(session, artifact, ast, c, languageSemantics, serverInteropFnIDs, token, ref importDecls, ref content, ref hoistedNodes)
-                    );
-
-                    if(inlinedComponent != null)
+                    if(c.Node.Origin as SourceNodeOrigin != null)
                     {
-                        content.Add(
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $@"/* COMPONENT : `{c.Name}`*/").Node
+                        var inlinedComponent = result.AddMessages(
+                            InlineComponent(session, artifact, ast, c, languageSemantics, serverInteropFnIDs, token, ref importDecls, ref content, ref hoistedNodes)
                         );
-                        content.Add(inlinedComponent.Node);
+
+                        if(inlinedComponent != null)
+                        {
+                            content.Add(
+                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $@"/* COMPONENT : `{c.Name}`*/").Node
+                            );
+                            content.Add(inlinedComponent.Node);
+                        }
                     }
+
 
                     componentIDsToRemove.Add(child.ID);
                 }
@@ -1217,7 +1256,10 @@ $@"
 
                 if(parentDirPath != null)
                 {
-                    if(symbolName == CTAPISymbols.AddSources || symbolName == CTAPISymbols.AddRawSources)
+                    if(symbolName == CTAPISymbols.AddSources || 
+                        symbolName == CTAPISymbols.AddRes || 
+                        symbolName == CTAPISymbols.AddRawSources || 
+                        symbolName == CTAPISymbols.AddAncillary)
                     {
                         foreach(var reference in references)
                         {

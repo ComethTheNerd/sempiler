@@ -23,7 +23,7 @@ namespace Sempiler.Bundler
 
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ "node_modules" };
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -37,7 +37,10 @@ namespace Sempiler.Bundler
                 return result;
             }
 
-            
+            // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
+            var ancillary = ancillaries[0];
+
+
             var routeInfos = default(List<ServerInlining.ServerRouteInfo>);
 
             var ofc = default(OutFileCollection);//new OutFileCollection();
@@ -48,13 +51,13 @@ namespace Sempiler.Bundler
 
                 if (artifact.TargetLang == ArtifactTargetLang.TypeScript)
                 {
-                    routeInfos = result.AddMessages(TypeScriptInlining(session, artifact, ast, token));
+                    routeInfos = result.AddMessages(TypeScriptInlining(session, artifact, ancillary.AST, token));
 
                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
                     emitter = new TypeScriptEmitter();
 
-                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ast, token));
+                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ancillary.AST, token));
                 }
                 // [dho] TODO JavaScript! - 01/06/19
                 else

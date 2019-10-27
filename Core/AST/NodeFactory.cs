@@ -18,7 +18,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.AccessorDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.AccessorDeclaration(ast, node);
         }
@@ -31,7 +31,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.AccessorSignature, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.AccessorSignature(ast, node);
         }
@@ -44,7 +44,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Addition, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Addition(ast, node);
         }
@@ -57,7 +57,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.AdditionAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.AdditionAssignment(ast, node);
         }
@@ -70,7 +70,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.AddressOf, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.AddressOf(ast, node);
         }
@@ -83,7 +83,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Annotation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Annotation(ast, node);
         }
@@ -96,7 +96,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ArithmeticNegation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ArithmeticNegation(ast, node);
         }
@@ -109,7 +109,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ArrayConstruction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ArrayConstruction(ast, node);
         }
@@ -122,7 +122,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ArrayTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ArrayTypeReference(ast, node);
         }
@@ -134,7 +134,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.ArtifactReference, origin, targetArtifactName);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ArtifactReference(ast, node);
         }
@@ -146,7 +146,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Assignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Assignment(ast, node);
         }
@@ -159,7 +159,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Association, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Association(ast, node);
         }
@@ -172,7 +172,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseAnd, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseAnd(ast, node);
         }
@@ -185,7 +185,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseAndAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseAndAssignment(ast, node);
         }
@@ -198,7 +198,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseExclusiveOr, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseExclusiveOr(ast, node);
         }
@@ -211,7 +211,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseExclusiveOrAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseExclusiveOrAssignment(ast, node);
         }
@@ -224,7 +224,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseLeftShift, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseLeftShift(ast, node);
         }
@@ -237,7 +237,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseLeftShiftAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseLeftShiftAssignment(ast, node);
         }
@@ -250,7 +250,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseNegation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseNegation(ast, node);
         }
@@ -263,7 +263,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseOr, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseOr(ast, node);
         }
@@ -276,7 +276,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseOrAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseOrAssignment(ast, node);
         }
@@ -289,7 +289,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseRightShift, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseRightShift(ast, node);
         }
@@ -302,7 +302,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseRightShiftAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseRightShiftAssignment(ast, node);
         }
@@ -315,7 +315,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseUnsignedRightShift, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseUnsignedRightShift(ast, node);
         }
@@ -328,7 +328,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BitwiseUnsignedRightShiftAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BitwiseUnsignedRightShiftAssignment(ast, node);
         }
@@ -341,7 +341,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Block, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Block(ast, node);
         }
@@ -354,7 +354,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<bool>(id, SemanticKind.BooleanConstant, origin, value);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BooleanConstant(ast, node);
         }
@@ -367,7 +367,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Breakpoint, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Breakpoint(ast, node);
         }
@@ -379,7 +379,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BridgeFunctionDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BridgeFunctionDeclaration(ast, node);
         }
@@ -391,7 +391,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.BridgeInvocation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.BridgeInvocation(ast, node);
         }
@@ -403,7 +403,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ClauseBreak, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ClauseBreak(ast, node);
         }
@@ -416,7 +416,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.CodeConstant, origin, value);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.CodeConstant(ast, node);
         }
@@ -429,7 +429,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.CollectionDestructuring, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.CollectionDestructuring(ast, node);
         }
@@ -442,7 +442,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.CompilerHint, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.CompilerHint(ast, node);
         }
@@ -455,7 +455,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.Component, origin, name);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Component(ast, node);
         }
@@ -468,7 +468,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Concatenation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Concatenation(ast, node);
         }
@@ -481,7 +481,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ConcatenationAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ConcatenationAssignment(ast, node);
         }
@@ -494,7 +494,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ConditionalTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ConditionalTypeReference(ast, node);
         }
@@ -507,7 +507,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LiteralTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LiteralTypeReference(ast, node);
         }
@@ -519,7 +519,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ComputedValue, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ComputedValue(ast, node);
         }
@@ -532,7 +532,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ConstructorDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ConstructorDeclaration(ast, node);
         }
@@ -545,7 +545,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ConstructorSignature, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ConstructorSignature(ast, node);
         }
@@ -558,7 +558,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ConstructorTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ConstructorTypeReference(ast, node);
         }
@@ -571,7 +571,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DataValueDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DataValueDeclaration(ast, node);
         }
@@ -584,7 +584,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DefaultExportReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DefaultExportReference(ast, node);
         }
@@ -597,7 +597,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Destruction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Destruction(ast, node);
         }
@@ -610,7 +610,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DestructorDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DestructorDeclaration(ast, node);
         }
@@ -623,7 +623,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DestructorSignature, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DestructorSignature(ast, node);
         }
@@ -636,7 +636,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DestructuredMember, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DestructuredMember(ast, node);
         }
@@ -649,7 +649,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DictionaryConstruction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DictionaryConstruction(ast, node);
         }
@@ -662,7 +662,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DictionaryTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DictionaryTypeReference(ast, node);
         }
@@ -674,7 +674,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.Directive, origin, name);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Directive(ast, node);
         }
@@ -686,7 +686,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Division, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Division(ast, node);
         }
@@ -699,7 +699,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DivisionAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DivisionAssignment(ast, node);
         }
@@ -712,7 +712,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DoOrDieErrorTrap, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DoOrDieErrorTrap(ast, node);
         }
@@ -725,7 +725,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DoOrRecoverErrorTrap, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DoOrRecoverErrorTrap(ast, node);
         }
@@ -738,7 +738,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DoWhilePredicateLoop, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DoWhilePredicateLoop(ast, node);
         }
@@ -751,7 +751,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Domain, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Domain(ast, node);
         }
@@ -764,7 +764,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DynamicTypeConstruction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DynamicTypeConstruction(ast, node);
         }
@@ -777,7 +777,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.DynamicTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.DynamicTypeReference(ast, node);
         }
@@ -790,7 +790,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.EntityDestructuring, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.EntityDestructuring(ast, node);
         }
@@ -803,7 +803,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.EnumerationMemberDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.EnumerationMemberDeclaration(ast, node);
         }
@@ -816,7 +816,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.EnumerationTypeDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.EnumerationTypeDeclaration(ast, node);
         }
@@ -829,7 +829,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ErrorFinallyClause, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ErrorFinallyClause(ast, node);
         }
@@ -842,7 +842,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ErrorHandlerClause, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ErrorHandlerClause(ast, node);
         }
@@ -855,7 +855,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ErrorTrapJunction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ErrorTrapJunction(ast, node);
         }
@@ -868,7 +868,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.EvalToVoid, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.EvalToVoid(ast, node);
         }
@@ -881,7 +881,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Exponentiation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Exponentiation(ast, node);
         }
@@ -894,7 +894,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ExponentiationAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ExponentiationAssignment(ast, node);
         }
@@ -907,7 +907,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ExportDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ExportDeclaration(ast, node);
         }
@@ -920,7 +920,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.FieldDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.FieldDeclaration(ast, node);
         }
@@ -933,7 +933,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.FieldSignature, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.FieldSignature(ast, node);
         }
@@ -946,7 +946,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ForKeysLoop, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ForKeysLoop(ast, node);
         }
@@ -959,7 +959,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ForMembersLoop, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ForMembersLoop(ast, node);
         }
@@ -972,7 +972,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ForPredicateLoop, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ForPredicateLoop(ast, node);
         }
@@ -985,7 +985,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ForcedCast, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ForcedCast(ast, node);
         }
@@ -998,7 +998,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.FunctionDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.FunctionDeclaration(ast, node);
         }
@@ -1011,7 +1011,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.FunctionTermination, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.FunctionTermination(ast, node);
         }
@@ -1024,7 +1024,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.FunctionTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.FunctionTypeReference(ast, node);
         }
@@ -1037,7 +1037,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.GeneratorSuspension, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.GeneratorSuspension(ast, node);
         }
@@ -1050,7 +1050,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.GlobalDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.GlobalDeclaration(ast, node);
         }
@@ -1063,7 +1063,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.Identifier, origin, lexeme);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Identifier(ast, node);
         }
@@ -1076,7 +1076,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Identity, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Identity(ast, node);
         }
@@ -1102,7 +1102,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ImportDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ImportDeclaration(ast, node);
         }
@@ -1115,7 +1115,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.IncidentContextReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.IncidentContextReference(ast, node);
         }
@@ -1128,7 +1128,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.IncidentTypeConstraint, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.IncidentTypeConstraint(ast, node);
         }
@@ -1141,7 +1141,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.IndexTypeQuery, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.IndexTypeQuery(ast, node);
         }
@@ -1154,7 +1154,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.InferredTypeQuery, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.InferredTypeQuery(ast, node);
         }
@@ -1167,7 +1167,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.IndexedAccess, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.IndexedAccess(ast, node);
         }
@@ -1180,7 +1180,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.IndexerSignature, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.IndexerSignature(ast, node);
         }
@@ -1193,7 +1193,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.InterfaceDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.InterfaceDeclaration(ast, node);
         }
@@ -1206,7 +1206,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.InterimSuspension, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.InterimSuspension(ast, node);
         }
@@ -1219,7 +1219,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.InterpolatedString, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.InterpolatedString(ast, node);
         }
@@ -1232,7 +1232,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.InterpolatedStringConstant, origin, value);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.InterpolatedStringConstant(ast, node);
         }
@@ -1245,7 +1245,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.IntersectionTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.IntersectionTypeReference(ast, node);
         }
@@ -1258,7 +1258,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.IntrinsicTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.IntrinsicTypeReference(ast, node);
         }
@@ -1271,7 +1271,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Invocation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Invocation(ast, node);
         }
@@ -1284,7 +1284,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.InvocationArgument, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.InvocationArgument(ast, node);
         }
@@ -1296,7 +1296,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.JumpToNextIteration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.JumpToNextIteration(ast, node);
         }
@@ -1309,7 +1309,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.KeyValuePair, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.KeyValuePair(ast, node);
         }
@@ -1322,7 +1322,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Label, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Label(ast, node);
         }
@@ -1335,7 +1335,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LambdaDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LambdaDeclaration(ast, node);
         }
@@ -1348,7 +1348,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LogicalAnd, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LogicalAnd(ast, node);
         }
@@ -1361,7 +1361,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LogicalNegation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LogicalNegation(ast, node);
         }
@@ -1374,7 +1374,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LogicalOr, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LogicalOr(ast, node);
         }
@@ -1387,7 +1387,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LoopBreak, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LoopBreak(ast, node);
         }
@@ -1400,7 +1400,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LooseEquivalent, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LooseEquivalent(ast, node);
         }
@@ -1413,7 +1413,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LooseNonEquivalent, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LooseNonEquivalent(ast, node);
         }
@@ -1426,7 +1426,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.LowerBoundedTypeConstraint, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.LowerBoundedTypeConstraint(ast, node);
         }
@@ -1439,7 +1439,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MappedDestructuring, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MappedDestructuring(ast, node);
         }
@@ -1452,7 +1452,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MappedTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MappedTypeReference(ast, node);
         }
@@ -1465,7 +1465,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MatchClause, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MatchClause(ast, node);
         }
@@ -1478,7 +1478,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MatchJunction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MatchJunction(ast, node);
         }
@@ -1491,7 +1491,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MaybeNull, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MaybeNull(ast, node);
         }
@@ -1504,7 +1504,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MemberNameReflection, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MemberNameReflection(ast, node);
         }
@@ -1517,7 +1517,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MemberTypeConstraint, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MemberTypeConstraint(ast, node);
         }
@@ -1530,7 +1530,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MembershipTest, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MembershipTest(ast, node);
         }
@@ -1543,7 +1543,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<MetaFlag>(id, SemanticKind.Meta, origin, flags);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Meta(ast, node);
         }
@@ -1556,7 +1556,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MetaProperty, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MetaProperty(ast, node);
         }
@@ -1569,7 +1569,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MethodDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MethodDeclaration(ast, node);
         }
@@ -1582,7 +1582,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MethodSignature, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MethodSignature(ast, node);
         }
@@ -1595,7 +1595,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.Modifier, origin, lexeme);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Modifier(ast, node);
         }
@@ -1608,7 +1608,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Multiplication, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Multiplication(ast, node);
         }
@@ -1621,7 +1621,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MultiplicationAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MultiplicationAssignment(ast, node);
         }
@@ -1634,7 +1634,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MutatorDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MutatorDeclaration(ast, node);
         }
@@ -1647,7 +1647,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.MutatorSignature, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.MutatorSignature(ast, node);
         }
@@ -1660,7 +1660,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Mutex, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Mutex(ast, node);
         }
@@ -1673,7 +1673,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NamedTypeConstruction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NamedTypeConstruction(ast, node);
         }
@@ -1686,7 +1686,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NamedTypeQuery, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NamedTypeQuery(ast, node);
         }
@@ -1699,7 +1699,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NamedTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NamedTypeReference(ast, node);
         }
@@ -1712,7 +1712,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NamespaceDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NamespaceDeclaration(ast, node);
         }
@@ -1725,7 +1725,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NamespaceReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NamespaceReference(ast, node);
         }
@@ -1738,7 +1738,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NonMembershipTest, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NonMembershipTest(ast, node);
         }
@@ -1751,7 +1751,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Nop, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Nop(ast, node);
         }
@@ -1764,7 +1764,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NotNull, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NotNull(ast, node);
         }
@@ -1777,7 +1777,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NotNumber, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NotNumber(ast, node);
         }
@@ -1790,7 +1790,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Null, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Null(ast, node);
         }
@@ -1803,7 +1803,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.NullCoalescence, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NullCoalescence(ast, node);
         }
@@ -1816,7 +1816,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.NumericConstant, origin, value);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.NumericConstant(ast, node);
         }
@@ -1829,7 +1829,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ObjectTypeDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ObjectTypeDeclaration(ast, node);
         }
@@ -1855,7 +1855,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ParameterDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ParameterDeclaration(ast, node);
         }
@@ -1868,7 +1868,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ParenthesizedTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ParenthesizedTypeReference(ast, node);
         }
@@ -1881,7 +1881,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PointerDereference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PointerDereference(ast, node);
         }
@@ -1894,7 +1894,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PointerTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PointerTypeReference(ast, node);
         }
@@ -1907,7 +1907,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PostDecrement, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PostDecrement(ast, node);
         }
@@ -1920,7 +1920,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PostIncrement, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PostIncrement(ast, node);
         }
@@ -1933,7 +1933,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PreDecrement, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PreDecrement(ast, node);
         }
@@ -1946,7 +1946,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PreIncrement, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PreIncrement(ast, node);
         }
@@ -1959,7 +1959,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PredicateFlat, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PredicateFlat(ast, node);
         }
@@ -1972,7 +1972,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PredicateJunction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PredicateJunction(ast, node);
         }
@@ -1985,7 +1985,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PrioritySymbolResolutionContext, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PrioritySymbolResolutionContext(ast, node);
         }
@@ -1998,7 +1998,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.PropertyDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.PropertyDeclaration(ast, node);
         }
@@ -2011,7 +2011,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.QualifiedAccess, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.QualifiedAccess(ast, node);
         }
@@ -2024,7 +2024,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.RaiseError, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.RaiseError(ast, node);
         }
@@ -2037,7 +2037,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ReferenceAliasDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ReferenceAliasDeclaration(ast, node);
         }
@@ -2050,7 +2050,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.RegularExpressionConstant, origin, value);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.RegularExpressionConstant(ast, node);
         }
@@ -2063,7 +2063,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Remainder, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Remainder(ast, node);
         }
@@ -2076,7 +2076,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.RemainderAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.RemainderAssignment(ast, node);
         }
@@ -2088,7 +2088,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.SafeCast, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.SafeCast(ast, node);
         }
@@ -2101,7 +2101,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.SmartCast, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.SmartCast(ast, node);
         }
@@ -2114,7 +2114,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.SpreadDestructuring, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.SpreadDestructuring(ast, node);
         }
@@ -2127,7 +2127,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.StrictEquivalent, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.StrictEquivalent(ast, node);
         }
@@ -2140,7 +2140,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.StrictGreaterThan, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.StrictGreaterThan(ast, node);
         }
@@ -2153,7 +2153,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.StrictGreaterThanOrEquivalent, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.StrictGreaterThanOrEquivalent(ast, node);
         }
@@ -2166,7 +2166,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.StrictLessThan, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.StrictLessThan(ast, node);
         }
@@ -2179,7 +2179,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.StrictLessThanOrEquivalent, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.StrictLessThanOrEquivalent(ast, node);
         }
@@ -2192,7 +2192,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.StrictNonEquivalent, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.StrictNonEquivalent(ast, node);
         }
@@ -2205,7 +2205,7 @@ namespace Sempiler.AST
 
             var node = new DataNode<string>(id, SemanticKind.StringConstant, origin, value);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.StringConstant(ast, node);
         }
@@ -2218,7 +2218,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.Subtraction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.Subtraction(ast, node);
         }
@@ -2231,7 +2231,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.SubtractionAssignment, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.SubtractionAssignment(ast, node);
         }
@@ -2244,7 +2244,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.SuperContextReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.SuperContextReference(ast, node);
         }
@@ -2257,7 +2257,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.TupleConstruction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.TupleConstruction(ast, node);
         }
@@ -2270,7 +2270,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.TupleTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.TupleTypeReference(ast, node);
         }
@@ -2283,7 +2283,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.TypeAliasDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.TypeAliasDeclaration(ast, node);
         }
@@ -2296,7 +2296,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.TypeInterrogation, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.TypeInterrogation(ast, node);
         }
@@ -2309,7 +2309,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.TypeParameterDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.TypeParameterDeclaration(ast, node);
         }
@@ -2322,7 +2322,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.TypeQuery, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.TypeQuery(ast, node);
         }
@@ -2335,7 +2335,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.TypeTest, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.TypeTest(ast, node);
         }
@@ -2348,7 +2348,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.UpperBoundedTypeConstraint, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.UpperBoundedTypeConstraint(ast, node);
         }
@@ -2361,7 +2361,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.UnionTypeReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.UnionTypeReference(ast, node);
         }
@@ -2374,7 +2374,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ViewConstruction, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ViewConstruction(ast, node);
         }
@@ -2387,7 +2387,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.ViewDeclaration, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.ViewDeclaration(ast, node);
         }
@@ -2400,7 +2400,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.WhilePredicateLoop, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.WhilePredicateLoop(ast, node);
         }
@@ -2413,7 +2413,7 @@ namespace Sempiler.AST
 
             var node = new Node(id, SemanticKind.WildcardExportReference, origin);
 
-            ASTHelpers.RegisterNode(ast, node);
+            ASTHelpers.Register(ast, node);
 
             return ASTNodeFactory.WildcardExportReference(ast, node);
         }
