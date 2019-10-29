@@ -1,5 +1,16 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 29/10/19
+- Added support in Firebase Functions Bundler for exporting data value declarations (symbols), so now you can write `export const foo = require("firebase-functions").pubsub.schedule(...).onRun(...)` and the compiler is smart enough to not wire it up as an express route
+- Firebase Functions Bundler no longer dereferences the `user` object in route handler, so the programmer has to explicitly use `this.user` or `const { user } = this` in their route handler
+- Firebase Functions Bundler now also passes the `req` and `res` objects in the route handler context, ie. `const { req, res } = this`
+- Firebase Functions Bundler now supports forcing the HTTP verb to use for a route through a new annotation `@httpVerb("post")` (note, by default the verb is `GET` if the route has no parameters, and `POST` otherwise)
+- Fixed bug in TypeScript Emitter where the operands for a type alias were emitted in reverse order
+- Fixed bug in Swift Emitter where the operands for a type alias were emitted in reverse order
+
+# 🗓 28/10/19
+- Added support for `@extension` annotation on `ObjectTypeDeclaration` for declaring extensions to existing classes in languages like Swift and C#
+
 # 🗓 24/10/19
 - FirebaseBundler now infers HTTP response code based on type of error thrown, and whether it was expected or not (`TypeError`, `ReferenceError`, `RangeError` etc)
 

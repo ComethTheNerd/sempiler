@@ -1,6 +1,9 @@
 ** IN PROGRESS : Rough notes to form user guide / cook book / API reference **
 
 
+@struct
+@extension
+
 # Input Files
 
 ## Session Entrypoint
@@ -48,3 +51,5 @@ TODO
 
 ### Firebase Functions
 @enforceAuth annotation
+
+http status code inference from error type

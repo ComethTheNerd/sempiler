@@ -2889,7 +2889,7 @@ namespace Sempiler.Emission
             var to = node.Name;
 
             result.AddMessages(
-                EmitNode(from, childContext, token)
+                EmitNode(to, childContext, token)
             );
 
 
@@ -2909,7 +2909,7 @@ namespace Sempiler.Emission
             context.Emission.Append(node, "=");
 
             result.AddMessages(
-                EmitNode(to, childContext, token)
+                EmitNode(from, childContext, token)
             );
 
             return result;
