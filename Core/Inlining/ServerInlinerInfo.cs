@@ -16,10 +16,12 @@ namespace Sempiler.Inlining
         // [dho] if the route declaration has this annotation then we will automatically parse
         // the authorization for it - 04/10/19
         public const string EnforceAuthAnnotationLexeme = "enforceAuth";
+        public const string HTTPVerbAnnotationLexeme = "httpVerb";
 
         public struct ServerInlinerInfo
         {
             public List<Node> Imports;
+            public List<ServerExportedSymbolInfo> ExportedSymbols;
             public List<ServerRouteInfo> RouteInfos;
             public List<Node> Members;
         }
@@ -30,7 +32,15 @@ namespace Sempiler.Inlining
             public Node Handler;
             public string[] QualifiedHandlerName;
             public string[] APIRelPath;
-            public Node EnforceAuthAnnotation;
+            public Annotation EnforceAuthAnnotation;
+            public Annotation HTTPVerbAnnotation;
+        }
+
+        public struct ServerExportedSymbolInfo
+        {
+            public Node SourceDeclaration;
+            public Node Symbol;
+            public string[] QualifiedHandlerName;
         }
 
         public static Result<ServerInlinerInfo> GetInlinerInfo(Session session, RawAST ast, Component component, BaseLanguageSemantics languageSemantics, string[] parentAPIRelPath, string[] parentQualifiedName, CancellationToken token)
@@ -41,6 +51,7 @@ namespace Sempiler.Inlining
             {
                 Imports = new List<Node>(),
                 RouteInfos = new List<ServerRouteInfo>(),
+                ExportedSymbols = new List<ServerExportedSymbolInfo>(),
                 Members = new List<Node>()
             };
 
@@ -77,19 +88,20 @@ namespace Sempiler.Inlining
                                     System.Array.Copy(parentAPIRelPath, apiRelPath, parentAPIRelPath.Length);
                                     apiRelPath[apiRelPath.Length - 1] = lexeme; 
 
-                                    var qualifedHandlerName = new string[parentQualifiedName.Length + 1];
-                                    System.Array.Copy(parentQualifiedName, qualifedHandlerName, parentQualifiedName.Length);
-                                    qualifedHandlerName[qualifedHandlerName.Length - 1] = lexeme;
+                                    var qualifiedHandlerName = new string[parentQualifiedName.Length + 1];
+                                    System.Array.Copy(parentQualifiedName, qualifiedHandlerName, parentQualifiedName.Length);
+                                    qualifiedHandlerName[qualifiedHandlerName.Length - 1] = lexeme;
 
                                     inlinerInfo.RouteInfos.Add(new ServerRouteInfo
                                     {
                                         APIRelPath = apiRelPath,
-                                        QualifiedHandlerName = qualifedHandlerName,
+                                        QualifiedHandlerName = qualifiedHandlerName,
                                         SourceDeclaration = child,
                                         Handler = clause,
                                         // [dho] NOTE syntactically the annotation will be on the export declaration,
                                         // not the handler inside it - 04/10/19
-                                        EnforceAuthAnnotation = GetEnforceAuthAnnotationIfPresent(session, ast, exportDecl, token)
+                                        EnforceAuthAnnotation = GetAnnotationIfPresent(session, ast, exportDecl, EnforceAuthAnnotationLexeme, token),
+                                        HTTPVerbAnnotation = GetAnnotationIfPresent(session, ast, exportDecl, HTTPVerbAnnotationLexeme, token),
                                     });
                                 }
                                 else
@@ -101,6 +113,23 @@ namespace Sempiler.Inlining
                                         }
                                     );
                                 }
+                            }
+                            else if(clause.Kind == SemanticKind.DataValueDeclaration)
+                            {
+                                var handlerName = ASTNodeFactory.DataValueDeclaration(ast, clause).Name;
+
+                                var lexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)handlerName).Lexeme;
+ 
+                                var qualifiedHandlerName = new string[parentQualifiedName.Length + 1];
+                                System.Array.Copy(parentQualifiedName, qualifiedHandlerName, parentQualifiedName.Length);
+                                qualifiedHandlerName[qualifiedHandlerName.Length - 1] = lexeme;
+
+                                inlinerInfo.ExportedSymbols.Add(new ServerExportedSymbolInfo 
+                                {
+                                    QualifiedHandlerName = qualifiedHandlerName,
+                                    SourceDeclaration = child,
+                                    Symbol = clause
+                                });
                             }
                             else
                             {
@@ -181,7 +210,8 @@ namespace Sempiler.Inlining
             return result;
         }
 
-        private static Node GetEnforceAuthAnnotationIfPresent(Session session, RawAST ast, ExportDeclaration exportDecl, CancellationToken token)
+
+        private static Annotation GetAnnotationIfPresent(Session session, RawAST ast, ExportDeclaration exportDecl, string annotationLexeme, CancellationToken token)
         {   
             foreach(var node in exportDecl.Annotations)
             {
@@ -189,9 +219,20 @@ namespace Sempiler.Inlining
 
                 var annotation = ASTNodeFactory.Annotation(ast, node);
 
-                if(ASTNodeHelpers.IsIdentifierWithName(ast, annotation.Expression, EnforceAuthAnnotationLexeme))
+                // [dho] `@foo` - 29/10/19
+                if(ASTNodeHelpers.IsIdentifierWithName(ast, annotation.Expression, annotationLexeme))
                 {
-                    return node;
+                    return annotation;
+                }
+                // [dho] `@foo(...)` - 29/10/19
+                else if(annotation.Expression.Kind == SemanticKind.Invocation)
+                {
+                    var inv = ASTNodeFactory.Invocation(ast, annotation.Expression);
+
+                    if(ASTNodeHelpers.IsIdentifierWithName(ast, inv.Subject, annotationLexeme))
+                    {
+                        return annotation;
+                    }
                 }
             }
 

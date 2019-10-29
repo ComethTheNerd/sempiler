@@ -3293,7 +3293,7 @@ namespace Sempiler.Emission
             context.Emission.Append(node, "type ");
 
             result.AddMessages(
-                EmitNode(node.From, childContext, token)
+                EmitNode(node.Name, childContext, token)
             );
 
             result.AddMessages(
@@ -3303,7 +3303,7 @@ namespace Sempiler.Emission
             context.Emission.Append(node, "=");
 
             result.AddMessages(
-                EmitNode(node.Name, childContext, token)
+                EmitNode(node.From, childContext, token)
             );
 
             return result;

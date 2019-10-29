@@ -242,13 +242,14 @@ $@"{{
                 var inlinedContent = new List<Node>();
                 var componentIDsToRemove = new List<string>();
                 var routeInfos = new List<ServerInlining.ServerRouteInfo>();
+                var exportedSymbolInfos = new List<ServerInlining.ServerExportedSymbolInfo>();
 
                 foreach (var cNode in domain.Components)
                 {
                     var component = ASTNodeFactory.Component(ast, (DataNode<string>)cNode);
 
                     // [dho] every component in the AST (ie. every input file) will be turned into an IIFE data value declaration and inlined - 22/09/19
-                    var r = ConvertToInlinedIIFEDataValueDeclaration(session, artifact, ast, component, token, ref routeInfos);
+                    var r = ConvertToInlinedIIFEDataValueDeclaration(session, artifact, ast, component, token, ref routeInfos, ref exportedSymbolInfos);
 
                     result.AddMessages(r);
 
@@ -302,6 +303,12 @@ $@"{{
 
                 inlinedContent.Add(router);
 
+
+                var exported = result.AddMessages(
+                    CreateExportedSymbols(session, artifact, ast, inlined, token, ref exportedSymbolInfos)
+                );
+
+                inlinedContent.AddRange(exported);
 
                 if (HasErrors(result) || token.IsCancellationRequested) return result;
 
@@ -406,7 +413,75 @@ app.use(cors({{ origin : true }}));").Node
             return result;
         }
 
-        private static Result<DataValueDeclaration> ConvertToInlinedIIFEDataValueDeclaration(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<ServerInlining.ServerRouteInfo> routes)
+        private static Result<List<Node>> CreateExportedSymbols(Session session, Artifact artifact, RawAST ast, Component entrypointComponent, CancellationToken token, ref List<ServerInlining.ServerExportedSymbolInfo> exportedSymbols)
+        {
+            var result = new Result<List<Node>>();
+
+            var assignments = new List<Node>();
+
+            foreach(var exportedSymbol in exportedSymbols)
+            {
+                System.Diagnostics.Debug.Assert(exportedSymbol.Symbol.Kind == SemanticKind.DataValueDeclaration);
+                
+                // var initializer = exportedDVDecl.Initializer;
+                
+
+                // if(initializer == null)
+                // {
+                //     result.AddMessages(
+                //         new NodeMessage(MessageKind.Error, $"Export must have initializer", exportedDVDecl)
+                //         {
+                //             Hint = GetHint(exportedDVDecl.Origin),
+                //         }
+                //     );
+                //     continue;
+                // }
+
+                var name = ASTNodeFactory.DataValueDeclaration(ast, exportedSymbol.Symbol).Name;
+
+                System.Diagnostics.Debug.Assert(name.Kind == SemanticKind.Identifier);
+
+                var nameLexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)name).Lexeme;
+
+                if(nameLexeme == APISymbolicLexeme)
+                {
+                    result.AddMessages(
+                        new NodeMessage(MessageKind.Error, $"The use of exported symbol name '{APISymbolicLexeme}' is reserved", name)
+                        {
+                            Hint = GetHint(name.Origin),
+                        }
+                    );
+                    continue;
+                }
+
+                var assignment = NodeFactory.Assignment(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+                {
+                    // [dho] `exports.api` - 24/09/19
+                    var storage = ASTNodeHelpers.ConvertToQualifiedAccessIfRequiredLTR(ast, new PhaseNodeOrigin(PhaseKind.Bundling), new [] {
+                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "exports").Node,
+                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), nameLexeme).Node,
+                    });
+
+                    ASTHelpers.Connect(ast, assignment.ID, new [] { storage }, SemanticRole.Storage);
+
+                    var qualifiedDelegateName = string.Join(".", exportedSymbol.QualifiedHandlerName);
+
+
+                    ASTHelpers.Connect(ast, assignment.ID, new [] { 
+                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), qualifiedDelegateName).Node
+                    }, SemanticRole.Value);
+                }
+
+                assignments.Add(assignment.Node);
+            }
+
+            result.Value = assignments;
+
+
+            return result;
+        }
+
+        private static Result<DataValueDeclaration> ConvertToInlinedIIFEDataValueDeclaration(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<ServerInlining.ServerRouteInfo> routes, ref List<ServerInlining.ServerExportedSymbolInfo> exportedSymbols)
         {
             var result = new Result<DataValueDeclaration>();
             var exportedMembers = new List<Node>();
@@ -433,6 +508,7 @@ app.use(cors({{ origin : true }}));").Node
             if(BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
             {
                 routes.AddRange(inlinerInfo.RouteInfos);
+                exportedSymbols.AddRange(inlinerInfo.ExportedSymbols);
             }
             // [dho] for now we are just going to complain about 'routes' in the session entrypoint file.. because otherwise we would
             // struggle to route those symbols if they clash with symbols in the artifact entrypoint for route names - 22/09/19
@@ -483,7 +559,7 @@ app.use(cors({{ origin : true }}));").Node
 
                     foreach(var clause in clauses)
                     {
-                        if(LanguageSemantics.TypeScript.IsFunctionLikeDeclarationStatement(ast, clause))
+                        if(clause.Kind == SemanticKind.DataValueDeclaration || LanguageSemantics.TypeScript.IsFunctionLikeDeclarationStatement(ast, clause))
                         {   
                             var exportedSymbolName = ASTHelpers.GetSingleMatch(ast, clause.ID, SemanticRole.Name);
 
@@ -754,6 +830,36 @@ app.use(cors({{ origin : true }}));").Node
             // [dho] TODO choose HTTP method based on more intelligent parameter requirements and function role! - 22/09/19
             string expressHTTPVerb = parameters.Length > 0 ? "post" : "get";
             
+            if(route.HTTPVerbAnnotation != null)
+            {
+                var isValid = false;
+
+                var httpExp = route.HTTPVerbAnnotation.Expression;
+
+                if(httpExp?.Kind == SemanticKind.Invocation)
+                {
+                    var args = ASTNodeFactory.Invocation(ast, httpExp).Arguments;
+
+                    if(args.Length == 1 && args[0]?.Kind == SemanticKind.StringConstant)
+                    {
+                        isValid = true;
+                        expressHTTPVerb = ASTNodeFactory.StringConstant(ast, (DataNode<string>)args[0]).Value.ToLower();
+                    }
+                }
+                
+                if(!isValid)
+                {
+                    result.AddMessages(
+                        new NodeMessage(MessageKind.Error, 
+                            "HTTP annotation must contain string constant expression", httpExp)
+                        {
+                            Hint = GetHint(httpExp.Origin),
+                        }
+                    );
+                }
+            }
+
+
             var qualifiedDelegateName = string.Join(".", route.QualifiedHandlerName);
 
             var handlerBodyContent = new List<Node>();
@@ -781,20 +887,20 @@ app.use(cors({{ origin : true }}));").Node
                 );
             }
 
-         
-            // [dho] unwrap user for request in handler body - 04/10/19
-            {
-                var body = handler.Body;
+            // [dho] NOTE disabling in favour of just using `this.user` inside function block etc. - 29/10/19
+            // // [dho] unwrap user for request in handler body - 04/10/19
+            // {
+            //     var body = handler.Body;
 
-                if(body?.Kind == SemanticKind.Block)
-                {
-                    ASTHelpers.Connect(ast, body.ID, new [] {
-                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
-                            "const { user } = this;"
-                        ).Node
-                    }, SemanticRole.Content, 0);
-                }
-            }
+            //     if(body?.Kind == SemanticKind.Block)
+            //     {
+            //         ASTHelpers.Connect(ast, body.ID, new [] {
+            //             NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
+            //                 "const context = this;"
+            //             ).Node
+            //         }, SemanticRole.Content, 0);
+            //     }
+            // }
 
 
 
@@ -856,7 +962,7 @@ if({reqBodyAccesses[i]} === void 0)
                 NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
 $@"
 try {{
-    const data = await {qualifiedDelegateName}.apply({{ user }}, [{string.Join(",", reqBodyAccesses)}]);
+    const data = await {qualifiedDelegateName}.apply({{ user, req, res }}, [{string.Join(",", reqBodyAccesses)}]);
 
     res.statusCode = 200;
 
