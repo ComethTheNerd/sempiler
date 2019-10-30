@@ -2342,7 +2342,7 @@ namespace Sempiler.Emission
 
         // [dho] TODO CLEANUP straight up copypasta from CSEmitter - 22/09/18
 
-        const MetaFlag ObjectTypeDeclarationVisibilityFlags = TypeDeclarationVisibilityFlags | MetaFlag.ValueType;
+        const MetaFlag ObjectTypeDeclarationVisibilityFlags = TypeDeclarationVisibilityFlags | MetaFlag.ValueType | MetaFlag.ExtensionType;
 
         public override Result<object> EmitObjectTypeDeclaration(ObjectTypeDeclaration node, Context context, CancellationToken token)
         {
@@ -2352,6 +2352,7 @@ namespace Sempiler.Emission
 
             var metaFlags = MetaHelpers.ReduceFlags(node);
 
+            var isExtension = (metaFlags & MetaFlag.ExtensionType) > 0;
             var isStruct = (metaFlags & MetaFlag.ValueType) > 0;
 
             result.AddMessages(EmitAnnotationsAndModifiers(node, context, token));
@@ -2362,7 +2363,7 @@ namespace Sempiler.Emission
                 ReportUnsupportedMetaFlags(node, metaFlags & ~ObjectTypeDeclarationVisibilityFlags, context, token)
             );
 
-            context.Emission.Append(node, $"{(isStruct ? "struct" : "class")} ");
+            context.Emission.Append(node, $"{(isExtension ? "extension" : isStruct ? "struct" : "class")} ");
 
             if (node.Name != null)
             {
