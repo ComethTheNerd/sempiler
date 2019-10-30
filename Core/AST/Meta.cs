@@ -43,7 +43,8 @@ namespace Sempiler.AST
         UnicodeCodePoints = 1 << 32,
         StickySearch = 1 << 33,
         FlagSet = 1 << 34, // [dho] like bitset, OptionSet etc - 24/04/19
-        ValueType = 1 <<35
+        ValueType = 1 << 35,
+        ExtensionType = 1 << 36 // [dho] like `extension` in Swift and C# - 28/10/19
     }
 
     public static class MetaHelpers 

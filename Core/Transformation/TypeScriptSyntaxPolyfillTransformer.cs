@@ -48,8 +48,15 @@ namespace Sempiler.Transformation
                         {
                             var annotation = ASTNodeFactory.Annotation(ast/*clonedAST*/, a);
 
-                            if(annotation.Expression.Kind == SemanticKind.Identifier &&
-                                ASTNodeFactory.Identifier(ast/*clonedAST*/, (DataNode<string>)annotation.Expression).Lexeme == "struct")
+                            if(ASTNodeHelpers.IsIdentifierWithName(ast/*clonedAST*/, annotation.Expression, "extension"))
+                            {
+                                var meta = NodeFactory.Meta(ast/*clonedAST*/, new PhaseNodeOrigin(PhaseKind.Transformation), MetaFlag.ExtensionType);
+
+                                ASTHelpers.Connect(ast/*clonedAST*/, node.ID, new [] { meta.Node }, SemanticRole.Meta);
+
+                                nodeIDsToRemove.Add(a.ID);
+                            }
+                            else if(ASTNodeHelpers.IsIdentifierWithName(ast/*clonedAST*/, annotation.Expression, "struct"))
                             {
                                 var meta = NodeFactory.Meta(ast/*clonedAST*/, new PhaseNodeOrigin(PhaseKind.Transformation), MetaFlag.ValueType);
 
