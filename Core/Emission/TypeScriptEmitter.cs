@@ -1253,6 +1253,11 @@ namespace Sempiler.Emission
                 EmitNode(node.Name, childContext, token)
             );
 
+            if((metaFlags & MetaFlag.Optional) == MetaFlag.Optional)
+            {
+                context.Emission.Append(node, "?");
+            }
+
             if (node.Type != null)
             {
                 context.Emission.Append(node.Type, " : ");
@@ -1281,6 +1286,9 @@ namespace Sempiler.Emission
             var result = new Result<object>();
 
             var childContext = ContextHelpers.Clone(context);
+
+             var metaFlags = MetaHelpers.ReduceFlags(node);
+
             // // childContext.Parent = node;
 
             // context.Emission.AppendBelow(node, "");
@@ -1288,6 +1296,11 @@ namespace Sempiler.Emission
             result.AddMessages(EmitAnnotationsAndModifiers(node, context, token));
 
             result.AddMessages(EmitNode(node.Name, childContext, token));
+
+            if((metaFlags & MetaFlag.Optional) == MetaFlag.Optional)
+            {
+                context.Emission.Append(node, "?");
+            }
 
             if (node.Type != null)
             {
@@ -2169,6 +2182,7 @@ namespace Sempiler.Emission
             // // childContext.Parent = node;
 
             var expression = node.Expression;
+            var body = node.Body;
 
             if(expression.Length == 1)
             {
@@ -2193,9 +2207,13 @@ namespace Sempiler.Emission
                 });
             }
 
-            result.AddMessages(
-                EmitBlockLike(node.Body, node.Node, childContext, token)
-            );
+    
+            if(body.Length > 0)
+            {
+                result.AddMessages(
+                    EmitBlockLike(node.Body, node.Node, childContext, token)
+                );
+            }
 
             return result;
         }
@@ -2260,11 +2278,11 @@ namespace Sempiler.Emission
             var childContext = ContextHelpers.Clone(context);
             // // childContext.Parent = node;
 
-            result.AddMessages(EmitNode(node.Criteria, childContext, token));
+            result.AddMessages(EmitNode(node.Subject, childContext, token));
 
             context.Emission.Append(node, " in ");
 
-            result.AddMessages(EmitNode(node.Subject, childContext, token));
+            result.AddMessages(EmitNode(node.Criteria, childContext, token));
 
             return result;
         }
@@ -2366,6 +2384,7 @@ namespace Sempiler.Emission
             var result = new Result<object>();
 
             var childContext = ContextHelpers.Clone(context);
+            var metaFlags = MetaHelpers.ReduceFlags(node);
             // // childContext.Parent = node;
 
             // context.Emission.AppendBelow(node, "");
@@ -2387,6 +2406,11 @@ namespace Sempiler.Emission
                             Tags = DiagnosticTags
                         }
                     );
+            }
+
+            if((metaFlags & MetaFlag.Optional) == MetaFlag.Optional)
+            {
+                context.Emission.Append(node, "?");
             }
 
             result.AddMessages(
@@ -2680,11 +2704,11 @@ namespace Sempiler.Emission
 
             context.Emission.Append(node, "!(");
 
-            result.AddMessages(EmitNode(node.Criteria, childContext, token));
+            result.AddMessages(EmitNode(node.Subject, childContext, token));
 
             context.Emission.Append(node, " in ");
 
-            result.AddMessages(EmitNode(node.Subject, childContext, token));
+            result.AddMessages(EmitNode(node.Criteria, childContext, token));
 
             context.Emission.Append(node, ")");
 
@@ -3872,6 +3896,7 @@ namespace Sempiler.Emission
                 case SemanticKind.FunctionDeclaration:
                 case SemanticKind.InterfaceDeclaration:
                 case SemanticKind.MatchJunction:
+                case SemanticKind.MatchClause:
                 case SemanticKind.MethodDeclaration:
                 case SemanticKind.NamespaceDeclaration:
                 case SemanticKind.ObjectTypeDeclaration:

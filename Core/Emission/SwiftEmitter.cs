@@ -1862,6 +1862,7 @@ namespace Sempiler.Emission
             // // childContext.Parent = node;
 
             var expression = node.Expression;
+            var body = node.Body;
 
             if(expression.Length == 1)
             {
@@ -1886,9 +1887,12 @@ namespace Sempiler.Emission
                 });
             }
 
-            result.AddMessages(
-                EmitBlockLike(node.Body, node.Node, childContext, token)
-            );
+            if(body.Length > 0)
+            {
+                result.AddMessages(
+                    EmitBlockLike(node.Body, node.Node, childContext, token)
+                );
+            }
 
             return result;
         }

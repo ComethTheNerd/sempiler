@@ -3046,6 +3046,7 @@ namespace Sempiler.Emission
                 case SemanticKind.FunctionDeclaration:
                 case SemanticKind.InterfaceDeclaration:
                 case SemanticKind.MatchJunction:
+                case SemanticKind.MatchClause:
                 case SemanticKind.MethodDeclaration:
                 case SemanticKind.NamespaceDeclaration:
                 case SemanticKind.ObjectTypeDeclaration:

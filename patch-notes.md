@@ -1,5 +1,8 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 30/10/19
+- Fixed emission of membership tests, and erroneous semicolons and braces for fall through switch clauses
+
 # 🗓 29/10/19
 - Added support in Firebase Functions Bundler for exporting data value declarations (symbols), so now you can write `export const foo = require("firebase-functions").pubsub.schedule(...).onRun(...)` and the compiler is smart enough to not wire it up as an express route
 - Firebase Functions Bundler no longer dereferences the `user` object in route handler, so the programmer has to explicitly use `this.user` or `const { user } = this` in their route handler
