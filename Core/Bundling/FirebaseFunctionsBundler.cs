@@ -28,6 +28,7 @@ namespace Sempiler.Bundler
         const string APISymbolicLexeme = "api";
 
         const string UserParserFunctionNameLexeme = "parseUserFromFirebaseIDToken";
+        const string RouteParamsSourceNameLexeme = "params";
 
         // [dho] adapted from : https://github.com/firebase/functions-samples/blob/master/authorized-https-endpoint/functions/index.js#L26 - 04/10/19
         static readonly string UserParserFunctionImplementation = $@"
@@ -902,59 +903,67 @@ app.use(cors({{ origin : true }}));").Node
             //     }
             // }
 
-
-
-            var invocationArguments = new InvocationArgument[parameters.Length];
-
             var paramNameLexemes = ASTNodeHelpers.ExtractParameterNameLexemes(ast, parameters);
-            var reqBodyAccesses = new string[paramNameLexemes.Length];
+            var reqParamAccesses = new string[paramNameLexemes.Length];
 
-            for(int i = 0; i < parameters.Length; ++i)
+            if(parameters.Length > 0 )
             {
-                var paramDecl = ASTNodeFactory.ParameterDeclaration(ast, parameters[i]);
+                handlerBodyContent.Add(
+                    NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
+                        $"const {RouteParamsSourceNameLexeme}=" + (expressHTTPVerb == "post" ? "req.body" : "{...req.query, req.params }") + ";" 
+                    ).Node
+                );
 
-                var paramNameLexeme = paramNameLexemes[i];
-    
-                // [dho] guard against **route parameters** not having a clear name or label, because
-                // we need a name to pick out of the `req.body` json, eg. `export function foo({ x, y } : Bar){ ... }` - 22/09/19            
-                if(paramNameLexeme == null)
+                // var invocationArguments = new InvocationArgument[parameters.Length];
+
+                for(int i = 0; i < parameters.Length; ++i)
                 {
-                    var hint = paramDecl.Label ?? paramDecl.Name ?? paramDecl.Node;
+                    var paramDecl = ASTNodeFactory.ParameterDeclaration(ast, parameters[i]);
 
-                    result.AddMessages(
-                        new NodeMessage(MessageKind.Error, 
-                            "Parameters in routes must have a name or label with a single identifier", hint)
-                        {
-                            Hint = GetHint(hint.Origin),
-                        }
-                    );
+                    var paramNameLexeme = paramNameLexemes[i];
+        
+                    // [dho] guard against **route parameters** not having a clear name or label, because
+                    // we need a name to pick out of the `req.query`/`req.body`, eg. `export function foo({ x, y } : Bar){ ... }` - 22/09/19            
+                    if(paramNameLexeme == null)
+                    {
+                        var hint = paramDecl.Label ?? paramDecl.Name ?? paramDecl.Node;
 
-                    continue;
-                }
+                        result.AddMessages(
+                            new NodeMessage(MessageKind.Error, 
+                                "Parameters in routes must have a name or label with a single identifier", hint)
+                            {
+                                Hint = GetHint(hint.Origin),
+                            }
+                        );
 
-                reqBodyAccesses[i] = $"req.body['{paramNameLexeme}']";
+                        continue;
+                    }
 
+                    reqParamAccesses[i] = $"{RouteParamsSourceNameLexeme}['{paramNameLexeme}']";
 
-                var isRequiredParameter = (MetaHelpers.ReduceFlags(paramDecl) & MetaFlag.Optional) == 0;
+                    var isRequiredParameter = (MetaHelpers.ReduceFlags(paramDecl) & MetaFlag.Optional) == 0;
 
-                if(isRequiredParameter)
-                {
-                    // [dho] TODO check type of parameter!! Use joi? - 22/09/19 
-                   handlerBodyContent.Add(
-                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
-$@"
-if({reqBodyAccesses[i]} === void 0)
-{{
-    res.statusCode = 400;
+                    if(isRequiredParameter)
+                    {
+                        // [dho] TODO check type of parameter!! Use joi? - 22/09/19 
+                    handlerBodyContent.Add(
+                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
+    $@"
+    if({reqParamAccesses[i]} === void 0)
+    {{
+        res.statusCode = 400;
 
-    res.json({{ message: ""Parameter '{paramNameLexeme}' is required"" }});
+        res.json({{ message: ""Parameter '{paramNameLexeme}' is required"" }});
 
-    return;
-}}"
-                        ).Node
-                    ); 
+        return;
+    }}"
+                            ).Node
+                        ); 
+                    }
                 }
             }
+
+
 
             // [dho] passing in `user` in execution context for function, and we insert a line in the handler
             // to unwrap the user object and expose it to the function body scope - 04/10/19
@@ -962,7 +971,7 @@ if({reqBodyAccesses[i]} === void 0)
                 NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), 
 $@"
 try {{
-    const data = await {qualifiedDelegateName}.apply({{ user, req, res }}, [{string.Join(",", reqBodyAccesses)}]);
+    const data = await {qualifiedDelegateName}.apply({{ user, req, res }}, [{string.Join(",", reqParamAccesses)}]);
 
     res.statusCode = 200;
 

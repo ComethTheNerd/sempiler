@@ -1,5 +1,8 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 31/10/19
+- Firebase Functions Bundler now parses parameters from `req.params` and `req.query` for GET requests
+
 # 🗓 30/10/19
 - Fixed emission of membership tests, and erroneous semicolons and braces for fall through switch clauses
 
