@@ -285,6 +285,8 @@ namespace Sempiler.Transformation
 
                     var bodyFieldInitializer = NodeFactory.LambdaDeclaration(ast, node.Origin);
                     {
+                        result.AddMessages(WrapMultipleExitsAsAnyViews(session, ast, node.Body, token));
+
                         ASTHelpers.Connect(ast, bodyFieldInitializer.ID, new[] { node.Body }, SemanticRole.Body);
                     }
                     ASTHelpers.Connect(ast, bodyField.ID, new[] { bodyFieldInitializer.Node }, SemanticRole.Initializer);
@@ -975,6 +977,122 @@ namespace Sempiler.Transformation
                 });
 
                 arguments.Add(argValue);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// [dho] swiftc complains if you have multiple returns for different view types, but wrapping each in `AnyView(...)` seems
+        /// to satisfy it, so we do that automatically with this function - 05/11/19
+        /// </summary>
+        private Result<object> WrapMultipleExitsAsAnyViews(Session session, RawAST ast, Node body, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            var exits = LanguageSemantics.Swift.GetExplicitExits(session, ast, body, token);
+
+            if(exits.Count == 0)
+            {
+                result.AddMessages(
+                    new NodeMessage(MessageKind.Error, $"Missing return value for View", body)
+                    {
+                        Hint = GetHint(body.Origin),
+                        Tags = DiagnosticTags
+                    }
+                );
+            }
+            else if(exits.Count == 1)
+            {
+                var exit = exits[0];
+
+                if(exit.Kind == SemanticKind.FunctionTermination)
+                {
+                    var returnValue = ASTNodeFactory.FunctionTermination(ast, exit).Value;
+
+                    if(returnValue == null)
+                    {
+                        result.AddMessages(
+                            new NodeMessage(MessageKind.Error, $"Expected View to be returned", exit)
+                            {
+                                Hint = GetHint(exit.Origin),
+                                Tags = DiagnosticTags
+                            }
+                        );
+                    }
+                    else if(returnValue.Kind == SemanticKind.PredicateFlat)
+                    {
+                        result.AddMessages(InsertAnyViewInvocations(session, ast, returnValue, token));
+                    }
+                    else if(returnValue.Kind == SemanticKind.Association)
+                    {
+                        var assoc = ASTNodeFactory.Association(ast, returnValue);
+
+                        if(assoc.Subject.Kind == SemanticKind.PredicateFlat)
+                        {
+                            result.AddMessages(InsertAnyViewInvocations(session, ast, assoc.Subject, token));
+                        }
+                    }
+                }
+            }
+            else if(exits.Count > 1)
+            {
+                foreach(var exit in exits)
+                {   
+                    if(exit.Kind == SemanticKind.FunctionTermination)
+                    {
+                        var returnValue = ASTNodeFactory.FunctionTermination(ast, exit).Value;
+
+                        if(returnValue == null)
+                        {
+                            result.AddMessages(
+                                new NodeMessage(MessageKind.Error, $"Expected View to be returned", exit)
+                                {
+                                    Hint = GetHint(exit.Origin),
+                                    Tags = DiagnosticTags
+                                }
+                            );
+                        }
+                        else 
+                        {
+                            result.AddMessages(InsertAnyViewInvocations(session, ast, returnValue, token));
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private Result<object> InsertAnyViewInvocations(Session session, RawAST ast, Node node, CancellationToken token)
+        {
+            var result = new Result<object>();
+            
+            if(node.Kind == SemanticKind.PredicateFlat)
+            {
+                var pred = ASTNodeFactory.PredicateFlat(ast, node);
+
+                result.AddMessages(InsertAnyViewInvocations(session, ast, pred.TrueValue, token));
+                result.AddMessages(InsertAnyViewInvocations(session, ast, pred.FalseValue, token));
+            }    
+            else if(node.Kind == SemanticKind.Association)
+            {
+                var subject = ASTNodeFactory.Association(ast, node).Subject;
+
+                result.AddMessages(InsertAnyViewInvocations(session, ast, subject, token));
+            }   
+            else // [dho] whatever is being returned is expected to be a View so we wrap it in an `AnyView(...)` wrapper - 05/11/19
+            {
+                var inv = NodeFactory.Invocation(ast, node.Origin);
+                var identifier = NodeFactory.Identifier(ast, node.Origin, "AnyView");
+                var invArg = NodeFactory.InvocationArgument(ast, node.Origin);
+
+                ASTHelpers.Replace(ast, node.ID, new [] { inv.Node });
+
+                ASTHelpers.Connect(ast, inv.ID, new [] { identifier.Node }, SemanticRole.Subject);
+                ASTHelpers.Connect(ast, inv.ID, new [] { invArg.Node }, SemanticRole.Argument);
+
+                ASTHelpers.Connect(ast, invArg.ID, new [] { node }, SemanticRole.Value);
             }
 
             return result;
