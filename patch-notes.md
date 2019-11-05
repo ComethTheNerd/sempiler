@@ -1,5 +1,8 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 05/11/19
+- `IOSSwiftUITransformer` automatically detects multiple return statements in a `ViewDeclaration`, and wraps each in an `AnyView(...)` call to satisfy the swiftc compiler
+
 # 🗓 31/10/19
 - Firebase Functions Bundler now parses parameters from `req.params` and `req.query` for GET requests
 
