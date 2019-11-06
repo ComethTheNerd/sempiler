@@ -1,5 +1,8 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 06/11/19
+- Added SwiftUI definitions for `ForEach` and `LinearGradient`
+
 # 🗓 05/11/19
 - `IOSSwiftUITransformer` automatically detects multiple return statements in a `ViewDeclaration`, and wraps each in an `AnyView(...)` call to satisfy the swiftc compiler
 
