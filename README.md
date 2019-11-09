@@ -181,6 +181,7 @@ The compiler API is barebones at present, but allows for the following:
 - `addRawSources(...relativePaths : string[])` adds verbatim files to the artifact (ie. they will *not* be parsed/transformed)
 - `addSources(...relativePaths : string[])` add files that will be parsed/transformed and added to the artifact
 - `addAncillary(role : AncillaryRole, entrypointSource : string)` add ancillary (eg share extension) to the Artifact
+- `addAsset(role : AssetRole, sourcePath : string)` add asset (eg image) to the Ancillary
 - `isTargetPlatform(name : string) : bool` to check whether the artifact being generated is for the given target platform
 - `isTargetLanguage(name : string) : bool` to check whether the artifact being generated is for the given target language
 

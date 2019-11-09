@@ -28,6 +28,7 @@ namespace Sempiler
             Capabilities = new List<Capability>();
             Dependencies = new List<Dependency>();
             Entitlements = new List<Entitlement>();
+            Assets = new List<Asset>();
             Permissions = new List<Permission>();
             Resources = new List<ISource>();
             BridgeIntents = new List<Directive>();
@@ -39,6 +40,8 @@ namespace Sempiler
         public List<Dependency> Dependencies { get; set; }
         
         public List<Entitlement> Entitlements { get; set; }
+
+        public List<Asset> Assets { get; set; }
 
         public List<Permission> Permissions { get; set; }
 

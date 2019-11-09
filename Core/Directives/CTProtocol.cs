@@ -20,6 +20,7 @@ namespace Sempiler.Core.Directives
         AddDependency,
         AddEntitlement,
         AddPermission,
+        AddAsset,
         AddSources,
         AddRes,
         AddRawSources,
@@ -123,6 +124,13 @@ namespace Sempiler.Core.Directives
     {
         public const int NameIndex = 0;
         public const int DescriptionIndex = 1;
+    }
+
+    public static class CTProtocolAddAssetCommand
+    {
+        public const int BaseDirPathIndex = 0;
+        public const int RoleIndex = 1;
+        public const int SourcePathIndex = 2;
     }
 
     public static class CTProtocolAddAncillaryCommand

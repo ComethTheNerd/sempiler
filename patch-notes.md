@@ -1,5 +1,11 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 09/11/19
+- Frontend `addAsset(..)` CT exec support for adding image and app icon assets to a build, implementing in `IOSBundler` backend
+
+# 🗓 07/11/19
+- `IOSBundler` supports _magic_ attribute `matchParent` on `ViewDeclarations` which performs the necessary heavy-lifting wrapping view constructions with `GeometryReader` logic to fill the available space in the parent
+
 # 🗓 06/11/19
 - Added SwiftUI definitions for `ForEach` and `LinearGradient`
 
