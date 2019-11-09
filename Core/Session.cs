@@ -85,6 +85,32 @@ namespace Sempiler
         public string Description;
     }
 
+
+    public enum AssetRole 
+    {
+        None,
+        AppIcon,
+        Image
+    }
+
+    public abstract class Asset 
+    {
+        public AssetRole Role; 
+    }
+
+    public class ImageAssetSet : Asset
+    {
+        public string Name;
+        public List<ImageAssetMember> Images;
+    }
+
+    public struct ImageAssetMember 
+    {
+        public string Size;
+        public string Scale;
+        public ISourceFile Source;
+    }
+
     public static class SessionHelpers
     {
         // [dho] Session is a struct (value type) so it will have been
