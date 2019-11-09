@@ -277,7 +277,7 @@
                             Directory.GetParent(absPath).ToString()
                         );
 
-                        File.WriteAllText(absPath, item.Emission.Serialize());
+                        File.WriteAllBytes(absPath, item.Emission.Serialize());
 
                         lock(l)
                         {

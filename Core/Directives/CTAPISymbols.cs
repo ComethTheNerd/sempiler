@@ -7,6 +7,7 @@ namespace Sempiler.Core.Directives
         public const string AddCapability = "addCapability";
         public const string AddDependency = "addDependency";
         public const string AddEntitlement = "addEntitlement";
+        public const string AddAsset = "addAsset";
         public const string AddPermission = "addPermission";
         public const string AddRes = "addRes";
         public const string AddRawSources = "addRawSources";
@@ -25,6 +26,7 @@ namespace Sempiler.Core.Directives
             yield return AddCapability;
             yield return AddDependency;
             yield return AddEntitlement;
+            yield return AddAsset;
             yield return AddPermission;
             yield return AddRes;
             yield return AddRawSources;

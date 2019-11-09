@@ -75,7 +75,7 @@ namespace Sempiler.Bundler
 
             if (!ofc.Contains(location))
             {
-                ofc[location] = new Sempiler.Emission.RawOutFileContent(content);
+                ofc[location] = new Sempiler.Emission.RawOutFileContent(System.Text.Encoding.UTF8.GetBytes(content));
 
                 return true;
             }
@@ -89,7 +89,7 @@ namespace Sempiler.Bundler
 
             if (!ofc.Contains(location))
             {
-                ofc[location] = new Sempiler.Emission.RawOutFileContent(System.IO.File.ReadAllText(sourcePath));
+                ofc[location] = new Sempiler.Emission.RawOutFileContent(System.IO.File.ReadAllBytes(sourcePath));
 
                 return true;
             }

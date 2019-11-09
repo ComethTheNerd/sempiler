@@ -11,6 +11,9 @@ namespace Sempiler.Transformation
 
     public class IOSSwiftUITransformer : ViewTransformer
     {
+        // [dho] fill the available space in the parent container - 07/11/19
+        public const string MatchParentPropertyLexeme = "matchParent";
+        
         // // [dho] this map translates source prop names to their corresponding
         // // SwiftUI names (init argument name or builder function name) - 30/06/19
         // private static readonly Dictionary<string, Dictionary<string, string>> SourcePropNameToSwiftUIName = new Dictionary<string, Dictionary<string, string>>
@@ -479,6 +482,8 @@ namespace Sempiler.Transformation
                 var properties = node.Properties;
                 var children = ASTHelpers.QueryEdgeNodes(ast, node.ID, SemanticRole.Child);
                 var hasChildren = children.Length > 0;
+                // [dho] fill the available space in the parent container - 07/11/19
+                var matchParent = false;
 
                 var arguments = default(List<Node>);
 
@@ -646,6 +651,24 @@ namespace Sempiler.Transformation
                         {
                             var rawPropNameLexeme = propName.Lexeme;
 
+                            if(rawPropNameLexeme == MatchParentPropertyLexeme)
+                            {
+                                if(propValue == default(Node))
+                                {
+                                    matchParent = true;
+                                }
+                                else
+                                {
+                                    result.AddMessages(new NodeMessage(MessageKind.Error, $"'{MatchParentPropertyLexeme}' does not support specifying a value", propValue)
+                                    {
+                                        Hint = GetHint(propValue.Origin),
+                                        Tags = DiagnosticTags
+                                    });
+                                }
+
+                                continue;
+                            }
+
                             // if(sourcePropNameToSwiftUINameConfig != null)
                             // {
                             //     if(sourcePropNameToSwiftUINameConfig.ContainsKey(rawPropNameLexeme))
@@ -788,7 +811,75 @@ namespace Sempiler.Transformation
                     // [dho] NOTE we filter out any arguments that were not provided (null) - 02/07/19
                     ASTHelpers.Connect(ast, construction.ID, arguments.FindAll(x => x != default(Node)).ToArray(), SemanticRole.Argument);
                 }
+
+
+                if(matchParent)
+                {
+                    var lambda = NodeFactory.LambdaDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                    {
+                        var parentParam = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, parentParam.ID, new [] { 
+                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent").Node
+                            }, SemanticRole.Value);
+                        }
+
+                        var widthArg = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, widthArg.ID, new [] { 
+                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent.size.width").Node
+                            }, SemanticRole.Value);
+                            ASTHelpers.Connect(ast, widthArg.ID, new [] {
+                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "width").Node 
+                            }, SemanticRole.Label);
+                        }
+
+                        var heightArg = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, heightArg.ID, new [] { 
+                                NodeFactory.NumericConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent.size.height").Node
+                            }, SemanticRole.Value);
+                            ASTHelpers.Connect(ast, heightArg.ID, new [] { 
+                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "height").Node 
+                            }, SemanticRole.Label);
+                        }
+
+                        var lambdaBody = CreateBuilder(
+                            ast, 
+                            result.Value, 
+                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "frame").Node,
+                            new [] {
+                                widthArg.Node,
+                                heightArg.Node
+                            },
+                            new PhaseNodeOrigin(PhaseKind.Transformation)
+                        );
+
+                        ASTHelpers.Connect(ast, lambda.ID, new [] { parentParam.Node }, SemanticRole.Parameter);
+                        ASTHelpers.Connect(ast, lambda.ID, new [] { lambdaBody }, SemanticRole.Body);
+                    }
+
+                    // [dho] `GeometryReader(parent => view.frame(...))` - 06/11/19
+                    var invocation = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                    {
+                        var invocationName = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "GeometryReader");
+                        
+                        var lambdaArgument = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, lambdaArgument.ID, new [] { lambda.Node }, SemanticRole.Value);
+                        }
+
+                        ASTHelpers.Connect(ast, invocation.ID, new [] { invocationName.Node }, SemanticRole.Subject);
+                        ASTHelpers.Connect(ast, invocation.ID, new [] { lambdaArgument.Node }, SemanticRole.Argument);
+                    }
+
+                    result.Value = invocation.Node;
+                }
             }
+
+
+            
+
 
 
             ASTHelpers.Replace(ast, node.ID, new [] { result.Value });

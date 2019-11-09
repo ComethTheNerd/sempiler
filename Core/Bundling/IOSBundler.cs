@@ -757,8 +757,12 @@ $@"
                 content.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{relResourcePath}')])");
                 content.AppendLine();
             }
-        
 
+            content.Append(
+                result.AddMessages(
+                    AddAssets(ancillary.Assets, targetInfo, ofc)
+                )
+            );
 
             content.Append(
 $@"
@@ -773,6 +777,122 @@ $@"
             result.Value = content.ToString();
 
             return result;
+        }
+
+        private static Result<string> AddAssets(List<Asset> assets, TargetInfo targetInfo, OutFileCollection ofc)
+        {
+            var result = new Result<string>
+            {
+                Value = string.Empty
+            };
+
+            if(assets.Count > 0)
+            {
+                var content = new System.Text.StringBuilder();
+
+                var assetsRelPath = $"{targetInfo.RelPath}/Assets.xcassets";
+                content.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{assetsRelPath}')])");
+
+                foreach(var asset in assets)
+                {
+                    var setType  = asset.Role == AssetRole.Image ? "imageset" : asset.Role == AssetRole.AppIcon ? "appiconset" : null;
+
+                    if(setType == null)
+                    {
+                        result.AddMessages(
+                            new Message(MessageKind.Error, $"iOS asset has unsupported role '{asset.Role}'")
+                        );
+
+                        continue;
+                    }
+
+                    var imgAssetSet = (ImageAssetSet)asset;
+                    var imgSetRelPath = $"{assetsRelPath}/{imgAssetSet.Name}.{setType}";
+                    var contentsJSONRelPath = $"{imgSetRelPath}/Contents.json";
+
+                    var contentsJSONContent = new System.Text.StringBuilder();
+                    contentsJSONContent.Append("{\"images\" : [");
+                    
+                    var imgs = imgAssetSet.Images;
+
+                    for(int i = 0; i < imgs.Count; ++i)
+                    {
+                        var img = imgAssetSet.Images[i];
+
+                        var imgSrcPath = img.Source.GetPathString();
+                        var imgFileName = System.IO.Path.GetFileName(imgSrcPath);
+                        var imgRelPath = $"{imgSetRelPath}/{imgFileName}";
+                        var imgIdioms = InferImageAssetMemberIdioms(img);
+
+                        for(int j = 0; j < imgIdioms.Length; ++j)
+                        {
+                            var idiom = imgIdioms[j];
+
+                            contentsJSONContent.Append("{");
+
+                            if(img.Size != null)
+                            {
+                                contentsJSONContent.Append($"\"size\":\"{img.Size}\",");
+                            }
+
+                            if(img.Scale != null)
+                            {
+                                contentsJSONContent.Append($"\"scale\":\"{img.Scale}\",");
+                            }
+
+                            contentsJSONContent.Append($"\"filename\":\"{imgFileName}\",");
+
+                            contentsJSONContent.Append($"\"idiom\":\"{idiom}\"");
+
+                            contentsJSONContent.Append("}");
+
+                            if(j < imgIdioms.Length - 1)
+                            {
+                                contentsJSONContent.Append(",");
+                            }
+                        }
+
+                        AddCopyOfFileIfMissing(ofc, imgRelPath, imgSrcPath);
+
+                        if(i < imgs.Count - 1)
+                        {
+                            contentsJSONContent.Append(",");
+                        }
+                    }
+
+                    contentsJSONContent.Append("],\"info\" : {\"version\" : 1,\"author\" : \"sempiler\"}}");
+
+                    AddRawFileIfMissing(ofc, contentsJSONRelPath, contentsJSONContent.ToString());
+
+                    result.Value = content.ToString();
+                }
+            }
+
+            return result;
+        }
+
+        private static string[] InferImageAssetMemberIdioms(ImageAssetMember img)
+        {
+            switch(img.Size)
+            {
+                case "20x20":
+                case "29x29":
+                case "40x40":
+                    return new [] { "iphone", "ipad" };
+
+                case "60x60":
+                    return new [] { "iphone" };
+
+                case "76x76":
+                case "83.5x83.5":
+                    return new [] { "ipad" };
+
+                case "1024x1024":
+                    return new [] { "ios-marketing" };
+
+                default:
+                    return new [] { "universal" };
+            }
         }
 
         private static Result<TargetInfo> EmitShareExtensionTargetInfo(Session session, Artifact artifact, Ancillary ancillary, string artifactRelPath, CancellationToken token)
@@ -1157,6 +1277,13 @@ $@"
                 content.AppendLine();
             }
         
+
+            content.Append(
+                result.AddMessages(
+                    AddAssets(ancillary.Assets, targetInfo, ofc)
+                )
+            );
+
 
             content.Append(
 $@"

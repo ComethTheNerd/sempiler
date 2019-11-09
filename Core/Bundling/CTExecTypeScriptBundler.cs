@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -19,6 +20,14 @@ namespace Sempiler.Bundler
     public class CTExecTypeScriptBundler : IBundler
     {
         static readonly string[] DiagnosticTags = new string[] { "bundler", "ct-exec-typescript" };
+
+        private readonly string[] InjectParentPathForCTAPISymbols = new string[] {
+            CTAPISymbols.AddSources,
+            CTAPISymbols.AddAsset,
+            CTAPISymbols.AddRes, 
+            CTAPISymbols.AddRawSources,
+            CTAPISymbols.AddAncillary
+        };
 
         public const string EntrypointFileName = "app";
 
@@ -323,6 +332,13 @@ $@"
             return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddSources}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{includedPaths.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
         }}
 
+        async function {CTAPISymbols.AddAsset}(parentDirPath, role, sourcePath)
+        {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddAsset}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{role}}{CTProtocolHelpers.ArgumentDelimiter}${{sourcePath}})`);
+        }}
+
         async function {CTAPISymbols.AddAncillary}(parentDirPath, role, sourcePath)
         {{
             const {{ {MessageIDSymbolLexeme} }} = this;
@@ -376,6 +392,7 @@ $@"
             {CTAPISymbols.AddCapability},
             {CTAPISymbols.AddDependency},
             {CTAPISymbols.AddEntitlement},
+            {CTAPISymbols.AddAsset},
             {CTAPISymbols.AddPermission},
             {CTAPISymbols.AddRawSources},
             {CTAPISymbols.AddRes},
@@ -395,6 +412,7 @@ $@"
         {CTAPISymbols.AddCapability},
         {CTAPISymbols.AddDependency}, 
         {CTAPISymbols.AddEntitlement}, 
+        {CTAPISymbols.AddAsset},
         {CTAPISymbols.AddPermission}, 
         {CTAPISymbols.AddRes},
         {CTAPISymbols.AddRawSources}, 
@@ -1256,10 +1274,7 @@ $@"
 
                 if(parentDirPath != null)
                 {
-                    if(symbolName == CTAPISymbols.AddSources || 
-                        symbolName == CTAPISymbols.AddRes || 
-                        symbolName == CTAPISymbols.AddRawSources || 
-                        symbolName == CTAPISymbols.AddAncillary)
+                    if(Array.IndexOf(InjectParentPathForCTAPISymbols, symbolName) > -1)
                     {
                         foreach(var reference in references)
                         {
