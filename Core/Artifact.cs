@@ -4,13 +4,14 @@ namespace Sempiler
     using Sempiler.Diagnostics;
     using System.Collections.Generic;
 
-    public struct Artifact
+    public class Artifact
     {
         public readonly ArtifactRole Role;
         public readonly string Name;
         public readonly string TargetLang;
         public readonly string TargetPlatform;
 
+        public string TeamName;
 
         // public readonly Dictionary<string, OutFile> FilesWritten;
     
@@ -23,8 +24,8 @@ namespace Sempiler
             Name = name;
             TargetLang = targetLang;
             TargetPlatform = targetPlatform;
-            
-            // FilesWritten = filesWritten;
+
+            TeamName = "sempiler";
         }
         
 

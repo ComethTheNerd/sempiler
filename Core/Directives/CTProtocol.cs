@@ -25,6 +25,11 @@ namespace Sempiler.Core.Directives
         AddRes,
         AddRawSources,
         AddAncillary,
+
+        SetDisplayName,
+        SetTeamName,
+        SetVersion,
+
         IllegalBridgeDirectiveNode
 
         // [dho] Propagate an error that originated in user code - 13/04/19
@@ -154,6 +159,22 @@ namespace Sempiler.Core.Directives
     public static class CTProtocolAddRawSourcesCommand
     {
         public const int BaseDirPathIndex = 0;
+    }
+
+
+    public static class CTProtocolSetDisplayNameCommand
+    {
+        public const int NameIndex = 0;
+    }
+
+    public static class CTProtocolSetTeamNameCommand
+    {
+        public const int NameIndex = 0;
+    }
+
+    public static class CTProtocolSetVersionCommand
+    {
+        public const int VersionIndex = 0;
     }
 
     public static class CTInsertImmediateSiblingFromValueAndDeleteNodeCommand 

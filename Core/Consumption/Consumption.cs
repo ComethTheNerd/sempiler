@@ -88,7 +88,7 @@ namespace Sempiler.Consumption
             try
             {
                 var execResult = await Sempiler.CommandLine.Exec(FileName, arguments, token);
-
+          
                 // [dho] NOTE we are not just adding the execMessages straight to the result
                 // because we may want to parse diagnostics out of them first (see below) - 28/08/18
                 execMessages = execResult.Messages;

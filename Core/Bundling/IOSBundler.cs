@@ -20,15 +20,14 @@ namespace Sempiler.Bundler
     {
         static readonly string[] DiagnosticTags = new string[] { "bundler", "ios" };
 
-        const string InlinedAppFileName = "App";
+        // const string InlinedAppFileName = "App";
         const string EntrypointSymbolName = "_____MAIN_____";
 
         const string AppDelegateClassSymbolName = "AppDelegate";
         const string SceneDelegateClassSymbolName = "SceneDelegate";
 
 
-        const string MainAppTargetName = "app";
-        const string ProjectBundleIdentifier = "com.sempiler"; // [dho] TODO dynamic!! - 19/10/19
+        // const string MainAppTargetName = "app";
 
         // [dho] NOTE INCOMPLETE! TODO finish implementation of non inlined output - 31/08/19
         // const bool PerformInlining = true;
@@ -521,8 +520,11 @@ $@"source 'https://cdn.cocoapods.org/'
         private static Result<TargetInfo> EmitMainAppTarget(Session session, Artifact artifact, Ancillary ancillary, string artifactRelPath, CancellationToken token)
         {
             var result = new Result<TargetInfo>();
-            var targetInfo = new TargetInfo(MainAppTargetName, artifact);
 
+            // [dho] sanity check because we rely on the main app name being consistently generated so all references match - 16/11/19
+            System.Diagnostics.Debug.Assert(ancillary.Name == GetMainAppOrThrow(session, artifact).Name);
+
+            var targetInfo = new TargetInfo(ancillary.Name, artifact);
 
             foreach(var cNode in ASTNodeFactory.Domain(ancillary.AST, ASTHelpers.GetRoot(ancillary.AST)).Components)
             {
@@ -572,6 +574,70 @@ $@"source 'https://cdn.cocoapods.org/'
                     }
                 }
 
+                var fontsPListContent = new System.Text.StringBuilder();
+                {
+                    fontsPListContent.AppendLine("<key>UIAppFonts</key>");
+                    fontsPListContent.AppendLine("<array>");
+
+                    foreach (var asset in ancillary.Assets)
+                    {
+                        if(asset.Role == AssetRole.Font)
+                        {
+                            var fontSrcPath = ((FontAsset)asset).Source.GetPathString();
+                            var fontFileName = System.IO.Path.GetFileName(fontSrcPath);
+
+                            fontsPListContent.AppendLine($"<string>{fontFileName}</string>");
+                        }
+                    }
+
+                    fontsPListContent.AppendLine("</array>");
+                }
+
+                var orientationsPListContent = new System.Text.StringBuilder();
+                {
+                    orientationsPListContent.AppendLine("<array>");
+
+                    if(ancillary.Orientation== Orientation.Unspecified)
+                    {
+                        // [dho] default orientation - 16/11/19
+                        orientationsPListContent.AppendLine("<string>UIInterfaceOrientationPortrait</string>");
+                    }
+                    else
+                    {
+                        if((ancillary.Orientation & Orientation.Portrait) == Orientation.Portrait)
+                        {
+                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationPortrait</string>");
+                        }
+
+                        if((ancillary.Orientation & Orientation.PortraitUpsideDown) == Orientation.PortraitUpsideDown)
+                        {
+                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationPortraitUpsideDown</string>");
+                        }
+
+                        if((ancillary.Orientation & Orientation.LandscapeLeft) == Orientation.LandscapeLeft)
+                        {
+                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationLandscapeLeft</string>");
+                        }
+
+                        if((ancillary.Orientation & Orientation.LandscapeRight) == Orientation.LandscapeRight)
+                        {
+                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationLandscapeRight</string>");
+                        }
+                    }
+
+                    orientationsPListContent.AppendLine("</array>");
+
+                    var supportedOrientationsArray = orientationsPListContent.ToString();
+
+                    orientationsPListContent.Clear();
+
+                    // [dho] NOTE using same orientations for iPhone and iPad - 16/11/19
+                    orientationsPListContent.AppendLine("<key>UISupportedInterfaceOrientations</key>");
+                    orientationsPListContent.AppendLine(supportedOrientationsArray);
+                    orientationsPListContent.AppendLine("<key>UISupportedInterfaceOrientations~ipad</key>");
+                    orientationsPListContent.AppendLine(supportedOrientationsArray);
+                }
+
                 // targetInfo.FilesNotReferencedInScheme = new OutFileCollection();
 
                 AddRawFileIfMissing(targetInfo.FilesNotReferencedInScheme, targetInfo.InfoPListFileName = $"Info.plist",
@@ -581,6 +647,8 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+	<string>{targetInfo.Name}</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -591,10 +659,11 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    {/*[dho] NOTE explanation of bundle version vs build number : https://stackoverflow.com/a/6965086/300037 - 16/11/19*/""}
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>{ancillary.Version}</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>{/* [dho] TODO get the old build number and increment it */"1"}</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -622,26 +691,15 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 	<array>
 		<string>armv7</string>
 	</array>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
     <key>NSAppTransportSecurity</key>    
     <dict>
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+    {orientationsPListContent.ToString()}
     {permissionPListContent.ToString()}
     {capabilitiesPListContent.ToString()}
+    {fontsPListContent.ToString()}
 </dict>
 </plist>");
 
@@ -683,6 +741,8 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
             );
 
             if(HasErrors(result) || token.IsCancellationRequested) return result;
+
+            var productBundleIdentifier = ProductIdentifier(artifact, ancillary);
 
             content.Append(
 $@"
@@ -768,7 +828,7 @@ $@"
 $@"
 {targetInfo.Name}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
 {targetInfo.Name}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
-{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{ProjectBundleIdentifier}')
+{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{productBundleIdentifier}')
 # {targetInfo.Name}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
 "
             );
@@ -788,87 +848,97 @@ $@"
 
             if(assets.Count > 0)
             {
-                var content = new System.Text.StringBuilder();
+                var contentInitRB = new System.Text.StringBuilder();
 
                 var assetsRelPath = $"{targetInfo.RelPath}/Assets.xcassets";
-                content.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{assetsRelPath}')])");
+                contentInitRB.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{assetsRelPath}')])");
 
                 foreach(var asset in assets)
                 {
-                    var setType  = asset.Role == AssetRole.Image ? "imageset" : asset.Role == AssetRole.AppIcon ? "appiconset" : null;
-
-                    if(setType == null)
+                    if(asset.Role == AssetRole.AppIcon)
+                    {
+                        AddImageAssetSet((ImageAssetSet)asset, "appiconset", ofc, assetsRelPath);
+                    }
+                    else if(asset.Role == AssetRole.Image)
+                    {
+                        AddImageAssetSet((ImageAssetSet)asset, "imageset", ofc, assetsRelPath);
+                    }
+                    else if(asset.Role == AssetRole.Font)
+                    {
+                        AddFontAsset((FontAsset)asset, ofc, assetsRelPath);
+                    }
+                    else
                     {
                         result.AddMessages(
                             new Message(MessageKind.Error, $"iOS asset has unsupported role '{asset.Role}'")
                         );
-
-                        continue;
                     }
-
-                    var imgAssetSet = (ImageAssetSet)asset;
-                    var imgSetRelPath = $"{assetsRelPath}/{imgAssetSet.Name}.{setType}";
-                    var contentsJSONRelPath = $"{imgSetRelPath}/Contents.json";
-
-                    var contentsJSONContent = new System.Text.StringBuilder();
-                    contentsJSONContent.Append("{\"images\" : [");
-                    
-                    var imgs = imgAssetSet.Images;
-
-                    for(int i = 0; i < imgs.Count; ++i)
-                    {
-                        var img = imgAssetSet.Images[i];
-
-                        var imgSrcPath = img.Source.GetPathString();
-                        var imgFileName = System.IO.Path.GetFileName(imgSrcPath);
-                        var imgRelPath = $"{imgSetRelPath}/{imgFileName}";
-                        var imgIdioms = InferImageAssetMemberIdioms(img);
-
-                        for(int j = 0; j < imgIdioms.Length; ++j)
-                        {
-                            var idiom = imgIdioms[j];
-
-                            contentsJSONContent.Append("{");
-
-                            if(img.Size != null)
-                            {
-                                contentsJSONContent.Append($"\"size\":\"{img.Size}\",");
-                            }
-
-                            if(img.Scale != null)
-                            {
-                                contentsJSONContent.Append($"\"scale\":\"{img.Scale}\",");
-                            }
-
-                            contentsJSONContent.Append($"\"filename\":\"{imgFileName}\",");
-
-                            contentsJSONContent.Append($"\"idiom\":\"{idiom}\"");
-
-                            contentsJSONContent.Append("}");
-
-                            if(j < imgIdioms.Length - 1)
-                            {
-                                contentsJSONContent.Append(",");
-                            }
-                        }
-
-                        AddCopyOfFileIfMissing(ofc, imgRelPath, imgSrcPath);
-
-                        if(i < imgs.Count - 1)
-                        {
-                            contentsJSONContent.Append(",");
-                        }
-                    }
-
-                    contentsJSONContent.Append("],\"info\" : {\"version\" : 1,\"author\" : \"sempiler\"}}");
-
-                    AddRawFileIfMissing(ofc, contentsJSONRelPath, contentsJSONContent.ToString());
-
-                    result.Value = content.ToString();
                 }
+
+                result.Value = contentInitRB.ToString();
             }
 
             return result;
+        }
+        
+        private static void AddImageAssetSet(ImageAssetSet asset, string setType, OutFileCollection ofc, string assetsRelPath)
+        {
+            var imgSetRelPath = $"{assetsRelPath}/{asset.Name}.{setType}";
+            var contentsJSONRelPath = $"{imgSetRelPath}/Contents.json";
+
+            var contentsJSONContent = new System.Text.StringBuilder();
+            contentsJSONContent.Append("{\"images\" : [");
+            
+            var imgs = asset.Images;
+
+            for(int i = 0; i < imgs.Count; ++i)
+            {
+                var img = asset.Images[i];
+
+                var imgSrcPath = img.Source.GetPathString();
+                var imgFileName = System.IO.Path.GetFileName(imgSrcPath);
+                var imgRelPath = $"{imgSetRelPath}/{imgFileName}";
+                var imgIdioms = InferImageAssetMemberIdioms(img);
+
+                for(int j = 0; j < imgIdioms.Length; ++j)
+                {
+                    var idiom = imgIdioms[j];
+
+                    contentsJSONContent.Append("{");
+
+                    if(img.Size != null)
+                    {
+                        contentsJSONContent.Append($"\"size\":\"{img.Size}\",");
+                    }
+
+                    if(img.Scale != null)
+                    {
+                        contentsJSONContent.Append($"\"scale\":\"{img.Scale}\",");
+                    }
+
+                    contentsJSONContent.Append($"\"filename\":\"{imgFileName}\",");
+
+                    contentsJSONContent.Append($"\"idiom\":\"{idiom}\"");
+
+                    contentsJSONContent.Append("}");
+
+                    if(j < imgIdioms.Length - 1)
+                    {
+                        contentsJSONContent.Append(",");
+                    }
+                }
+
+                AddCopyOfFileIfMissing(ofc, imgRelPath, imgSrcPath);
+
+                if(i < imgs.Count - 1)
+                {
+                    contentsJSONContent.Append(",");
+                }
+            }
+
+            contentsJSONContent.Append("],\"info\" : {\"version\" : 1,\"author\" : \"sempiler\"}}");
+
+            AddRawFileIfMissing(ofc, contentsJSONRelPath, contentsJSONContent.ToString());
         }
 
         private static string[] InferImageAssetMemberIdioms(ImageAssetMember img)
@@ -895,10 +965,19 @@ $@"
             }
         }
 
+        private static void AddFontAsset(FontAsset asset, OutFileCollection ofc, string assetsRelPath)
+        {
+            var fontSrcPath = asset.Source.GetPathString();
+            var fontFileName = System.IO.Path.GetFileName(fontSrcPath);
+            var fontRelPath = $"fonts/{fontFileName}";
+
+            AddCopyOfFileIfMissing(ofc, fontRelPath, fontSrcPath);
+        }
+
         private static Result<TargetInfo> EmitShareExtensionTargetInfo(Session session, Artifact artifact, Ancillary ancillary, string artifactRelPath, CancellationToken token)
         {
             var result = new Result<TargetInfo>();
-            var targetInfo = new TargetInfo(ancillary.Role.ToString().ToLower(), artifact);
+            var targetInfo = new TargetInfo(ancillary.Name, artifact);
 
 
             foreach(var cNode in ASTNodeFactory.Domain(ancillary.AST, ASTHelpers.GetRoot(ancillary.AST)).Components)
@@ -970,7 +1049,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>{ancillary.Version}</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSExtension</key>
@@ -1056,131 +1135,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
         }
 
 
-        private static Result<OutFileCollection> XXXXMainAppPLists(Session session, Artifact artifact, Ancillary ancillary, CancellationToken token)
-        {
-            var result = new Result<OutFileCollection>();
-
-            var ofc = new OutFileCollection();
-
-            var permissionPListContent = new System.Text.StringBuilder();
-            {
-                foreach (var permission in ancillary.Permissions)
-                {
-                    permissionPListContent.Append($"<key>{permission.Name}</key>");
-                    permissionPListContent.AppendLine();
-
-                    permissionPListContent.Append($"<string>{permission.Description}</string>");
-                    permissionPListContent.AppendLine();
-                }
-            }
-
-            var capabilitiesPListContent = new System.Text.StringBuilder();
-            {
-                foreach (var capability in ancillary.Capabilities)
-                {
-                    capabilitiesPListContent.Append($"<key>{capability.Name}</key>");
-                    capabilitiesPListContent.AppendLine();
-
-                    PListSerialize(capability.Type, capability.Values, ref capabilitiesPListContent);
-                }
-            }
-
-
-            AddRawFileIfMissing(ofc, $"Info.plist",
-$@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
-<plist version=""1.0"">
-<dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundlePackageType</key>
-	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UIApplicationSceneManifest</key>
-	<dict>
-		<key>UIApplicationSupportsMultipleScenes</key>
-		<false/>
-		<key>UISceneConfigurations</key>
-		<dict>
-			<key>UIWindowSceneSessionRoleApplication</key>
-			<array>
-				<dict>
-					<key>UILaunchStoryboardName</key>
-					<string>LaunchScreen</string>
-					<key>UISceneConfigurationName</key>
-					<string>Default Configuration</string>
-					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).{SceneDelegateClassSymbolName}</string>
-				</dict>
-			</array>
-		</dict>
-	</dict>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>armv7</string>
-	</array>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-    <key>NSAppTransportSecurity</key>    
-    <dict>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-    </dict>
-    {permissionPListContent.ToString()}
-    {capabilitiesPListContent.ToString()}
-</dict>
-</plist>");
-
-
-
-            var entitlementsRBContent = new System.Text.StringBuilder();
-            var entitlementsPListContent = new System.Text.StringBuilder();
-            {
-                foreach (var entitlement in ancillary.Entitlements)
-                {
-                    entitlementsRBContent.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
-
-                    entitlementsPListContent.Append($"<key>{entitlement.Name}</key>");
-                    entitlementsPListContent.AppendLine();
-
-                    PListSerialize(entitlement.Type, entitlement.Values, ref entitlementsPListContent);
-                }
-            }
-
-
-            AddRawFileIfMissing(ofc, $"Entitlements.plist", SerializeEntitlements(ancillary.Entitlements));
-
-            result.Value = ofc;
-
-            return result;
-        }
-
+        
         private static Result<string> EmitShareExtensionInitRBContent(
             Session session, Artifact artifact, Ancillary ancillary, TargetInfo targetInfo, 
             Dictionary<string, (bool, string)> componentNamesProcessed, RawAST combinedAST, 
@@ -1200,6 +1155,11 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 
             if(HasErrors(result) || token.IsCancellationRequested) return result;
 
+            var mainApp = GetMainAppOrThrow(session, artifact);
+            var mainAppTargetName = mainApp.Name;
+
+            // [dho] NOTE Embedded binary's bundle identifier must be prefixed with the parent app's bundle identifier - 16/11/19
+            var productBundleIdentifier = ProductIdentifier(artifact, mainApp) + "." + ancillary.Name;
 
             content.Append(
 $@"
@@ -1229,7 +1189,7 @@ $@"
 
 {targetInfo.Name}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
 {targetInfo.Name}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
-{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{ProjectBundleIdentifier}.{targetInfo.Name}')
+{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{productBundleIdentifier}.{targetInfo.Name}')
 # {targetInfo.Name}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
 
 "
@@ -1287,7 +1247,7 @@ $@"
 
             content.Append(
 $@"
-{MainAppTargetName}.add_dependency({targetInfo.Name})
+{mainAppTargetName}.add_dependency({targetInfo.Name})
 embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).settings = {{ 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }}
 "
             );
@@ -1595,515 +1555,515 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
         // }
 
 
-        private static Result<object> SwiftInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)
-        {
-            var result = new Result<object>();
+//         private static Result<object> SwiftInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+//         {
+//             var result = new Result<object>();
 
-            var root = ASTHelpers.GetRoot(ast);
+//             var root = ASTHelpers.GetRoot(ast);
 
-            System.Diagnostics.Debug.Assert(root?.Kind == SemanticKind.Domain);
+//             System.Diagnostics.Debug.Assert(root?.Kind == SemanticKind.Domain);
 
-            var domain = ASTNodeFactory.Domain(ast, root);
+//             var domain = ASTNodeFactory.Domain(ast, root);
 
-            var newComponentNodes = new List<Node>();
-
-
-            var topLevelExpressions = new List<Node>();
-
-            // [dho] the component (eg. file) that contains the entrypoint view for the application - 31/08/19
-            var entrypointComponent = default(Component);
-            var entrypointInlined = default(ObjectTypeDeclaration);
-
-            // [dho] the first view to be rendered for the application - 31/08/19
-            // var entrypointView = default(ObjectTypeDeclaration);
-
-            // if (PerformInlining)
-            // {
-                // [dho] a component containing all the inlined constituent components for the compilation,
-                // thereby creating a single larger file of all components in one file - 31/08/19
-                var inlined = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), InlinedAppFileName);
+//             var newComponentNodes = new List<Node>();
 
 
-                var importDecls = new List<Node>();
-                // [dho] these statements live outside of the `node1234` object type declaration
-                // wrapper that we emit around inlined components - 31/08/19
-                var globalStatements = new List<Node>();
-                {
+//             var topLevelExpressions = new List<Node>();
 
-                    importDecls.Add(
-                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "import SwiftUI").Node
-                    );
-                    importDecls.Add(
-                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "import UIKit").Node
-                    );
+//             // [dho] the component (eg. file) that contains the entrypoint view for the application - 31/08/19
+//             var entrypointComponent = default(Component);
+//             var entrypointInlined = default(ObjectTypeDeclaration);
 
-                    var inlinedObjectTypeDecls = new List<Node>();
-                    var componentIDsToRemove = new List<string>();
+//             // [dho] the first view to be rendered for the application - 31/08/19
+//             // var entrypointView = default(ObjectTypeDeclaration);
 
-                    foreach (var cNode in domain.Components)
-                    {
-                        var component = ASTNodeFactory.Component(ast, (DataNode<string>)cNode);
-
-                        // [dho] every component in the AST (ie. every input file) will be turned into a class and inlined - 28/06/19
-                        var r = ConvertToInlinedObjectTypeDeclaration(session, artifact, ast, component, token, ref importDecls, ref topLevelExpressions);
-
-                        result.AddMessages(r);
-
-                        if (HasErrors(r))
-                        {
-                            continue;
-                        }
-
-                        // [dho] is this component the entrypoint for the whole artifact - 28/06/19
-                        if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
-                        {
-                            // [dho] the SceneDelegate will use this information to wire up the entrypoint - 28/06/19
-                            entrypointComponent = component;
-                            entrypointInlined = r.Value;
-                            // entrypointView = r.Value;
-                        }
-                        // [dho] any code that was outside an artifact root is just emitted without a class wrapper, so we have a way
-                        // in the input sources of declaring global symbols, or things like protocols which cannot be nested inside other
-                        // declarations in Swift - 18/07/19
-                        else if (!WillInlineAsObjectTypeDeclaration(session, component))
-                        {
-                            globalStatements.AddRange(r.Value.Members);
-                        }
-
-                        inlinedObjectTypeDecls.Add(r.Value.Node);
-
-                        componentIDsToRemove.Add(component.ID);
-                    }
-
-                    if(entrypointComponent == null)
-                    {
-                        result.AddMessages(
-                            new Message(MessageKind.Error, $"Could not create iOS bundle because an entrypoint component was not found {artifact.Name} (expected '{BundlerHelpers.GetNameOfExpectedArtifactEntrypointComponent(session, artifact)}' to exist)")
-                        );
-                    }
-
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
-
-                    // [dho] combine the imports - 01/06/19
-
-                    // ASTHelpers.Connect(ast, inlined.ID, importDecls.ToArray(), SemanticRole.None, 0);
-
-                    if (globalStatements.Count > 0)
-                    {
-                        ASTHelpers.Connect(ast, inlined.ID, globalStatements.ToArray(), SemanticRole.None);
-                    }
-
-                    // [dho] inline all the existing components as static classes - 01/06/19
-                    ASTHelpers.Connect(ast, inlined.ID, inlinedObjectTypeDecls.ToArray(), SemanticRole.None);
-
-                    // [dho] remove the components from the tree because now they have all been inlined - 01/06/19
-                    ASTHelpers.RemoveNodes(ast, componentIDsToRemove.ToArray());
-                }
-
-                newComponentNodes.Add(inlined.Node);
-            // }
-            // else
-            // {
-            //     foreach (var cNode in domain.Components)
-            //     {
-            //         var component = ASTNodeFactory.Component(ast, (DataNode<string>)cNode);
-
-            //         ASTHelpers.Connect(ast, component.ID, new[] {
-            //             NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "import SwiftUI").Node
-            //         }, SemanticRole.None, 0 /* [dho] make this the first statement in the component - 31/08/19 */);
-
-            //         // [dho] is this component the entrypoint for the whole artifact - 28/06/19
-            //         if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
-            //         {
-            //             // [dho] the SceneDelegate will use this information to wire up the entrypoint - 28/06/19
-            //             entrypointComponent = component;
-            //             break;
-            //         }
-            //     }
-            // }
-
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            // var appDelegate = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "AppDelegate");
-            // {
-                // [dho] standard imports - 25/06/19
-                // ASTHelpers.Connect(ast, appDelegate.ID, new[] {
-                //     NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), @"import UIKit").Node
-                // }, SemanticRole.None);
+//             // if (PerformInlining)
+//             // {
+//                 // [dho] a component containing all the inlined constituent components for the compilation,
+//                 // thereby creating a single larger file of all components in one file - 31/08/19
+//                 var inlined = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), InlinedAppFileName);
 
 
+//                 var importDecls = new List<Node>();
+//                 // [dho] these statements live outside of the `node1234` object type declaration
+//                 // wrapper that we emit around inlined components - 31/08/19
+//                 var globalStatements = new List<Node>();
+//                 {
 
-                // [dho] we will expose the launch args to the user entrypoint function for the app if they have specified
-                // a parameter declaration for it, eg `export default main(args : { [key : UIApplication.LaunchOptionsKey] : Any })` - 29/09/19
-                // [dho] TODO investigate whether to provide a universal API for launch args across platforms.. is that counter to the Sempiler tenets? - 29/09/19
-                var requiresLaunchArgsAccess = false;
-                {
-                    foreach(var member in entrypointInlined.Members)
-                    {
-                        if(member.Kind == SemanticKind.MethodDeclaration)
-                        {
-                            var methodDecl = ASTNodeFactory.MethodDeclaration(ast, member);
+//                     importDecls.Add(
+//                         NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "import SwiftUI").Node
+//                     );
+//                     importDecls.Add(
+//                         NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "import UIKit").Node
+//                     );
 
-                            if(ASTNodeHelpers.IsIdentifierWithName(ast, methodDecl.Name, EntrypointSymbolName))
-                            {
-                                // [dho] for now just assuming that any parameter would be a reference to the 
-                                // launch args - 29/09/19
-                                requiresLaunchArgsAccess = methodDecl.Parameters.Length > 0;
-                                break;
-                            }
-                        }
-                    }
-                }
+//                     var inlinedObjectTypeDecls = new List<Node>();
+//                     var componentIDsToRemove = new List<string>();
+
+//                     foreach (var cNode in domain.Components)
+//                     {
+//                         var component = ASTNodeFactory.Component(ast, (DataNode<string>)cNode);
+
+//                         // [dho] every component in the AST (ie. every input file) will be turned into a class and inlined - 28/06/19
+//                         var r = ConvertToInlinedObjectTypeDeclaration(session, artifact, ast, component, token, ref importDecls, ref topLevelExpressions);
+
+//                         result.AddMessages(r);
+
+//                         if (HasErrors(r))
+//                         {
+//                             continue;
+//                         }
+
+//                         // [dho] is this component the entrypoint for the whole artifact - 28/06/19
+//                         if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
+//                         {
+//                             // [dho] the SceneDelegate will use this information to wire up the entrypoint - 28/06/19
+//                             entrypointComponent = component;
+//                             entrypointInlined = r.Value;
+//                             // entrypointView = r.Value;
+//                         }
+//                         // [dho] any code that was outside an artifact root is just emitted without a class wrapper, so we have a way
+//                         // in the input sources of declaring global symbols, or things like protocols which cannot be nested inside other
+//                         // declarations in Swift - 18/07/19
+//                         else if (!WillInlineAsObjectTypeDeclaration(session, component))
+//                         {
+//                             globalStatements.AddRange(r.Value.Members);
+//                         }
+
+//                         inlinedObjectTypeDecls.Add(r.Value.Node);
+
+//                         componentIDsToRemove.Add(component.ID);
+//                     }
+
+//                     if(entrypointComponent == null)
+//                     {
+//                         result.AddMessages(
+//                             new Message(MessageKind.Error, $"Could not create iOS bundle because an entrypoint component was not found {artifact.Name} (expected '{BundlerHelpers.GetNameOfExpectedArtifactEntrypointComponent(session, artifact)}' to exist)")
+//                         );
+//                     }
+
+//                     if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+//                     // [dho] combine the imports - 01/06/19
+
+//                     // ASTHelpers.Connect(ast, inlined.ID, importDecls.ToArray(), SemanticRole.None, 0);
+
+//                     if (globalStatements.Count > 0)
+//                     {
+//                         ASTHelpers.Connect(ast, inlined.ID, globalStatements.ToArray(), SemanticRole.None);
+//                     }
+
+//                     // [dho] inline all the existing components as static classes - 01/06/19
+//                     ASTHelpers.Connect(ast, inlined.ID, inlinedObjectTypeDecls.ToArray(), SemanticRole.None);
+
+//                     // [dho] remove the components from the tree because now they have all been inlined - 01/06/19
+//                     ASTHelpers.RemoveNodes(ast, componentIDsToRemove.ToArray());
+//                 }
+
+//                 newComponentNodes.Add(inlined.Node);
+//             // }
+//             // else
+//             // {
+//             //     foreach (var cNode in domain.Components)
+//             //     {
+//             //         var component = ASTNodeFactory.Component(ast, (DataNode<string>)cNode);
+
+//             //         ASTHelpers.Connect(ast, component.ID, new[] {
+//             //             NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "import SwiftUI").Node
+//             //         }, SemanticRole.None, 0 /* [dho] make this the first statement in the component - 31/08/19 */);
+
+//             //         // [dho] is this component the entrypoint for the whole artifact - 28/06/19
+//             //         if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
+//             //         {
+//             //             // [dho] the SceneDelegate will use this information to wire up the entrypoint - 28/06/19
+//             //             entrypointComponent = component;
+//             //             break;
+//             //         }
+//             //     }
+//             // }
+
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             // var appDelegate = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "AppDelegate");
+//             // {
+//                 // [dho] standard imports - 25/06/19
+//                 // ASTHelpers.Connect(ast, appDelegate.ID, new[] {
+//                 //     NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), @"import UIKit").Node
+//                 // }, SemanticRole.None);
 
 
 
-                var appDelegateClass = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                {
-                    ASTHelpers.Connect(ast, appDelegateClass.ID, new[] {
-                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), AppDelegateClassSymbolName).Node
-                    }, SemanticRole.Name);
+//                 // [dho] we will expose the launch args to the user entrypoint function for the app if they have specified
+//                 // a parameter declaration for it, eg `export default main(args : { [key : UIApplication.LaunchOptionsKey] : Any })` - 29/09/19
+//                 // [dho] TODO investigate whether to provide a universal API for launch args across platforms.. is that counter to the Sempiler tenets? - 29/09/19
+//                 var requiresLaunchArgsAccess = false;
+//                 {
+//                     foreach(var member in entrypointInlined.Members)
+//                     {
+//                         if(member.Kind == SemanticKind.MethodDeclaration)
+//                         {
+//                             var methodDecl = ASTNodeFactory.MethodDeclaration(ast, member);
 
-                    // [dho] add the entrypoint annotation `@UIApplicationMain` - 02/07/19
-                    {
-                        var uiApplicationMainAnnotation = NodeFactory.Annotation(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        var uiApplicationMainOperand = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIApplicationMain");
-
-                        ASTHelpers.Connect(ast, uiApplicationMainAnnotation.ID, new[] { uiApplicationMainOperand.Node }, SemanticRole.Operand);
-
-                        ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { uiApplicationMainAnnotation.Node }, SemanticRole.Annotation);
-                    }
-
-                    // [dho] app delegate interfaces - 25/06/19
-                    {
-                        var uiResponder = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, uiResponder.ID, new[] {
-                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIResponder").Node
-                            }, SemanticRole.Name);
-
-                            ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { uiResponder.Node }, SemanticRole.Interface);
-                        }
-
-                        var uiApplicationDelegate = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, uiApplicationDelegate.ID, new[] {
-                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIApplicationDelegate").Node
-                            }, SemanticRole.Name);
-
-                            ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { uiApplicationDelegate.Node }, SemanticRole.Interface);
-                        }
-                    }
-
-                    if(requiresLaunchArgsAccess)
-                    {
-                        ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { 
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-                                $"static var {entrypointComponent.ID}LaunchOptions: [UIApplication.LaunchOptionsKey: Any]?").Node
-                         }, SemanticRole.Member);
-                    }
-
-                    var applicationFn = NodeFactory.MethodDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                    {
-                        ASTHelpers.Connect(ast, applicationFn.ID, new[] {
-                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "application").Node
-                        }, SemanticRole.Name);
-
-                        ASTHelpers.Connect(ast, applicationFn.ID, new[] { 
-                            // [dho] cheating with the parameters because I'm feeling very lazy tonight - 25/06/19
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-                                "_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?").Node
-                        }, SemanticRole.Parameter);
-
-                        var returnType = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, returnType.ID, new[] {
-                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "Bool").Node
-                            }, SemanticRole.Name);
-
-                            ASTHelpers.Connect(ast, applicationFn.ID, new[] { returnType.Node }, SemanticRole.Type);
-                        }
-
-                        if(requiresLaunchArgsAccess)
-                        {
-                            topLevelExpressions.Add(
-                                //launchOptions
-                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"{AppDelegateClassSymbolName}.{entrypointComponent.ID}LaunchOptions = launchOptions").Node
-                            );
-                        }
+//                             if(ASTNodeHelpers.IsIdentifierWithName(ast, methodDecl.Name, EntrypointSymbolName))
+//                             {
+//                                 // [dho] for now just assuming that any parameter would be a reference to the 
+//                                 // launch args - 29/09/19
+//                                 requiresLaunchArgsAccess = methodDecl.Parameters.Length > 0;
+//                                 break;
+//                             }
+//                         }
+//                     }
+//                 }
 
 
-                        topLevelExpressions.Add(
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), @"return true").Node
-                        );
 
-                        var body = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, body.ID, topLevelExpressions.ToArray(), SemanticRole.Content);
-                        }
-                        ASTHelpers.Connect(ast, applicationFn.ID, new[] { body.Node }, SemanticRole.Body);
-                    }
+//                 var appDelegateClass = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                 {
+//                     ASTHelpers.Connect(ast, appDelegateClass.ID, new[] {
+//                         NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), AppDelegateClassSymbolName).Node
+//                     }, SemanticRole.Name);
+
+//                     // [dho] add the entrypoint annotation `@UIApplicationMain` - 02/07/19
+//                     {
+//                         var uiApplicationMainAnnotation = NodeFactory.Annotation(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         var uiApplicationMainOperand = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIApplicationMain");
+
+//                         ASTHelpers.Connect(ast, uiApplicationMainAnnotation.ID, new[] { uiApplicationMainOperand.Node }, SemanticRole.Operand);
+
+//                         ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { uiApplicationMainAnnotation.Node }, SemanticRole.Annotation);
+//                     }
+
+//                     // [dho] app delegate interfaces - 25/06/19
+//                     {
+//                         var uiResponder = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, uiResponder.ID, new[] {
+//                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIResponder").Node
+//                             }, SemanticRole.Name);
+
+//                             ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { uiResponder.Node }, SemanticRole.Interface);
+//                         }
+
+//                         var uiApplicationDelegate = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, uiApplicationDelegate.ID, new[] {
+//                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIApplicationDelegate").Node
+//                             }, SemanticRole.Name);
+
+//                             ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { uiApplicationDelegate.Node }, SemanticRole.Interface);
+//                         }
+//                     }
+
+//                     if(requiresLaunchArgsAccess)
+//                     {
+//                         ASTHelpers.Connect(ast, appDelegateClass.ID, new[] { 
+//                             NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+//                                 $"static var {entrypointComponent.ID}LaunchOptions: [UIApplication.LaunchOptionsKey: Any]?").Node
+//                          }, SemanticRole.Member);
+//                     }
+
+//                     var applicationFn = NodeFactory.MethodDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                     {
+//                         ASTHelpers.Connect(ast, applicationFn.ID, new[] {
+//                             NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "application").Node
+//                         }, SemanticRole.Name);
+
+//                         ASTHelpers.Connect(ast, applicationFn.ID, new[] { 
+//                             // [dho] cheating with the parameters because I'm feeling very lazy tonight - 25/06/19
+//                             NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+//                                 "_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?").Node
+//                         }, SemanticRole.Parameter);
+
+//                         var returnType = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, returnType.ID, new[] {
+//                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "Bool").Node
+//                             }, SemanticRole.Name);
+
+//                             ASTHelpers.Connect(ast, applicationFn.ID, new[] { returnType.Node }, SemanticRole.Type);
+//                         }
+
+//                         if(requiresLaunchArgsAccess)
+//                         {
+//                             topLevelExpressions.Add(
+//                                 //launchOptions
+//                                 NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"{AppDelegateClassSymbolName}.{entrypointComponent.ID}LaunchOptions = launchOptions").Node
+//                             );
+//                         }
 
 
-                    ASTHelpers.Connect(ast, appDelegateClass.ID, new[] {
+//                         topLevelExpressions.Add(
+//                             NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), @"return true").Node
+//                         );
 
-                        applicationFn.Node,
+//                         var body = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, body.ID, topLevelExpressions.ToArray(), SemanticRole.Content);
+//                         }
+//                         ASTHelpers.Connect(ast, applicationFn.ID, new[] { body.Node }, SemanticRole.Body);
+//                     }
 
-                        // [dho] just stuffing in the other functions to satisfy the protocols.. we don't
-                        // use them ...yet - 25/06/19
-                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-$@"func applicationWillTerminate(_ application: UIApplication) {{
-    // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
-}}
 
-// MARK: UISceneSession Lifecycle
-func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {{
-    // Called when a new scene session is being created.
-    // Use this method to select a configuration to create the new scene with.
-    return UISceneConfiguration(name: ""Default Configuration"", sessionRole: connectingSceneSession.role)
-}}
+//                     ASTHelpers.Connect(ast, appDelegateClass.ID, new[] {
 
-func application(_ application: UIApplication, didDiscardSceneSessions sceneSessions: Set<UISceneSession>) {{
-    // Called when the user discards a scene session.
-    // If any sessions were discarded while the application was not running, this will be called shortly after application:didFinishLaunchingWithOptions.
-    // Use this method to release any resources that were specific to the discarded scenes, as they will not return.
-}}").Node
-                    }, SemanticRole.Member);
-                }
+//                         applicationFn.Node,
 
-            //     ASTHelpers.Connect(ast, appDelegate.ID, new[] { appDelegateClass.Node }, SemanticRole.None);
-            // }
+//                         // [dho] just stuffing in the other functions to satisfy the protocols.. we don't
+//                         // use them ...yet - 25/06/19
+//                         NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+// $@"func applicationWillTerminate(_ application: UIApplication) {{
+//     // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+// }}
 
-            // newComponentNodes.Add(appDelegate.Node);
+// // MARK: UISceneSession Lifecycle
+// func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {{
+//     // Called when a new scene session is being created.
+//     // Use this method to select a configuration to create the new scene with.
+//     return UISceneConfiguration(name: ""Default Configuration"", sessionRole: connectingSceneSession.role)
+// }}
+
+// func application(_ application: UIApplication, didDiscardSceneSessions sceneSessions: Set<UISceneSession>) {{
+//     // Called when the user discards a scene session.
+//     // If any sessions were discarded while the application was not running, this will be called shortly after application:didFinishLaunchingWithOptions.
+//     // Use this method to release any resources that were specific to the discarded scenes, as they will not return.
+// }}").Node
+//                     }, SemanticRole.Member);
+//                 }
+
+//             //     ASTHelpers.Connect(ast, appDelegate.ID, new[] { appDelegateClass.Node }, SemanticRole.None);
+//             // }
+
+//             // newComponentNodes.Add(appDelegate.Node);
             
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//             //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             
-            // var sceneDelegate = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "SceneDelegate");
-            // {
-                // [dho] standard imports - 25/06/19
-//                 ASTHelpers.Connect(ast, sceneDelegate.ID, new[] {
-//                     NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-// @"import UIKit
-// import SwiftUI").Node
-//                 }, SemanticRole.None);
+//             // var sceneDelegate = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "SceneDelegate");
+//             // {
+//                 // [dho] standard imports - 25/06/19
+// //                 ASTHelpers.Connect(ast, sceneDelegate.ID, new[] {
+// //                     NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+// // @"import UIKit
+// // import SwiftUI").Node
+// //                 }, SemanticRole.None);
 
-                var sceneDelegateClass = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                {
-                    ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] {
-                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), SceneDelegateClassSymbolName).Node
-                    }, SemanticRole.Name);
+//                 var sceneDelegateClass = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                 {
+//                     ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] {
+//                         NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), SceneDelegateClassSymbolName).Node
+//                     }, SemanticRole.Name);
 
-                    // [dho] scene delegate interfaces - 25/06/19
-                    {
-                        var uiResponder = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, uiResponder.ID, new[] {
-                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIResponder").Node
-                            }, SemanticRole.Name);
+//                     // [dho] scene delegate interfaces - 25/06/19
+//                     {
+//                         var uiResponder = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, uiResponder.ID, new[] {
+//                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIResponder").Node
+//                             }, SemanticRole.Name);
 
-                            ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] { uiResponder.Node }, SemanticRole.Interface);
-                        }
+//                             ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] { uiResponder.Node }, SemanticRole.Interface);
+//                         }
 
-                        var uiWindowSceneDelegate = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, uiWindowSceneDelegate.ID, new[] {
-                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIWindowSceneDelegate").Node
-                            }, SemanticRole.Name);
+//                         var uiWindowSceneDelegate = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, uiWindowSceneDelegate.ID, new[] {
+//                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIWindowSceneDelegate").Node
+//                             }, SemanticRole.Name);
 
-                            ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] { uiWindowSceneDelegate.Node }, SemanticRole.Interface);
-                        }
-                    }
+//                             ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] { uiWindowSceneDelegate.Node }, SemanticRole.Interface);
+//                         }
+//                     }
 
-                    var windowField = NodeFactory.FieldDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                    {
-                        var maybeNullFlag = NodeFactory.Meta(
-                            ast,
-                            new PhaseNodeOrigin(PhaseKind.Bundling),
-                            MetaFlag.Optional
-                        );
+//                     var windowField = NodeFactory.FieldDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                     {
+//                         var maybeNullFlag = NodeFactory.Meta(
+//                             ast,
+//                             new PhaseNodeOrigin(PhaseKind.Bundling),
+//                             MetaFlag.Optional
+//                         );
 
-                        ASTHelpers.Connect(ast, windowField.ID, new[] { maybeNullFlag.Node }, SemanticRole.Meta);
+//                         ASTHelpers.Connect(ast, windowField.ID, new[] { maybeNullFlag.Node }, SemanticRole.Meta);
 
-                        ASTHelpers.Connect(ast, windowField.ID, new[] {
-                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "window").Node
-                        }, SemanticRole.Name);
+//                         ASTHelpers.Connect(ast, windowField.ID, new[] {
+//                             NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "window").Node
+//                         }, SemanticRole.Name);
 
-                        var windowFieldType = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, windowFieldType.ID, new[] {
-                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIWindow").Node
-                            }, SemanticRole.Name);
+//                         var windowFieldType = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, windowFieldType.ID, new[] {
+//                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "UIWindow").Node
+//                             }, SemanticRole.Name);
 
-                            ASTHelpers.Connect(ast, windowField.ID, new[] { windowFieldType.Node }, SemanticRole.Type);
-                        }
-                    }
+//                             ASTHelpers.Connect(ast, windowField.ID, new[] { windowFieldType.Node }, SemanticRole.Type);
+//                         }
+//                     }
 
-                    var sceneFn = NodeFactory.MethodDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                    {
-                        ASTHelpers.Connect(ast, sceneFn.ID, new[] {
-                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "scene").Node
-                        }, SemanticRole.Name);
+//                     var sceneFn = NodeFactory.MethodDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                     {
+//                         ASTHelpers.Connect(ast, sceneFn.ID, new[] {
+//                             NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "scene").Node
+//                         }, SemanticRole.Name);
 
-                        ASTHelpers.Connect(ast, sceneFn.ID, new[] { 
-                            // [dho] cheating with the parameters because I'm feeling very lazy tonight - 25/06/19
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-                                "_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions").Node
-                        }, SemanticRole.Parameter);
-
-
-                        var entrypointInvocationArgString = requiresLaunchArgsAccess ? $"{AppDelegateClassSymbolName}.{entrypointComponent.ID}LaunchOptions ?? [:]" : string.Empty;
-
-                        var body = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                        {
-                            ASTHelpers.Connect(ast, body.ID, new[] {
-                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-    $@"if let windowScene = scene as? UIWindowScene {{
-            let window = UIWindow(windowScene: windowScene)
-            window.rootViewController = UIHostingController(rootView: {ToInlinedObjectTypeClassIdentifier(ast, entrypointComponent.Node)}.{EntrypointSymbolName}({entrypointInvocationArgString}))
-            self.window = window
-            window.makeKeyAndVisible()
-        }}").Node
-
-                            }, SemanticRole.Content);
-                        }
-                        ASTHelpers.Connect(ast, sceneFn.ID, new[] { body.Node }, SemanticRole.Body);
-                    }
-
-                    ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] {
-
-                        windowField.Node,
-                        sceneFn.Node,
-
-                        // [dho] just stuffing in the other functions to satisfy the protocols.. we don't
-                        // use them ...yet - 25/06/19
-                        NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-$@"func sceneDidDisconnect(_ scene: UIScene) {{
-    // Called as the scene is being released by the system.
-    // This occurs shortly after the scene enters the background, or when its session is discarded.
-    // Release any resources associated with this scene that can be re-created the next time the scene connects.
-    // The scene may re-connect later, as its session was not neccessarily discarded (see `application:didDiscardSceneSessions` instead).
-}}
-
-func sceneDidBecomeActive(_ scene: UIScene) {{
-    // Called when the scene has moved from an inactive state to an active state.
-    // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
-}}
-
-func sceneWillResignActive(_ scene: UIScene) {{
-    // Called when the scene will move from an active state to an inactive state.
-    // This may occur due to temporary interruptions (ex. an incoming phone call).
-}}
-
-func sceneWillEnterForeground(_ scene: UIScene) {{
-    // Called as the scene transitions from the background to the foreground.
-    // Use this method to undo the changes made on entering the background.
-}}
-
-func sceneDidEnterBackground(_ scene: UIScene) {{
-    // Called as the scene transitions from the foreground to the background.
-    // Use this method to save data, release shared resources, and store enough scene-specific state information
-    // to restore the scene back to its current state.
-}}").Node
-                    }, SemanticRole.Member);
-                }
-
-                // ASTHelpers.Connect(ast, sceneDelegate.ID, new[] { sceneDelegateClass.Node }, SemanticRole.None);
-            // }
-
-            // newComponentNodes.Add(sceneDelegate.Node);
+//                         ASTHelpers.Connect(ast, sceneFn.ID, new[] { 
+//                             // [dho] cheating with the parameters because I'm feeling very lazy tonight - 25/06/19
+//                             NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+//                                 "_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions").Node
+//                         }, SemanticRole.Parameter);
 
 
-            ASTHelpers.Connect(ast, inlined.ID, new[] { 
-                appDelegateClass.Node,
-                sceneDelegateClass.Node 
-            }, SemanticRole.None, 0);
+//                         var entrypointInvocationArgString = requiresLaunchArgsAccess ? $"{AppDelegateClassSymbolName}.{entrypointComponent.ID}LaunchOptions ?? [:]" : string.Empty;
 
-            ASTHelpers.Connect(ast, inlined.ID, importDecls.ToArray(), SemanticRole.None, 0);
+//                         var body = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+//                         {
+//                             ASTHelpers.Connect(ast, body.ID, new[] {
+//                                 NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+//     $@"if let windowScene = scene as? UIWindowScene {{
+//             let window = UIWindow(windowScene: windowScene)
+//             window.rootViewController = UIHostingController(rootView: {ToInlinedObjectTypeClassIdentifier(ast, entrypointComponent.Node)}.{EntrypointSymbolName}({entrypointInvocationArgString}))
+//             self.window = window
+//             window.makeKeyAndVisible()
+//         }}").Node
+
+//                             }, SemanticRole.Content);
+//                         }
+//                         ASTHelpers.Connect(ast, sceneFn.ID, new[] { body.Node }, SemanticRole.Body);
+//                     }
+
+//                     ASTHelpers.Connect(ast, sceneDelegateClass.ID, new[] {
+
+//                         windowField.Node,
+//                         sceneFn.Node,
+
+//                         // [dho] just stuffing in the other functions to satisfy the protocols.. we don't
+//                         // use them ...yet - 25/06/19
+//                         NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+// $@"func sceneDidDisconnect(_ scene: UIScene) {{
+//     // Called as the scene is being released by the system.
+//     // This occurs shortly after the scene enters the background, or when its session is discarded.
+//     // Release any resources associated with this scene that can be re-created the next time the scene connects.
+//     // The scene may re-connect later, as its session was not neccessarily discarded (see `application:didDiscardSceneSessions` instead).
+// }}
+
+// func sceneDidBecomeActive(_ scene: UIScene) {{
+//     // Called when the scene has moved from an inactive state to an active state.
+//     // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
+// }}
+
+// func sceneWillResignActive(_ scene: UIScene) {{
+//     // Called when the scene will move from an active state to an inactive state.
+//     // This may occur due to temporary interruptions (ex. an incoming phone call).
+// }}
+
+// func sceneWillEnterForeground(_ scene: UIScene) {{
+//     // Called as the scene transitions from the background to the foreground.
+//     // Use this method to undo the changes made on entering the background.
+// }}
+
+// func sceneDidEnterBackground(_ scene: UIScene) {{
+//     // Called as the scene transitions from the foreground to the background.
+//     // Use this method to save data, release shared resources, and store enough scene-specific state information
+//     // to restore the scene back to its current state.
+// }}").Node
+//                     }, SemanticRole.Member);
+//                 }
+
+//                 // ASTHelpers.Connect(ast, sceneDelegate.ID, new[] { sceneDelegateClass.Node }, SemanticRole.None);
+//             // }
+
+//             // newComponentNodes.Add(sceneDelegate.Node);
 
 
-            ASTHelpers.Connect(ast, domain.ID, newComponentNodes.ToArray(), SemanticRole.Component);
+//             ASTHelpers.Connect(ast, inlined.ID, new[] { 
+//                 appDelegateClass.Node,
+//                 sceneDelegateClass.Node 
+//             }, SemanticRole.None, 0);
+
+//             ASTHelpers.Connect(ast, inlined.ID, importDecls.ToArray(), SemanticRole.None, 0);
 
 
-            if (!HasErrors(result))
-            {
-                // [dho] use SwiftUI API in the AST - 29/06/19
-                {
-                    var task = new Sempiler.Transformation.IOSSwiftUITransformer().Transform(session, artifact, ast, token);
-
-                    task.Wait();
-
-                    var newAST = result.AddMessages(task.Result);
-
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
-
-                    if (newAST != ast)
-                    {
-                        result.AddMessages(
-                            new Message(MessageKind.Error, "iOS SwiftUI Transformer unexpectedly returned a different AST that was discarded")
-                        );
-                    }
-                }
+//             ASTHelpers.Connect(ast, domain.ID, newComponentNodes.ToArray(), SemanticRole.Component);
 
 
-                {
-                    var task = new Sempiler.Transformation.SwiftNamedArgumentsTransformer().Transform(session, artifact, ast, token);
+//             if (!HasErrors(result))
+//             {
+//                 // [dho] use SwiftUI API in the AST - 29/06/19
+//                 {
+//                     var task = new Sempiler.Transformation.IOSSwiftUITransformer().Transform(session, artifact, ast, token);
 
-                    task.Wait();
+//                     task.Wait();
 
-                    var newAST = result.AddMessages(task.Result);
+//                     var newAST = result.AddMessages(task.Result);
 
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
+//                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-                    if (newAST != ast)
-                    {
-                        result.AddMessages(new Message(MessageKind.Error, "Swift Named Arguments Transformer unexpectedly returned a different AST that was discarded"));
-                    }
-                }
+//                     if (newAST != ast)
+//                     {
+//                         result.AddMessages(
+//                             new Message(MessageKind.Error, "iOS SwiftUI Transformer unexpectedly returned a different AST that was discarded")
+//                         );
+//                     }
+//                 }
 
 
-                {
-                    var task = new Sempiler.Transformation.SwiftEnforceMutatingMethodsTransformer().Transform(session, artifact, ast, token);
+//                 {
+//                     var task = new Sempiler.Transformation.SwiftNamedArgumentsTransformer().Transform(session, artifact, ast, token);
 
-                    task.Wait();
+//                     task.Wait();
 
-                    var newAST = result.AddMessages(task.Result);
+//                     var newAST = result.AddMessages(task.Result);
 
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
+//                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-                    if (newAST != ast)
-                    {
-                        result.AddMessages(new Message(MessageKind.Error, "Swift Enforce Mutating Methods Transformer unexpectedly returned a different AST that was discarded"));
-                    }
-                }
+//                     if (newAST != ast)
+//                     {
+//                         result.AddMessages(new Message(MessageKind.Error, "Swift Named Arguments Transformer unexpectedly returned a different AST that was discarded"));
+//                     }
+//                 }
+
+
+//                 {
+//                     var task = new Sempiler.Transformation.SwiftEnforceMutatingMethodsTransformer().Transform(session, artifact, ast, token);
+
+//                     task.Wait();
+
+//                     var newAST = result.AddMessages(task.Result);
+
+//                     if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+//                     if (newAST != ast)
+//                     {
+//                         result.AddMessages(new Message(MessageKind.Error, "Swift Enforce Mutating Methods Transformer unexpectedly returned a different AST that was discarded"));
+//                     }
+//                 }
 
 
                 
 
-                // {
-                //     var task = new Sempiler.Transformation.SwiftParameterTransformer().Transform(session, artifact, ast, token);
+//                 // {
+//                 //     var task = new Sempiler.Transformation.SwiftParameterTransformer().Transform(session, artifact, ast, token);
 
-                //     task.Wait();
+//                 //     task.Wait();
 
-                //     var newAST = result.AddMessages(task.Result);
+//                 //     var newAST = result.AddMessages(task.Result);
 
-                //     if(HasErrors(result) || token.IsCancellationRequested) return result;
+//                 //     if(HasErrors(result) || token.IsCancellationRequested) return result;
 
-                //     if (newAST != ast)
-                //     {
-                //         result.AddMessages(new Message(MessageKind.Error, "Swift Parameter Transformer unexpectedly returned a different AST that was discarded"));
-                //     }
-                // }
-            }
+//                 //     if (newAST != ast)
+//                 //     {
+//                 //         result.AddMessages(new Message(MessageKind.Error, "Swift Parameter Transformer unexpectedly returned a different AST that was discarded"));
+//                 //     }
+//                 // }
+//             }
 
 
-            return result;
-        }
+//             return result;
+//         }
 
         private static Result<ObjectTypeDeclaration> ConvertToInlinedObjectTypeDeclaration(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
         {

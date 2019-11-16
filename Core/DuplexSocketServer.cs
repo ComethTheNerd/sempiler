@@ -213,7 +213,7 @@ namespace Sempiler.Core
 
                     // All the data has been read from the   
                     // client. Display it on the console.  
-                    Console.WriteLine("Read {0} bytes from socket.\nMessage : {1}\n", content.Length, message);  
+                    // Console.WriteLine("Read {0} bytes from socket.\nMessage : {1}\n", content.Length, message);  
                     
                     OnMessage(handler, message);  
 
@@ -231,7 +231,7 @@ namespace Sempiler.Core
 
         public void Send(Socket handler, String message = null) {
             message = message ?? "ACK";  
-            Console.WriteLine("Sending Message : {0}", message);
+            // Console.WriteLine("Sending Message : {0}", message);
 
             // Convert the string data to byte data using ASCII encoding.  
             byte[] byteData = Encoding.ASCII.GetBytes(message + MessageSentinel);  
@@ -249,7 +249,7 @@ namespace Sempiler.Core
                 // Complete sending the data to the remote device.  
                 int bytesSent = handler.EndSend(ar);  
 
-                Console.WriteLine("Sent {0} bytes to client.", bytesSent); 
+                // Console.WriteLine("Sent {0} bytes to client.", bytesSent); 
             } 
             catch (Exception e) 
             {  

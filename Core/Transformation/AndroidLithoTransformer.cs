@@ -19,7 +19,7 @@ namespace Sempiler.Transformation
         {
         }
    
-        protected override Result<object> TransformViewDeclaration(Session session, RawAST ast, ViewDeclaration node, Context context, CancellationToken token)
+        protected override Result<object> TransformViewDeclaration(Session session, Artifact artifact, RawAST ast, ViewDeclaration node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
 
@@ -72,9 +72,8 @@ namespace Sempiler.Transformation
 
             var lithoSpecComponent = NodeFactory.Component(ast, node.Origin, specNameLexeme);
             {
-                // package  decl
-                // [dho] TODO CLEANUP HACK use proper namespacing for this and make it dynamic! - 01/06/19
-                var packageHack = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $"package {Sempiler.Bundler.BundlerHelpers.EmittedPackageName};");
+                var packageIdentifier = Sempiler.Bundler.BundlerHelpers.PackageIdentifier(artifact);
+                var packageHack = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $"package {packageIdentifier};");
 
                 // [dho] this interface is used to pass a lambda from the original view declaration location, to the spec file
                 // without having to worry about qualified names and visibility of nested symbols - 21/06/19
@@ -441,7 +440,7 @@ finally
             return result;
         }
 
-        protected override Result<object> TransformViewConstruction(Session session, RawAST ast, ViewConstruction node, Context context, CancellationToken token)
+        protected override Result<object> TransformViewConstruction(Session session, Artifact artifact, RawAST ast, ViewConstruction node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
 

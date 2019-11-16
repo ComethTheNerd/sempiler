@@ -20,8 +20,28 @@ namespace Sempiler.Bundler
 
     public static class BundlerHelpers
     {
-          // [dho] TODO HACK make dynamic! - 01/06/19
-        public const string EmittedPackageName = "com.sempiler";
+        public static string ProductIdentifier(Artifact artifact, Ancillary ancillary)
+        {
+            return PackageIdentifier(artifact) + "." + ancillary.Name;  
+        }
+
+        public static string PackageIdentifier(Artifact artifact)
+        {
+            return "com." + artifact.TeamName;  
+        }
+
+        public static Ancillary GetMainAppOrThrow(Session session, Artifact artifact)
+        {
+            foreach(var ancillary in session.Ancillaries[artifact.Name])
+            {
+                if(ancillary.Role == AncillaryRole.MainApp)
+                {
+                    return ancillary;
+                }
+            }
+
+            throw new System.Exception($"Could not find main app for artifact '{artifact.Name}'");
+        }
 
         public static bool IsInferredSessionEntrypointComponent(Session session, Component component)
         {

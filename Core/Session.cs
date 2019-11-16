@@ -85,12 +85,21 @@ namespace Sempiler
         public string Description;
     }
 
+    public enum Orientation 
+    {
+        Unspecified = 0x0,
+        Portrait = 0x1,
+        PortraitUpsideDown = 0x2,
+        LandscapeLeft = 0x4,
+        LandscapeRight = 0x8
+    }
 
     public enum AssetRole 
     {
         None,
         AppIcon,
-        Image
+        Image,
+        Font
     }
 
     public abstract class Asset 
@@ -108,6 +117,13 @@ namespace Sempiler
     {
         public string Size;
         public string Scale;
+        public ISourceFile Source;
+    }
+
+    public class FontAsset : Asset 
+    {
+        public string Name;
+
         public ISourceFile Source;
     }
 
