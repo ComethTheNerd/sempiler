@@ -43,6 +43,7 @@ namespace Sempiler.Transformation
             { "PresentationLink", new [] { ( "destination", true ), ( "label", true ), } },
             { "ScrollView", new [] { ("isScrollEnabled", true), ("alwaysBounceHorizontal", true), ("alwaysBounceVertical", true), ("showsHorizontalIndicator", true), ("showsVerticalIndicator", true), ("content", true) }},
             { "Section", new [] { ("header", true), ("footer", true), ("content", true) } },
+            { "SecureField", new [] { ("label", false), ("text", true), ("onCommit", true) } },
             { "Spacer", new [] { ("minLength", true) } },
             { "Stepper", new [] { ("label", false), ("value", true), ("in", true), ("step", true), ("onIncrement", true), ("onDecrement", true), ("onEditingChanged", true) } },
             { "TabView", new [] { ("selection", true), ("content", true) } },
@@ -66,7 +67,7 @@ namespace Sempiler.Transformation
         {
         }
 
-        protected override Result<object> TransformViewDeclaration(Session session, RawAST ast, ViewDeclaration node, Context context, CancellationToken token)
+        protected override Result<object> TransformViewDeclaration(Session session, Artifact artifact, RawAST ast, ViewDeclaration node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
 
@@ -437,7 +438,7 @@ namespace Sempiler.Transformation
         }
 
 
-        protected override Result<object> TransformViewConstruction(Session session, RawAST ast, ViewConstruction node, Context context, CancellationToken token)
+        protected override Result<object> TransformViewConstruction(Session session, Artifact artifact, RawAST ast, ViewConstruction node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
             

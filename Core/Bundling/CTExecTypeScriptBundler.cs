@@ -346,6 +346,27 @@ $@"
             return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.AddAncillary}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{role}}{CTProtocolHelpers.ArgumentDelimiter}${{sourcePath}})`);
         }}
 
+        async function {CTAPISymbols.SetDisplayName}(name)
+        {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.SetDisplayName}(${{name}})`);
+        }}
+
+        async function {CTAPISymbols.SetTeamName}(name)
+        {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.SetTeamName}(${{name}})`);
+        }}
+
+        async function {CTAPISymbols.SetVersion}(version)
+        {{
+            const {{ {MessageIDSymbolLexeme} }} = this;
+
+            return (await createClient(""{host}"", {port})).sendMessage(`{artifact.Name}{CTProtocolHelpers.ArgumentDelimiter}{ancillaryIndex}{CTProtocolHelpers.ArgumentDelimiter}${{messageID}}{CTProtocolHelpers.CommandStartToken}{(int)CTProtocolCommandKind.SetVersion}(${{version}})`);
+        }}
+
         function {CTAPISymbols.IsArtifactName}(artifactName)
         {{
             // const {{ {MessageIDSymbolLexeme} }} = this;
@@ -401,6 +422,9 @@ $@"
             {CTAPISymbols.IsArtifactName},
             {CTAPISymbols.IsTargetLanguage},
             {CTAPISymbols.IsTargetPlatform},
+            {CTAPISymbols.SetDisplayName},
+            {CTAPISymbols.SetTeamName},
+            {CTAPISymbols.SetVersion},
             {CTAPISymbols.ReplaceNodeByCodeConstant},
             {CTAPISymbols.InsertImmediateSiblingFromValueAndDeleteNode}, 
             {CTAPISymbols.DeleteNode}
@@ -421,6 +445,9 @@ $@"
         {CTAPISymbols.IsArtifactName},
         {CTAPISymbols.IsTargetLanguage},
         {CTAPISymbols.IsTargetPlatform},
+        {CTAPISymbols.SetDisplayName},
+        {CTAPISymbols.SetTeamName},
+        {CTAPISymbols.SetVersion},
     }} = {serverInteropHandleLexeme};").Node
                     );
                 }

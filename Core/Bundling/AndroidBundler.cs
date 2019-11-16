@@ -39,10 +39,10 @@ namespace Sempiler.Bundler
             // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
             var ast = ancillaries[0].AST;
 
-
+            var packageIdentifier = PackageIdentifier(artifact);
             var appDirRelPath = $"./app/";
             var srcMainDirRelPath = $"{appDirRelPath}src/main/";
-            var packageMainDirRelPath = $"{srcMainDirRelPath}java/{EmittedPackageName.Replace('.', '/')}/";
+            var packageMainDirRelPath = $"{srcMainDirRelPath}java/{packageIdentifier.Replace('.', '/')}/";
 
             OutFileCollection ofc = new OutFileCollection();
 
@@ -104,7 +104,7 @@ namespace Sempiler.Bundler
 // [dho] NOTE ensure no whitespace at start of file or it will be considered invalid - 31/05/19
 $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <manifest xmlns:android=""http://schemas.android.com/apk/res/android""
-    package=""{EmittedPackageName}"">
+    package=""{packageIdentifier}"">
 
     <application
         android:name="".{artifact.Name}""
@@ -130,7 +130,7 @@ $@"apply plugin: 'com.android.application'
 android {{
     compileSdkVersion 28
     defaultConfig {{
-        applicationId ""{EmittedPackageName}""
+        applicationId ""{packageIdentifier}""
         minSdkVersion 15
         targetSdkVersion 28
         versionCode 1
@@ -486,8 +486,9 @@ if ""%OS%""==""Windows_NT"" endlocal
 
             var component = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), artifact.Name);
 
-            // [dho] TODO CLEANUP HACK use proper namespacing for this and make it dynamic! - 01/06/19
-            var packageHack = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"package {EmittedPackageName};");
+            var packageIdentifier = PackageIdentifier(artifact);
+
+            var packageDecl = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"package {packageIdentifier};");
 
             var importDecls = new List<Node>();
 
@@ -640,7 +641,7 @@ public void onCreate() {
             // }
 
             // [dho] TODO CLEANUP HACK - 01/06/19
-            ASTHelpers.Connect(ast, component.ID, new[] { packageHack.Node }, SemanticRole.None);
+            ASTHelpers.Connect(ast, component.ID, new[] { packageDecl.Node }, SemanticRole.None);
 
             // [dho] combine the imports - 01/06/19
             {

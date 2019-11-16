@@ -1069,19 +1069,29 @@ namespace Sempiler.Core
                         var rawRole = command.Arguments[CTProtocolAddAssetCommand.RoleIndex];
                         AssetRole role = AssetRole.None;
 
-                        if(rawRole == "image")
+                        switch(rawRole)
                         {
-                            role = AssetRole.Image;
-                        }
-                        else if(rawRole == "app-icon")
-                        {
-                            role = AssetRole.AppIcon;
-                        }
-                        else
-                        {
-                            result.AddMessages(
-                                new Message(MessageKind.Error, $"Unsupported asset role '{rawRole}'")
-                            );
+                            case "app-icon":{
+                                role = AssetRole.AppIcon;
+                            }
+                            break;
+
+                            case "font":{
+                                role = AssetRole.Font;
+                            }
+                            break;
+
+                            case "image":{
+                                role = AssetRole.Image;
+                            }
+                            break;
+
+                            default:{
+                                result.AddMessages(
+                                    new Message(MessageKind.Error, $"Unsupported asset role '{rawRole}'")
+                                );
+                            }
+                            break;
                         }
 
 
@@ -1103,63 +1113,83 @@ namespace Sempiler.Core
 
                             if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-                            foreach (var sf in parsedPaths.NewSourceFiles)
+                            if(role == AssetRole.AppIcon || role == AssetRole.Image)
                             {
-                                string name = Path.GetFileNameWithoutExtension(sf.GetPathString());
-                                string size = null;
-                                string scale = null;
-
-                                // [dho] NOTE does not support subpixels - 09/11/19
-                                var rx = new System.Text.RegularExpressions.Regex(@"(-[0-9]+x[0-9]+)?(@[0-9]+x)?$", System.Text.RegularExpressions.RegexOptions.Compiled);
-
-                                var matches = rx.Matches(name);
-
-                                if (matches.Count > 0)
+                                foreach (var sf in parsedPaths.NewSourceFiles)
                                 {
-                                    var match = matches[0];
-                                    var groups = match.Groups;
+                                    string name = Path.GetFileNameWithoutExtension(sf.GetPathString());
+                                    string size = null;
+                                    string scale = null;
 
-                                    var suffix = groups[0].Value;
-                                    name = name.Substring(0, name.Length - suffix.Length);
-                                    size = String.IsNullOrEmpty(groups[1].Value) ? null : groups[1].Value.Substring(1); // [dho] remove trailing '-' - 09/11/19
-                                    scale = String.IsNullOrEmpty(groups[2].Value) ? null : groups[2].Value.Substring(1); // [dho] remove trailing '@' - 09/11/19
-                                }
-if(name == "AppIcon")
-{
-    int i = 0;
-}
-                                var existingImgIndex = IndexOfImageAsset(ancillary.Assets, role, name);
+                                    // [dho] NOTE does not support subpixels - 09/11/19
+                                    var rx = new System.Text.RegularExpressions.Regex(@"(-[0-9]+x[0-9]+)?(@[0-9]+x)?$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
-                                if (existingImgIndex > -1)
-                                {
-                                    var imgAssetSet = (ImageAssetSet)ancillary.Assets[existingImgIndex];
+                                    var matches = rx.Matches(name);
 
-                                    imgAssetSet.Images.Add(new ImageAssetMember
+                                    if (matches.Count > 0)
                                     {
-                                        Size = size,
-                                        Scale = scale,
-                                        Source = sf
-                                    });
-                                }
-                                else
-                                {
-                                    var imgAssetSet = new ImageAssetSet
-                                    {
-                                        Name = name,
-                                        Role = role,
-                                        Images = new List<ImageAssetMember>()
-                                    };
+                                        var match = matches[0];
+                                        var groups = match.Groups;
 
-                                    imgAssetSet.Images.Add(new ImageAssetMember
-                                    {
-                                        Size = size,
-                                        Scale = scale,
-                                        Source = sf
-                                    });
+                                        var suffix = groups[0].Value;
+                                        name = name.Substring(0, name.Length - suffix.Length);
+                                        size = String.IsNullOrEmpty(groups[1].Value) ? null : groups[1].Value.Substring(1); // [dho] remove trailing '-' - 09/11/19
+                                        scale = String.IsNullOrEmpty(groups[2].Value) ? null : groups[2].Value.Substring(1); // [dho] remove trailing '@' - 09/11/19
+                                    }
 
-                                    ancillary.Assets.Add(imgAssetSet);
+                                    var existingImgIndex = IndexOfImageAsset(ancillary.Assets, role, name);
+
+                                    if (existingImgIndex > -1)
+                                    {
+                                        var imgAssetSet = (ImageAssetSet)ancillary.Assets[existingImgIndex];
+
+                                        imgAssetSet.Images.Add(new ImageAssetMember
+                                        {
+                                            Size = size,
+                                            Scale = scale,
+                                            Source = sf
+                                        });
+                                    }
+                                    else
+                                    {
+                                        var imgAssetSet = new ImageAssetSet
+                                        {
+                                            Name = name,
+                                            Role = role,
+                                            Images = new List<ImageAssetMember>()
+                                        };
+
+                                        imgAssetSet.Images.Add(new ImageAssetMember
+                                        {
+                                            Size = size,
+                                            Scale = scale,
+                                            Source = sf
+                                        });
+
+                                        ancillary.Assets.Add(imgAssetSet);
+                                    }
                                 }
                             }
+                            else if(role == AssetRole.Font)
+                            {
+                                foreach (var sf in parsedPaths.NewSourceFiles)
+                                {
+                                    string name = Path.GetFileNameWithoutExtension(sf.GetPathString());
+                                  
+                                    var fontAsset = new FontAsset
+                                    {
+                                        Name = name,
+                                        Source = sf
+                                    };
+
+                                    ancillary.Assets.Add(fontAsset);                                
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.Assert(false, $"Unhandled asset role '{role}'");
+                            }
+
                         }
                     }
                     break;
@@ -1272,6 +1302,36 @@ if(name == "AppIcon")
                         }
                     }
                     break;
+
+                case CTProtocolCommandKind.SetDisplayName:{
+
+                    var displayName = command.Arguments[CTProtocolSetDisplayNameCommand.NameIndex];
+
+                    // [dho] TODO validate valid name, lower case letters, no spaces - 16/11/19
+                    
+                    ancillary.Name = displayName;
+                }
+                break;
+
+                case CTProtocolCommandKind.SetTeamName:{
+
+                    var teamName = command.Arguments[CTProtocolSetTeamNameCommand.NameIndex];
+
+                    // [dho] TODO validate valid name, lower case letters, no spaces - 16/11/19
+
+                    artifact.TeamName = teamName;
+                }
+                break;
+
+                case CTProtocolCommandKind.SetVersion:{
+
+                    var version = command.Arguments[CTProtocolSetVersionCommand.VersionIndex];
+
+                    // [dho] TODO validate valid version - 16/11/19
+
+                    ancillary.Version = version;
+                }
+                break;
 
                 case CTProtocolCommandKind.ReplaceNodeByCodeConstant:
                     {

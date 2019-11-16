@@ -16,7 +16,7 @@ namespace Sempiler
 
 
    
-    public struct Ancillary
+    public class Ancillary
     {
         public readonly AncillaryRole Role;
        
@@ -24,7 +24,9 @@ namespace Sempiler
         {
             Role = role;
             AST = ast;
-            
+            Name = role.ToString().ToLower();
+            Version = "0.0.1";
+            Orientation = Orientation.Unspecified;
             Capabilities = new List<Capability>();
             Dependencies = new List<Dependency>();
             Entitlements = new List<Entitlement>();
@@ -34,19 +36,24 @@ namespace Sempiler
             BridgeIntents = new List<Directive>();
         }
 
-        public RawAST AST { get; set; }
+        public RawAST AST;
+        public string Name;
 
-        public List<Capability> Capabilities { get; set; }
-        public List<Dependency> Dependencies { get; set; }
+        public string Version;
+
+        public Orientation Orientation;
+
+        public List<Capability> Capabilities;
+        public List<Dependency> Dependencies;
         
-        public List<Entitlement> Entitlements { get; set; }
+        public List<Entitlement> Entitlements;
 
-        public List<Asset> Assets { get; set; }
+        public List<Asset> Assets;
 
-        public List<Permission> Permissions { get; set; }
+        public List<Permission> Permissions;
 
-        public List<ISource> Resources { get; set; }
+        public List<ISource> Resources;
 
-        public List<Directive> BridgeIntents { get; set; }
+        public List<Directive> BridgeIntents;
     }
 }

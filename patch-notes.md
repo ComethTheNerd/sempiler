@@ -1,10 +1,19 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 16/11/19
+- iOS Bundler now supports setting team name (front end API `setTeamName(...)`)
+- iOS Bundler now supports setting display name (front end API `setDisplayName(...)`)
+- iOS Bundler now supports setting version (front end API `setVersion(...)`)
+- Backend support for setting orientation flags (no frontend API yet)
+- iOS Bundler now supports setting orientation
+- Support for adding `"font"` asset role for adding font resources
+- iOS Bundler now bundles font assets
+
 # 🗓 09/11/19
-- Frontend `addAsset(..)` CT exec support for adding image and app icon assets to a build, implementing in `IOSBundler` backend
+- Frontend `addAsset(..)` CT exec support for adding image and app icon assets to a build, implementing in iOS Bundler backend
 
 # 🗓 07/11/19
-- `IOSBundler` supports _magic_ attribute `matchParent` on `ViewDeclarations` which performs the necessary heavy-lifting wrapping view constructions with `GeometryReader` logic to fill the available space in the parent
+- iOS Bundler supports _magic_ attribute `matchParent` on `ViewDeclarations` which performs the necessary heavy-lifting wrapping view constructions with `GeometryReader` logic to fill the available space in the parent
 
 # 🗓 06/11/19
 - Added SwiftUI definitions for `ForEach` and `LinearGradient`
@@ -40,16 +49,16 @@
 - Resources are now per Ancillary, rather than per Artifact, to allow for Ancillaries to use their own distinct resources without clashes
 
 # 🗓 19/10/19
-- Fixed bugs in `IOSBundler` around share extension generation
+- Fixed bugs in iOS Bundler around share extension generation
 
 # 🗓 18/10/19
 - Added AST `DeepRegister(...)` helper function that registers all nodes from a source subtree in a destination subtree, for quick _copying_ of arbitrarily deep subtrees
-- `IOSBundler` no longer generates `AppDelegate` and `SceneDelegate` automatically
-- `IOSBundler` no longer inlines all components into single output file, due to constraints of this abstraction when generating arbitrarily complex source programs in a way that stays true to the source. Components are emitted to separate files and shared between multiple ancillary schemes in the manifest
-- `IOSBundler` now omits empty components from the emitted artifact bundle for more compact output
+- iOS Bundler no longer generates `AppDelegate` and `SceneDelegate` automatically
+- iOS Bundler no longer inlines all components into single output file, due to constraints of this abstraction when generating arbitrarily complex source programs in a way that stays true to the source. Components are emitted to separate files and shared between multiple ancillary schemes in the manifest
+- iOS Bundler now omits empty components from the emitted artifact bundle for more compact output
 
 # 🗓 17/10/19
-- Fixed `IOSBundler` so it now produces a valid `.xcodeproj` with schemes and Podfile for main app and share extension
+- Fixed iOS Bundler so it now produces a valid `.xcodeproj` with schemes and Podfile for main app and share extension
 - Added compile time API support for Ancillary creation with `addAncillary(role, entrypointSource)`
 - Cleaned up naming convention for AST manipulation API
 
@@ -112,7 +121,7 @@
 - Added support for `addCapability(name : string, value : string | string[])` compile time API function
 - Added support for `isTargetLanguage(name : string) : bool` compile time API function
 - Added support for `isTargetPlatform(name : string) : bool` compile time API function
-- `IOSBundler` now allows for entrypoint function to access launch options, eg. `export default function main(launchOptions : { [key : UIApplication.LaunchOptionsKey] : Any }){...}`
+- iOS Bundler now allows for entrypoint function to access launch options, eg. `export default function main(launchOptions : { [key : UIApplication.LaunchOptionsKey] : Any }){...}`
 - Fixed `NullPointerException` when `addRawSources(...)` did not match any file paths
 
 # 🗓 28/09/19

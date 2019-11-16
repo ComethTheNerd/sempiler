@@ -182,6 +182,9 @@ The compiler API is barebones at present, but allows for the following:
 - `addSources(...relativePaths : string[])` add files that will be parsed/transformed and added to the artifact
 - `addAncillary(role : AncillaryRole, entrypointSource : string)` add ancillary (eg share extension) to the Artifact
 - `addAsset(role : AssetRole, sourcePath : string)` add asset (eg image) to the Ancillary
+- `setDisplayName(name : string) : void` to set the display name of the generated artifact
+- `setTeamName(name : string) : void` to set the team name of the generated artifact
+- `setVersion(version : string) : void` to set the version of the generated artifact
 - `isTargetPlatform(name : string) : bool` to check whether the artifact being generated is for the given target platform
 - `isTargetLanguage(name : string) : bool` to check whether the artifact being generated is for the given target language
 

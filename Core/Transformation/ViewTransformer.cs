@@ -33,7 +33,7 @@ namespace Sempiler.Transformation
 
             var root = ASTHelpers.GetRoot(/* clonedAST */ ast);
 
-            result.AddMessages(TransformNode(session, root, context, token));
+            result.AddMessages(TransformNode(session, artifact, root, context, token));
 
             // if (!HasErrors(result))
             // {
@@ -45,7 +45,7 @@ namespace Sempiler.Transformation
             return Task.FromResult(result);
         }
 
-        protected Result<object> TransformNode(Session session, Node start, Context context, CancellationToken token)
+        protected Result<object> TransformNode(Session session, Artifact artifact, Node start, Context context, CancellationToken token)
         {
             var result = new Result<object>() { };
 
@@ -84,14 +84,14 @@ namespace Sempiler.Transformation
             foreach (var viewConstruction in viewConstructions)
             {
                 result.AddMessages(
-                    TransformViewConstruction(session, ast, viewConstruction, childContext, token)
+                    TransformViewConstruction(session, artifact, ast, viewConstruction, childContext, token)
                 );
             }
 
             foreach (var viewDecl in viewDeclarations)
             {
                 result.AddMessages(
-                    TransformViewDeclaration(session, ast, viewDecl, childContext, token)
+                    TransformViewDeclaration(session, artifact, ast, viewDecl, childContext, token)
                 );
             }
 
@@ -99,7 +99,7 @@ namespace Sempiler.Transformation
             return result;
         }
    
-        protected abstract Result<object> TransformViewDeclaration(Session session, RawAST ast, ViewDeclaration node, Context context, CancellationToken token);
-        protected abstract Result<object> TransformViewConstruction(Session session, RawAST ast, ViewConstruction node, Context context, CancellationToken token);
+        protected abstract Result<object> TransformViewDeclaration(Session session, Artifact artifact, RawAST ast, ViewDeclaration node, Context context, CancellationToken token);
+        protected abstract Result<object> TransformViewConstruction(Session session, Artifact artifact, RawAST ast, ViewConstruction node, Context context, CancellationToken token);
     }
 }
