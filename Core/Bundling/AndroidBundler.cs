@@ -11,7 +11,7 @@ using Sempiler.Languages;
 using Sempiler.Core;
 using Sempiler.Inlining;
 
-namespace Sempiler.Bundler
+namespace Sempiler.Bundling
 {
     using static BundlerHelpers;
 
@@ -21,7 +21,7 @@ namespace Sempiler.Bundler
 
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{};
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -37,12 +37,13 @@ namespace Sempiler.Bundler
             }
 
             // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
-            var ast = ancillaries[0].AST;
+            var shard = shards[0];
+            var ast = shard.AST;
 
-
+            var packageIdentifier = PackageIdentifier(artifact);
             var appDirRelPath = $"./app/";
             var srcMainDirRelPath = $"{appDirRelPath}src/main/";
-            var packageMainDirRelPath = $"{srcMainDirRelPath}java/{EmittedPackageName.Replace('.', '/')}/";
+            var packageMainDirRelPath = $"{srcMainDirRelPath}java/{packageIdentifier.Replace('.', '/')}/";
 
             OutFileCollection ofc = new OutFileCollection();
 
@@ -60,7 +61,7 @@ namespace Sempiler.Bundler
 
                     emitter = new JavaEmitter();
 
-                    var emittedFiles = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ast, token));
+                    var emittedFiles = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, shard, ast, token));
 
                     foreach (var emittedFile in emittedFiles)
                     {
@@ -104,7 +105,7 @@ namespace Sempiler.Bundler
 // [dho] NOTE ensure no whitespace at start of file or it will be considered invalid - 31/05/19
 $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <manifest xmlns:android=""http://schemas.android.com/apk/res/android""
-    package=""{EmittedPackageName}"">
+    package=""{packageIdentifier}"">
 
     <application
         android:name="".{artifact.Name}""
@@ -130,7 +131,7 @@ $@"apply plugin: 'com.android.application'
 android {{
     compileSdkVersion 28
     defaultConfig {{
-        applicationId ""{EmittedPackageName}""
+        applicationId ""{packageIdentifier}""
         minSdkVersion 15
         targetSdkVersion 28
         versionCode 1
@@ -486,8 +487,9 @@ if ""%OS%""==""Windows_NT"" endlocal
 
             var component = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Bundling), artifact.Name);
 
-            // [dho] TODO CLEANUP HACK use proper namespacing for this and make it dynamic! - 01/06/19
-            var packageHack = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"package {EmittedPackageName};");
+            var packageIdentifier = PackageIdentifier(artifact);
+
+            var packageDecl = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), $"package {packageIdentifier};");
 
             var importDecls = new List<Node>();
 
@@ -535,7 +537,7 @@ public void onCreate() {
                     var componentIDsToRemove = new List<string>();
                     var inlinedObjectTypeDecls = new List<Node>();
 
-                    foreach (var (child, hasNext) in ASTNodeHelpers.IterateChildren(ast, domain.ID))
+                    foreach (var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, domain.ID))
                     {
                         System.Diagnostics.Debug.Assert(child.Kind == SemanticKind.Component);
 
@@ -568,7 +570,7 @@ public void onCreate() {
                     ASTHelpers.Connect(ast, applicationClass.ID, inlinedObjectTypeDecls.ToArray(), SemanticRole.Member);
 
                     // [dho] remove the components from the tree because now they have all been inlined - 01/06/19
-                    ASTHelpers.RemoveNodes(ast, componentIDsToRemove.ToArray());
+                    ASTHelpers.DisableNodes(ast, componentIDsToRemove.ToArray());
                 }
             }
 
@@ -640,7 +642,7 @@ public void onCreate() {
             // }
 
             // [dho] TODO CLEANUP HACK - 01/06/19
-            ASTHelpers.Connect(ast, component.ID, new[] { packageHack.Node }, SemanticRole.None);
+            ASTHelpers.Connect(ast, component.ID, new[] { packageDecl.Node }, SemanticRole.None);
 
             // [dho] combine the imports - 01/06/19
             {
@@ -857,7 +859,7 @@ final com.facebook.litho.ComponentContext context = new com.facebook.litho.Compo
 
 
                         // [dho] TODO CLEANUP HACK to get function body!! - 01/06/19
-                        var userCode = ASTHelpers.GetSingleMatch(ast, inlinerInfo.EntrypointUserCode.ID, SemanticRole.Body);
+                        var userCode = ASTHelpers.GetSingleLiveMatch(ast, inlinerInfo.EntrypointUserCode.ID, SemanticRole.Body);
 
                         foreach (var explicitExit in LanguageSemantics.Java.GetExplicitExits(session, ast, userCode, token))
                         {
@@ -999,7 +1001,7 @@ final com.facebook.litho.ComponentContext context = new com.facebook.litho.Compo
 
                         // [dho] remove original entrypoint construct now we have extracted what
                         // we need from it and transformed the intent - 23/06/19
-                        ASTHelpers.RemoveNodes(ast, new[] { inlinerInfo.Entrypoint.ID });
+                        ASTHelpers.DisableNodes(ast, new[] { inlinerInfo.Entrypoint.ID });
 
 
 
@@ -1096,7 +1098,7 @@ final com.facebook.litho.ComponentContext context = new com.facebook.litho.Compo
 
                             switch (symbol)
                             {
-                                case SempilerPackageSymbols.View:
+                                case CompilerPackageSymbols.View:
                                     {
                                         foreach (var reference in references)
                                         {
@@ -1125,7 +1127,7 @@ final com.facebook.litho.ComponentContext context = new com.facebook.litho.Compo
                         // [dho] remove the "sempiler" import because it is a _fake_
                         // import we just use to be sure that the symbols the user refers
                         // to are for sempiler, and not something in global scope for a particular target platform - 24/06/19 (ported : 22/09/19)
-                        ASTHelpers.RemoveNodes(ast, new[] { im.ImportDeclaration.ID });
+                        ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
                     }
 
                     foreach (var im in importsSortedByType.ComponentImports)
@@ -1137,7 +1139,7 @@ final com.facebook.litho.ComponentContext context = new com.facebook.litho.Compo
                         );
 
                         // [dho] remove the import because all components are inlined into the same output file - 24/06/19
-                        ASTHelpers.RemoveNodes(ast, new[] { im.ImportDeclaration.ID });
+                        ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
                     }
 
                     foreach (var im in importsSortedByType.PlatformImports)

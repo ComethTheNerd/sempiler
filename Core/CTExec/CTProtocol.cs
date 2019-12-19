@@ -1,6 +1,6 @@
 using Sempiler.AST;
 
-namespace Sempiler.Core.Directives
+namespace Sempiler.CTExec
 {
     public enum CTProtocolCommandKind
     {
@@ -16,15 +16,28 @@ namespace Sempiler.Core.Directives
         ReplaceNodeByCodeConstant,
         InsertImmediateSiblingAndDeleteNode,
 
+        AddArtifact,
         AddCapability,
         AddDependency,
         AddEntitlement,
         AddPermission,
+        AddAsset,
         AddSources,
         AddRes,
         AddRawSources,
-        AddAncillary,
-        IllegalBridgeDirectiveNode
+        AddShard,
+
+        IsArtifactName,
+        IsTargetPlatform,
+        IsTargetLanguage,
+
+        SetDisplayName,
+        SetTeamName,
+        SetVersion,
+
+        IllegalBridgeDirectiveNode,
+
+        Terminate
 
         // [dho] Propagate an error that originated in user code - 13/04/19
         // PropagateUserCodeError,
@@ -73,11 +86,21 @@ namespace Sempiler.Core.Directives
     public struct CTProtocolCommand 
     {
         public string ArtifactName;
-        public int AncillaryIndex;
+        public int ShardIndex;
+        public string NodeID;
         public string MessageID;
         public CTProtocolCommandKind Kind;
         public string[] Arguments;
         
+    }
+
+    public static class CTProtocolTerminateCommand
+    {
+        public const int StatusCodeIndex = 0;
+        public const int MessageIndex = 1;
+        public const int FilePathIndex = 2;
+        public const int LineNumberStartIndex = 3;
+        public const int ColumnIndexStartIndex = 4;
     }
 
     public static class CTProtocolDeleteNodeCommand
@@ -125,7 +148,24 @@ namespace Sempiler.Core.Directives
         public const int DescriptionIndex = 1;
     }
 
-    public static class CTProtocolAddAncillaryCommand
+    public static class CTProtocolAddAssetCommand
+    {
+        public const int BaseDirPathIndex = 0;
+        public const int RoleIndex = 1;
+        public const int SourcePathIndex = 2;
+    }
+
+    public static class CTProtocolAddArtifactCommand
+    {
+        public const int BaseDirPathIndex = 0;
+        public const int NameIndex = 1;
+        public const int LanguageNameIndex = 2;
+        public const int PlatformNameIndex = 3;
+        public const int SourcePathIndex = 4;
+    }
+
+
+    public static class CTProtocolAddShardCommand
     {
         public const int BaseDirPathIndex = 0;
         public const int RoleIndex = 1;
@@ -146,6 +186,36 @@ namespace Sempiler.Core.Directives
     public static class CTProtocolAddRawSourcesCommand
     {
         public const int BaseDirPathIndex = 0;
+    }
+
+    public static class CTProtocolIsArtifactNameCommand
+    {
+        public const int ArtifactNameIndex = 0;
+    }
+
+    public static class CTProtocolIsTargetPlatformCommand
+    {
+        public const int PlatformNameIndex = 0;
+    }
+
+    public static class CTProtocolIsTargetLanguageCommand
+    {
+        public const int LanguageNameIndex = 0;
+    }
+
+    public static class CTProtocolSetDisplayNameCommand
+    {
+        public const int NameIndex = 0;
+    }
+
+    public static class CTProtocolSetTeamNameCommand
+    {
+        public const int NameIndex = 0;
+    }
+
+    public static class CTProtocolSetVersionCommand
+    {
+        public const int VersionIndex = 0;
     }
 
     public static class CTInsertImmediateSiblingFromValueAndDeleteNodeCommand 
@@ -190,11 +260,12 @@ namespace Sempiler.Core.Directives
                 
                 var preambleParts = preamble.Split(new string[] { ArgumentDelimiter }, System.StringSplitOptions.None);
 
-                if(preambleParts.Length == 3)
+                if(preambleParts.Length == 4)
                 {
                     var artifactName = preambleParts[0];
-                    var ancillaryIndex = System.Int32.Parse(preambleParts[1]);
-                    var messageID = preambleParts[2];
+                    var shardIndex = System.Int32.Parse(preambleParts[1]);
+                    var nodeID = preambleParts[2];
+                    var messageID = preambleParts[3];
 
                     var parenIndex = message.IndexOf("(");
 
@@ -215,7 +286,8 @@ namespace Sempiler.Core.Directives
                             return new CTProtocolCommand
                             {
                                 ArtifactName = artifactName,
-                                AncillaryIndex = ancillaryIndex,
+                                ShardIndex = shardIndex,
+                                NodeID = nodeID,
                                 MessageID = messageID,
                                 Kind = kind,
                                 Arguments = arguments

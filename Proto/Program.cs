@@ -13,8 +13,15 @@ namespace Proto
         const string PortSwitch = "--p";
         const int DefaultPort = 8189;
 
+        const string InfoIcon = "📘";
+        const string SuccessIcon = "📗";
+        const string ErrorIcon = "📕";
+        const string WarningIcon = "📙";
+
         static int Main(string[] args)
         {
+            var timer = Sempiler.CompilerHelpers.StartTimer("SESSION");
+
             var result = new Result<object>();
 
             try
@@ -26,7 +33,7 @@ namespace Proto
                 {
                     var arg = args[i];
 
-                    if(arg == "--p")
+                    if(arg == PortSwitch)
                     {
                         try
                         {
@@ -55,6 +62,8 @@ namespace Proto
                 result.AddMessages(DiagnosticsHelpers.CreateErrorFromException(e));
             }
 
+            Sempiler.CompilerHelpers.StopTimer(timer);
+
             if(result.Messages != null)
             {
                 var infos = result.Messages.Infos;
@@ -63,7 +72,7 @@ namespace Proto
                 {
                     foreach(var m in infos)
                     {
-                        PrintMessage(m);
+                        PrintMessage(InfoIcon, m);
                     }
                 }
 
@@ -73,7 +82,7 @@ namespace Proto
                 {
                     foreach(var m in warnings)
                     {
-                        PrintMessage(m);
+                        PrintMessage(WarningIcon, m);
                     }
                 }
 
@@ -83,12 +92,24 @@ namespace Proto
                 {
                     foreach(var m in errors)
                     {
-                        PrintMessage(m);
+                        PrintMessage(ErrorIcon, m);
                     }
                 }
             }
 
+            var infoCount = 0;
+            var warningCount = 0;
             var errorCount = 0;
+            
+            if(result.Messages?.Infos != null)
+            {
+                infoCount = result.Messages.Infos.Count;
+            }
+
+            if(result.Messages?.Warnings != null)
+            {
+                warningCount = result.Messages.Warnings.Count;
+            }
 
             var exitCode = 0;
 
@@ -98,18 +119,27 @@ namespace Proto
                 exitCode = 1;
             }
 
-            Console.WriteLine($"\n***** FINISHED WITH {errorCount} ERROR(S) *****");
-            
+            var statusIcon = errorCount == 0 ? SuccessIcon : ErrorIcon;
+            var statusMessage = errorCount == 0 ? "SUCCESS!" : "FAILED!";
+
+            Console.WriteLine($"\n{InfoIcon} {infoCount} INFO(S)");
+            Console.WriteLine($"{WarningIcon} {warningCount} WARNING(S)");
+            Console.WriteLine($"{ErrorIcon} {errorCount} ERROR(S)\n");
+
+            Console.WriteLine($"{statusIcon} {statusMessage}");
+
+            Sempiler.CompilerHelpers.PrintElapsed(timer);
+
             return exitCode;
         }
 
 
-        private static void PrintMessage(Message m)
+        private static void PrintMessage(string icon, Message m)
         {
             FileMarker hint = null;
             SourceNodeOrigin origin = null;
 
-            MessageKind kind = m.Kind;
+            string kind = icon + " " + m.Kind.ToString().ToUpper();
             string tags = "",
                     filePath = "<unknown>", 
                     lineNumber = "-1", 

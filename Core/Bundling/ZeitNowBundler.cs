@@ -10,7 +10,7 @@ using Sempiler.Emission;
 using Sempiler.Languages;
 using Sempiler.Inlining;
 
-namespace Sempiler.Bundler
+namespace Sempiler.Bundling
 {
     using static BundlerHelpers;
 
@@ -23,7 +23,7 @@ namespace Sempiler.Bundler
 
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ "node_modules" };
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -38,7 +38,7 @@ namespace Sempiler.Bundler
             }
 
             // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
-            var ancillary = ancillaries[0];
+            var shard = shards[0];
 
 
             var routeInfos = default(List<ServerInlining.ServerRouteInfo>);
@@ -51,13 +51,13 @@ namespace Sempiler.Bundler
 
                 if (artifact.TargetLang == ArtifactTargetLang.TypeScript)
                 {
-                    routeInfos = result.AddMessages(TypeScriptInlining(session, artifact, ancillary.AST, token));
+                    routeInfos = result.AddMessages(TypeScriptInlining(session, artifact, shard.AST, token));
 
                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
                     emitter = new TypeScriptEmitter();
 
-                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ancillary.AST, token));
+                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, shard, shard.AST, token));
                 }
                 // [dho] TODO JavaScript! - 01/06/19
                 else
@@ -167,7 +167,7 @@ $@"{{
                 var importDecls = new List<Node>();
                 var routeInfos = new List<ServerInlining.ServerRouteInfo>();
 
-                foreach(var (child, hasNext) in ASTNodeHelpers.IterateChildren(ast, domain.ID))
+                foreach(var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, domain.ID))
                 {
                     System.Diagnostics.Debug.Assert(child.Kind == SemanticKind.Component);
 
@@ -184,7 +184,7 @@ $@"{{
                 }
 
                 // [dho] remove the components from the tree because now they have all been inlined - 01/06/19
-                ASTHelpers.RemoveNodes(ast, componentIDsToRemove.ToArray());
+                ASTHelpers.DisableNodes(ast, componentIDsToRemove.ToArray());
 
                 // [dho] combine the imports - 01/06/19
                 ASTHelpers.Connect(ast, component.ID, importDecls.ToArray(), SemanticRole.None);

@@ -88,18 +88,24 @@ namespace Sempiler.Core
 
         private void OnSocketError(Exception e, Socket handler)
         {
+            Kill(handler);
+
+            serverResult.AddMessages(
+                DiagnosticsHelpers.CreateErrorFromException(e)
+            );
+
+            // Stop();
+        }
+
+        public void Kill(Socket handler)
+        {
+            // Console.WriteLine("KILLING SOCKET");
             try
             {
                 handler.Shutdown(SocketShutdown.Both);  
                 handler.Close();    
             }
             catch{}
-
-            serverResult.AddMessages(
-                DiagnosticsHelpers.CreateErrorFromException(e)
-            );
-
-            Stop();
         }
 
         public Task<Result<object>> StartAcceptingRequests(CancellationToken token) {  
@@ -213,32 +219,34 @@ namespace Sempiler.Core
 
                     // All the data has been read from the   
                     // client. Display it on the console.  
-                    Console.WriteLine("Read {0} bytes from socket.\nMessage : {1}\n", content.Length, message);  
+                    // Console.WriteLine("Read {0} bytes from socket.\nMessage : {1}\n", content.Length, message);  
                     
                     OnMessage(handler, message);  
 
                     // [dho] reset for the next message - 20/04/19
                     state.sb = new StringBuilder();
                 } 
-                // else 
-                // {  
+                else 
+                {  
                     // Not all data received. Get more.  
                     handler.BeginReceive(state.buffer, 0, SocketRequestState.BufferSize, 0,  
                     new AsyncCallback(ReadCallback), state);  
-                // }  
+                }  
             }  
         }  
 
         public void Send(Socket handler, String message = null) {
-            message = message ?? "ACK";  
-            Console.WriteLine("Sending Message : {0}", message);
+            message = message ?? string.Empty;  
+            // Console.WriteLine("Sending Message : {0}", message);
 
             // Convert the string data to byte data using ASCII encoding.  
             byte[] byteData = Encoding.ASCII.GetBytes(message + MessageSentinel);  
 
+        
             // Begin sending the data to the remote device.  
             handler.BeginSend(byteData, 0, byteData.Length, 0,  
                 new AsyncCallback(SendCallback), handler);  
+        
         }  
     
         private void SendCallback(IAsyncResult ar) {  
@@ -249,7 +257,7 @@ namespace Sempiler.Core
                 // Complete sending the data to the remote device.  
                 int bytesSent = handler.EndSend(ar);  
 
-                Console.WriteLine("Sent {0} bytes to client.", bytesSent); 
+                // Console.WriteLine("Sent {0} bytes to client.", bytesSent); 
             } 
             catch (Exception e) 
             {  

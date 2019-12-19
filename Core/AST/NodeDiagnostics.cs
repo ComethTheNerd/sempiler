@@ -80,7 +80,7 @@ namespace Sempiler.AST.Diagnostics
         {
             var result = new Result<object>();
 
-            result.AddMessages(new NodeMessage(MessageKind.Error, $"The use of {featureName} is not currently supported", node)
+            result.AddMessages(new NodeMessage(MessageKind.Error, $"The use of {featureName} is not currently supported ({node.ID})", node)
             {
                 Hint = GetHint(node.Origin),
                 // Tags = DiagnosticTags

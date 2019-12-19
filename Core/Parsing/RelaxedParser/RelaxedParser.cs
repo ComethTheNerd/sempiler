@@ -797,7 +797,7 @@ namespace Sempiler.Parsing
         //     }
         // }
 
-        private Result<Node> ParseDirective(Token token, Lexer lexer, Context context, CancellationToken ct)
+        private Result<Node> ParseDirective(Token token, Lexer lexer, Context context, CancellationToken cancellationToken)
         {
             var result = new Result<Node>();
 
@@ -812,19 +812,23 @@ namespace Sempiler.Parsing
 
             // [dho] `#run ...` 
             //             ^^^      - 17/04/19
-            token = result.AddMessages(NextToken(lexer, context, ct));
+            token = result.AddMessages(NextToken(lexer, context, cancellationToken));
             
             var expContext = ContextHelpers.Clone(context);
             expContext.Flags &= ~ContextFlags.DisallowInContext;
 
+            bool isCTExec = false;
+
             var operand = default(Node);
 
-            if(name == Sempiler.Core.Directives.CTDirective.CodeGen)
+            if(name == Sempiler.CTExec.CTDirective.CodeGen)
             {
+                isCTExec = true;
+
                 if(token.Kind == SyntaxKind.NoSubstitutionTemplateLiteral)
                 {
                     var members = result.AddMessages(
-                        ParseNoSubstitutionTemplateLiteral(token, lexer, context, ct)
+                        ParseNoSubstitutionTemplateLiteral(token, lexer, context, cancellationToken)
                     );
 
                     var interp = NodeFactory.InterpolatedString(
@@ -834,15 +838,15 @@ namespace Sempiler.Parsing
 
                     result.AddMessages(AddOutgoingEdges(interp, members, SemanticRole.Member));
                     
-                    operand = result.AddMessages(FinishNode(interp, lexer, context, ct));
+                    operand = result.AddMessages(FinishNode(interp, lexer, context, cancellationToken));
                 }
                 else if(token.Kind == SyntaxKind.TemplateHead)
                 {
-                    operand = result.AddMessages(ParseTemplateHead(token, lexer, expContext, ct));
+                    operand = result.AddMessages(ParseTemplateHead(token, lexer, expContext, cancellationToken));
                 }
                 else
                 {
-                    result.AddMessages(new Message(MessageKind.Error, $"Unexpected operand for '{Sempiler.Core.Directives.CTDirective.CodeGen}' directive")
+                    result.AddMessages(new Message(MessageKind.Error, $"Unexpected operand for '{Sempiler.CTExec.CTDirective.CodeGen}' directive")
                     {
                         Hint = GetHint(token, lexer, context),
                         Tags = DiagnosticTags
@@ -851,17 +855,30 @@ namespace Sempiler.Parsing
             }
             else
             {
-                operand = result.AddMessages(ParseStatement(token, lexer, expContext, ct));
+                isCTExec = name == Sempiler.CTExec.CTDirective.CodeExec;
+
+                operand = result.AddMessages(ParseStatement(token, lexer, expContext, cancellationToken));
             }
 
-            if(!HasErrors(result) && !ct.IsCancellationRequested)
+            if(!HasErrors(result) && !cancellationToken.IsCancellationRequested)
             {
                 var range = new Range(startPos, lexer.Pos);
 
                 Node directive = result.AddMessages(FinishNode(
                     NodeFactory.Directive(context.AST, CreateOrigin(range, lexer, context), name),
-                    lexer, context, ct)
+                    lexer, context, cancellationToken)
                 );
+
+                if(isCTExec)
+                {
+                    var meta = result.AddMessages(FinishNode(NodeFactory.Meta(
+                        context.AST,
+                        directive.Origin,
+                        MetaFlag.CTExec
+                    ), lexer, context, cancellationToken));
+
+                    result.AddMessages(AddOutgoingEdges(context.AST, directive, meta, SemanticRole.Meta));
+                }
 
                 result.AddMessages(AddOutgoingEdges(context.AST, directive, operand, SemanticRole.Operand));
 
@@ -1482,11 +1499,33 @@ namespace Sempiler.Parsing
 
         private Result<Node> ParseArgumentExpression(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
+            var result = new Result<Node>();
+            var startPos = token.StartPos;
             var expContext = ContextHelpers.Clone(context);
 
             expContext.Flags &= ~(ContextFlags.DisallowInContext | ContextFlags.DecoratorContext);
 
-            return ParseArgumentOrArrayLiteralElement(token, lexer, expContext, ct);
+            var value = result.AddMessages(
+                ParseArgumentOrArrayLiteralElement(token, lexer, expContext, ct)
+            );
+
+            if(!HasErrors(result))
+            {
+                var range = new Range(startPos, lexer.Pos);
+
+                var invArgument = result.AddMessages(FinishNode(
+                    NodeFactory.InvocationArgument(
+                        context.AST,
+                        CreateOrigin(range, lexer, context)
+                    ), 
+                lexer, context, ct));
+
+                result.AddMessages(AddOutgoingEdges(context.AST, invArgument, value, SemanticRole.Value));
+
+                result.Value = invArgument;
+            }
+
+            return result;
         }
 
         private Result<Node> ParseMemberExpressionRest(Node expression, Lexer lexer, Context context, CancellationToken ct)
@@ -1496,6 +1535,8 @@ namespace Sempiler.Parsing
             var lookAhead = lexer.Clone();
 
             var token = result.AddMessages(NextToken(lookAhead, context, ct));
+
+
 
             while (true)
             {
@@ -2489,6 +2530,16 @@ namespace Sempiler.Parsing
                     result.AddMessages(AddOutgoingEdges(binExp, value, SemanticRole.Value));
                 }
                     break;
+
+                case SyntaxKind.QuestionQuestionToken: // x ?? y
+                    binExp = NodeFactory.NullCoalescence(
+                        context.AST,
+                        CreateOrigin(range, lexer, context)
+                    );
+
+                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Operand));
+                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Operand));
+                break;
 
                 case SyntaxKind.SlashToken: // x / y
                     binExp = NodeFactory.Division(
@@ -5380,7 +5431,7 @@ namespace Sempiler.Parsing
 
             if (!HasErrors(result))
             {
-                var hasName = ASTHelpers.GetSingleMatch(context.AST, decl.ID, SemanticRole.Name) != null;
+                var hasName = ASTHelpers.GetSingleLiveMatch(context.AST, decl.ID, SemanticRole.Name) != null;
 
                 if (hasName)
                 {
@@ -7099,6 +7150,8 @@ namespace Sempiler.Parsing
                         CreateOrigin(range, lexer, context)
                     );
 
+                    System.Diagnostics.Debug.Assert(specifier != null);
+
                     result.AddMessages(AddOutgoingEdges(import, specifier, SemanticRole.Specifier));
                     result.AddMessages(AddOutgoingEdges(import, clauses, SemanticRole.Clause));
                     result.AddMessages(AddOutgoingEdges(import, annotations, SemanticRole.Annotation));
@@ -7407,7 +7460,7 @@ namespace Sempiler.Parsing
 
             if (!HasErrors(result))
             {
-                var hasName = ASTHelpers.GetSingleMatch(context.AST, decl.ID, SemanticRole.Name) != null;
+                var hasName = ASTHelpers.GetSingleLiveMatch(context.AST, decl.ID, SemanticRole.Name) != null;
 
                 if (hasName)
                 {
@@ -11492,15 +11545,11 @@ namespace Sempiler.Parsing
 
             // [dho] let us see if we are dealing with a parenthesized lambda - 20/02/19
             {
-                var lookAhead = lexer.Clone();
-
                 // [dho] try to parse a lambda - 20/02/19
-                var r = ParseArrowFunctionExpression(token, lookAhead, context, ct);
-
+                var r = __TryParse(ParseArrowFunctionExpression, token, lexer, context, ct);
+                
                 if (!HasErrors(r))
                 {
-                    lexer.Pos = lookAhead.Pos;
-
                     return r;
                 }
             }
@@ -11614,6 +11663,51 @@ namespace Sempiler.Parsing
             );
 
             return result;
+        }
+
+
+        private Result<Node> __TryParse(ParseDelegate del, Token token, Lexer lexer, Context context, CancellationToken ct)
+        {
+            var tryLexer = lexer.Clone();
+            var tryContext = ContextHelpers.Clone(context);
+            var tryAST = tryContext.AST = new RawAST();
+            
+            var r = del(token, tryLexer, tryContext, ct);
+
+            if (!HasErrors(r))
+            {
+                lexer.Pos = tryLexer.Pos;
+
+                var newNode = r.Value;
+                
+                ASTHelpers.DeepRegister(tryAST, context.AST, new [] { newNode }, ct);
+
+                // var missing = false;
+                // foreach(var nx in tryAST.Nodes)
+                // {
+                //     if(!context.AST.Nodes.ContainsKey(nx.Key))
+                //     {
+                //         System.Console.Write("MISSING NODE  ");
+                //         ASTNodeHelpers.PrintNode(nx.Value);
+                //         missing = true;
+                      
+                //     }
+                // }
+
+                // if(missing)
+                // {
+                //     int i = 0;
+                // }
+            }
+            // else
+            // {
+            //     foreach(var n in tryAST.Nodes)
+            //     {
+            //         System.Console.WriteLine("BAD NODE " + n.Key);
+            //     }
+            // }
+            
+            return r;
         }
 
 
@@ -12195,6 +12289,11 @@ namespace Sempiler.Parsing
         {
             var typeContext = ContextHelpers.Clone(context);
             typeContext.Flags &= ~ContextFlags.TypeExcludesFlags;
+
+            if(token.Kind == SyntaxKind.Directive)
+            {
+                return ParseDirective(token, lexer, context, ct);
+            }
 
             if (IsStartOfFunctionType(token, lexer, typeContext, ct))
             {
@@ -14114,6 +14213,7 @@ namespace Sempiler.Parsing
         {
             switch (token.Kind)
             {
+                case SyntaxKind.QuestionQuestionToken: // [dho] TODO CHECK is this the right precendence?? guessing... - 21/11/19
                 case SyntaxKind.BarBarToken:
 
                     return 1;

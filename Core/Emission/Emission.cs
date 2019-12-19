@@ -16,6 +16,7 @@ namespace Sempiler.Emission
         public Session Session;
 
         public Artifact Artifact;
+        public Shard Shard;
         public RawAST AST;
 
         public Domain Domain;
@@ -45,19 +46,21 @@ namespace Sempiler.Emission
     public interface IEmitter 
     {
         // IEnumerable so it can support lazy collections and we can quit out early if needs be
-        Task<Diagnostics.Result<OutFileCollection>> Emit(Session session, Artifact artifact, RawAST ast, Node node, CancellationToken token);
+        Task<Diagnostics.Result<OutFileCollection>> Emit(Session session, Artifact artifact, Shard shard, RawAST ast, Node node, CancellationToken token);
     }
 
     public abstract class BaseEmitter : IEmitter
     {
         protected readonly string[] DiagnosticTags;
 
+        protected string FileExtension = string.Empty;
+
         protected BaseEmitter(string[] diagnosticTags = null)
         {
             DiagnosticTags = diagnosticTags;
         }
 
-        public virtual Task<Result<OutFileCollection>> Emit(Session session, Artifact artifact, RawAST ast, Node node, CancellationToken token)
+        public virtual Task<Result<OutFileCollection>> Emit(Session session, Artifact artifact, Shard shard, RawAST ast, Node node, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -66,6 +69,8 @@ namespace Sempiler.Emission
             var context = new Context 
             {
                 Session = session,
+                Artifact = artifact,
+                Shard = shard,
                 AST = ast,
                 OutFileCollection = outFileCollection
             };
@@ -805,7 +810,95 @@ namespace Sempiler.Emission
             return CreateUnsupportedFeatureResult(node);
         }
 
-        public abstract Result<object> EmitComponent(Component node, Context context, CancellationToken token);
+        public virtual Result<object> EmitComponent(Component node, Context context, CancellationToken token)
+        {
+            // [dho] TODO move to a helper for other emitters that will spit out 1 file per component, eg. Java etc - 21/09/18 (ported 24/04/19)
+            // [dho] TODO CLEANUP this is duplicated in CSEmitter (apart from FileEmission extension) - 21/09/18 (ported 24/04/19)
+            var result = new Result<object>();
+
+            // if (node.Origin.Kind != NodeOriginKind.Source)
+            // {
+            //     result.AddMessages(
+            //         new NodeMessage(MessageKind.Error, $"Could not write emission in artifact due to unsupported origin kind '{node.Origin.Kind}'", node)
+            //         {
+            //             Hint = GetHint(node.Origin),
+            //             Tags = DiagnosticTags
+            //         }
+            //     );
+
+            //     return result;
+            // }
+
+            // var sourceWithLocation = ((SourceNodeOrigin)node.Origin).Source as ISourceWithLocation<IFileLocation>;
+
+            // if (sourceWithLocation == null || sourceWithLocation.Location == null)
+            // {
+            //     result.AddMessages(
+            //         new NodeMessage(MessageKind.Error, $"Could not write emission in artifact because output location cannot be determined", node)
+            //         {
+            //             Hint = GetHint(node.Origin),
+            //             Tags = DiagnosticTags
+            //         }
+            //     );
+
+            //     return result;
+            // }
+
+            // [dho] our emissions will be stored in a file with the same relative path and name
+            // as the original source for this component, eg. hello/World.ts => hello/World.java - 26/04/19
+            var location = FileSystem.ParseFileLocation(
+                RelativeComponentOutFilePath(context.Session, context.Artifact, context.Shard, node)
+            );
+            
+            var file = context.OutFileCollection.Contains(location) ? (
+                (FileEmission)context.OutFileCollection[location]
+            ) : (
+                new FileEmission(location)
+            );
+
+            // if (context.OutFileCollection.Contains(file.Destination))
+            // {
+            //     result.AddMessages(
+            //         new NodeMessage(MessageKind.Error, $"Could not write emission in artifact at '{file.Destination.ToPathString()}' because location already exists", node)
+            //         {
+            //             Hint = GetHint(node.Origin),
+            //             Tags = DiagnosticTags
+            //         }
+            //     );
+            // }
+
+            var childContext = ContextHelpers.Clone(context);
+            childContext.Component = node;
+            // // childContext.Parent = node;
+            childContext.Emission = file; // [dho] this is where children of this component should write to - 29/08/18
+
+            foreach (var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(context.AST, node))
+            {
+                result.AddMessages(
+                    EmitNode(child, childContext, token)
+                );
+
+                if(RequiresSemicolonSentinel(child))
+                {
+                    childContext.Emission.Append(child, ";");
+                }
+
+                childContext.Emission.AppendBelow(node, "");
+
+                if (token.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+
+            if (!Diagnostics.DiagnosticsHelpers.HasErrors(result))
+            {
+                context.OutFileCollection[file.Destination] = file;
+            }
+
+            return result;
+        
+        }
 
         public virtual Result<object> EmitConcatenation(Concatenation node, Context context, CancellationToken token)
         {
@@ -925,7 +1018,7 @@ namespace Sempiler.Emission
             childContext.Domain = node;
             // // childContext.Parent = node;
 
-            foreach(var (child, hasNext) in ASTNodeHelpers.IterateChildren(node.AST, node.ID))
+            foreach(var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(node.AST, node.ID))
             {
                 result.AddMessages(
                     EmitNode(child, childContext, token).Messages
@@ -1605,6 +1698,9 @@ namespace Sempiler.Emission
         {
             var result = new Result<object>();
 
+            // [dho] filter out any flags that have no bearing on emission - 29/11/19
+            flags &= MetaFlag.EmittedFlagsMask;
+
             if(flags != 0x0)
             {
                 foreach(MetaFlag f in System.Enum.GetValues(typeof(MetaFlag)))
@@ -1624,5 +1720,12 @@ namespace Sempiler.Emission
 
             return result;
         }
+
+        public virtual string RelativeComponentOutFilePath(Session session, Artifact artifact, Shard shard, Component node)
+        {
+            return node.Name.Replace(session.BaseDirectory.ToPathString(), "").Substring(1) + FileExtension;
+        }
+
+        protected virtual bool RequiresSemicolonSentinel(Node node) => false;
     }
 }

@@ -15,6 +15,7 @@ namespace Sempiler.Emission
     {
         public SwiftEmitter() : base(new string[]{ "swift", PhaseKind.Emission.ToString("g").ToLower() })
         {
+            FileExtension = ".swift";
         }
 
         const MetaFlag AccessorDeclarationFlags = TypeDeclarationMemberFlags;// | /* MetaFlag.Generator | MetaFlag.Asynchronous |*/ MetaFlag.Optional;
@@ -353,65 +354,6 @@ namespace Sempiler.Emission
         public override Result<object> EmitCompilerHint(CompilerHint node, Context context, CancellationToken token)
         {
             return CreateUnsupportedFeatureResult(node);
-        }
-
-        // [dho] TODO move to a helper for other emitters that will spit out 1 file per component, eg. Java etc - 21/09/18 (ported 24/04/19)
-        // [dho] TODO CLEANUP this is duplicated in CSEmitter (apart from FileEmission extension) - 21/09/18 (ported 24/04/19)
-        public override Result<object> EmitComponent(Component node, Context context, CancellationToken token)
-        {
-            var result = new Result<object>();
-
-            var location = node.Name;//sourceWithLocation.Location;
-
-            var relParentDirPath = node.Name.Replace(context.Session.BaseDirectory.ToPathString(), "");
-
-            // [dho] our emissions will be stored in a file with the same relative path and name
-            // as the original source for this component, eg. hello/World.ts => hello/World.java - 26/04/19
-            var file = new FileEmission(
-                FileSystem.ParseFileLocation($"{relParentDirPath}.swift")
-            );
-
-            if (context.OutFileCollection.Contains(file.Destination))
-            {
-                result.AddMessages(
-                    new NodeMessage(MessageKind.Error, $"Could not write emission in artifact at '{file.Destination.ToPathString()}' because location already exists", node)
-                    {
-                        Hint = GetHint(node.Origin),
-                        Tags = DiagnosticTags
-                    }
-                );
-            }
-
-            var childContext = ContextHelpers.Clone(context);
-            childContext.Component = node;
-            // childContext.Parent = node;
-            childContext.Emission = file; // [dho] this is where children of this component should write to - 29/08/18
-
-            foreach (var (child, hasNext) in ASTNodeHelpers.IterateChildren(node.AST, node))
-            {
-                result.AddMessages(
-                    EmitNode(child, childContext, token)
-                );
-
-                // if(RequiresSemicolonSentinel(child))
-                // {
-                //     childContext.Emission.Append(child, ";");
-                // }
-
-                childContext.Emission.AppendBelow(node, "");
-
-                if (token.IsCancellationRequested)
-                {
-                    break;
-                }
-            }
-
-            if (!Diagnostics.DiagnosticsHelpers.HasErrors(result))
-            {
-                context.OutFileCollection[file.Destination] = file;
-            }
-
-            return result;
         }
 
         public override Result<object> EmitConcatenation(Concatenation node, Context context, CancellationToken token)
@@ -1052,7 +994,7 @@ namespace Sempiler.Emission
             {
                 if(initializer.Kind == SemanticKind.LambdaDeclaration)
                 {
-                    int i = 0;
+                    // int i = 0;
                 }
                 else
                 {

@@ -45,7 +45,7 @@ namespace Sempiler.Inlining
                 ViewDeclarations = new List<ViewDeclaration>()
             };
 
-            foreach (var (child, hasNext) in ASTNodeHelpers.IterateChildren(ast, component.ID))
+            foreach (var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, component.ID))
             {
                 if (child.Kind == SemanticKind.Assignment) // [dho] check for `module.exports = ...` - 01/06/19
                 {

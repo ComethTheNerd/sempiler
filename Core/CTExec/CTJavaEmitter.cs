@@ -10,7 +10,7 @@
 // using Sempiler.AST.Diagnostics;
 // using Sempiler.Languages;
 
-// namespace Sempiler.Core.Directives
+// namespace Sempiler.CTExec
 // {
 //     using static Sempiler.AST.Diagnostics.DiagnosticsHelpers;
 //     using static Sempiler.Diagnostics.DiagnosticsHelpers;
@@ -124,6 +124,7 @@
 //             {
 //                 Session = session,
 //                 Artifact = artifact,
+//                 Shard = shard,
 //                 AST = ast,
 //                 OutFileCollection = outFileCollection,
 //                 Emission = file///new LiteralEmission()

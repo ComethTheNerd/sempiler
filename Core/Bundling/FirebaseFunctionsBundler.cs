@@ -11,7 +11,7 @@ using Sempiler.Languages;
 using Sempiler.Inlining;
 using Sempiler.Core;
 
-namespace Sempiler.Bundler
+namespace Sempiler.Bundling
 {
     using static BundlerHelpers;
 
@@ -82,7 +82,7 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
 
         public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ $"{UserCodeDirName}/node_modules" };
 
-        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token)
+        public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();
 
@@ -97,7 +97,7 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
             }
 
             // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
-            var ancillary = ancillaries[0];
+            var shard = shards[0];
 
 
             var inlined = default(Component);
@@ -109,13 +109,13 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
 
                 if (artifact.TargetLang == ArtifactTargetLang.TypeScript)
                 {
-                    inlined = result.AddMessages(TypeScriptInlining(session, artifact, ancillary.AST, token));
+                    inlined = result.AddMessages(TypeScriptInlining(session, artifact, shard.AST, token));
 
                     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
                     emitter = new TypeScriptEmitter();
 
-                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, ancillary.AST, token));
+                    ofc = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, shard, shard.AST, token));
                 }
                 // [dho] TODO JavaScript! - 01/06/19
                 else
@@ -146,7 +146,7 @@ $@"{{
   }}
 }}");
                 var dependenciesContent = new System.Text.StringBuilder();
-                var dependencies = ancillary.Dependencies;
+                var dependencies = shard.Dependencies;
                 
                 if(dependencies.Count > 0)
                 {
@@ -262,7 +262,7 @@ $@"{{
                     {
                         return result;
                     }
-
+                    // System.Console.WriteLine("COMPONENT NAME :  " + component.Name);
                     // [dho] is this component the entrypoint for the whole artifact - 28/06/19
                     if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
                     {
@@ -318,7 +318,7 @@ $@"{{
 
 
                 // [dho] remove the components from the tree because now they have all been inlined - 22/09/19
-                ASTHelpers.RemoveNodes(ast, componentIDsToRemove.ToArray());
+                ASTHelpers.DisableNodes(ast, componentIDsToRemove.ToArray());
                 
                 result.Value = inlined;
             }
@@ -530,7 +530,7 @@ app.use(cors({{ origin : true }}));").Node
             }
 
 
-            foreach(var (child, hasNext) in ASTNodeHelpers.IterateChildren(ast, component))
+            foreach(var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, component))
             {
                 if(child.Kind == SemanticKind.ExportDeclaration)
                 {
@@ -562,7 +562,7 @@ app.use(cors({{ origin : true }}));").Node
                     {
                         if(clause.Kind == SemanticKind.DataValueDeclaration || LanguageSemantics.TypeScript.IsFunctionLikeDeclarationStatement(ast, clause))
                         {   
-                            var exportedSymbolName = ASTHelpers.GetSingleMatch(ast, clause.ID, SemanticRole.Name);
+                            var exportedSymbolName = ASTHelpers.GetSingleLiveMatch(ast, clause.ID, SemanticRole.Name);
 
                             if(exportedSymbolName != null)
                             {
@@ -673,7 +673,7 @@ app.use(cors({{ origin : true }}));").Node
                         // [dho] remove the "sempiler" import because it is a _fake_
                         // import we just use to be sure that the symbols the user refers
                         // to are for sempiler, and not something in global scope for a particular target platform - 24/06/19 (ported : 22/09/19)
-                        ASTHelpers.RemoveNodes(ast, new[] { im.ImportDeclaration.ID });
+                        ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
                     }
 
                     foreach (var im in importsSortedByType.ComponentImports)
@@ -685,7 +685,7 @@ app.use(cors({{ origin : true }}));").Node
                         );
 
                         // [dho] remove the import because all components are inlined into the same output file - 24/06/19
-                        ASTHelpers.RemoveNodes(ast, new[] { im.ImportDeclaration.ID });
+                        ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
                     }
 
                     foreach (var im in importsSortedByType.PlatformImports)
@@ -841,10 +841,16 @@ app.use(cors({{ origin : true }}));").Node
                 {
                     var args = ASTNodeFactory.Invocation(ast, httpExp).Arguments;
 
-                    if(args.Length == 1 && args[0]?.Kind == SemanticKind.StringConstant)
+                    if(args.Length == 1 && args[0]?.Kind == SemanticKind.InvocationArgument)
                     {
-                        isValid = true;
-                        expressHTTPVerb = ASTNodeFactory.StringConstant(ast, (DataNode<string>)args[0]).Value.ToLower();
+                        var invArg = ASTNodeFactory.InvocationArgument(ast, args[0]);
+                        var invArgValue = invArg.Value;
+
+                        if(invArgValue.Kind == SemanticKind.StringConstant)
+                        { 
+                            isValid = true;
+                            expressHTTPVerb = ASTNodeFactory.StringConstant(ast, (DataNode<string>)invArgValue).Value.ToLower();
+                        }
                     }
                 }
                 

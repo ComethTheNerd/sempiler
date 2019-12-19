@@ -9,9 +9,6 @@ using System.Threading.Tasks;
 
 namespace Sempiler.Transformation
 {
-    using static Sempiler.Diagnostics.DiagnosticsHelpers;
-    using static Sempiler.AST.Diagnostics.DiagnosticsHelpers;
-
     public class SwiftEnforceMutatingMethodsTransformer : ITransformer
     {
         protected readonly string[] DiagnosticTags;
@@ -36,7 +33,31 @@ namespace Sempiler.Transformation
 
             var root = ASTHelpers.GetRoot(/* clonedAST */ ast);
 
-            result.AddMessages(TransformNode(session, root, context, token));
+            foreach(var mNode in ASTHelpers.QueryByKind(ast, SemanticKind.MethodDeclaration))
+            {
+                if(!ASTHelpers.IsLive(ast, mNode.ID)) continue;
+
+                var methodDecl = ASTNodeFactory.MethodDeclaration(ast, mNode);
+                var mNodeParent = methodDecl.Parent;
+
+                System.Diagnostics.Debug.Assert(mNodeParent.Kind == SemanticKind.ObjectTypeDeclaration);
+
+                var parent = ASTNodeFactory.ObjectTypeDeclaration(ast, mNodeParent);
+
+                var parentIsStruct = (MetaHelpers.ReduceFlags(parent) & MetaFlag.ValueType) > 0;
+
+                if(parentIsStruct)
+                {
+                    var flags = MetaHelpers.ReduceFlags(methodDecl);
+
+                    if((flags & (MetaFlag.Static /* | MetaFlag.Mutation */)) == 0)
+                    {
+                        var modifier = NodeFactory.Modifier(ast, methodDecl.Origin, "mutating");
+
+                        ASTHelpers.Connect(ast, methodDecl.ID, new [] { modifier.Node }, SemanticRole.Modifier);
+                    }
+                }
+            }
 
             // if (!HasErrors(result))
             // {
@@ -46,41 +67,6 @@ namespace Sempiler.Transformation
             result.Value = ast;
 
             return Task.FromResult(result);
-        }
-
-        private Result<object> TransformNode(Session session, Node start, Context context, CancellationToken token)
-        {
-            var result = new Result<object>();
-
-            var ast = context.AST;
-
-            ASTHelpers.PreOrderTraversal(session, ast, start, node =>
-            {
-                if(node.Kind == SemanticKind.MethodDeclaration)
-                {   
-                    var methodDecl = ASTNodeFactory.MethodDeclaration(ast, node);
-
-                    var parentIsStruct = (MetaHelpers.ReduceFlags(ASTNodeFactory.ObjectTypeDeclaration(ast, methodDecl.Parent)) & MetaFlag.ValueType) > 0;
-
-                    if(parentIsStruct)
-                    {
-                        var flags = MetaHelpers.ReduceFlags(methodDecl);
-
-                        if((flags & (MetaFlag.Static /* | MetaFlag.Mutation */)) == 0)
-                        {
-                            var modifier = NodeFactory.Modifier(ast, methodDecl.Origin, "mutating");
-
-                            ASTHelpers.Connect(ast, methodDecl.ID, new [] { modifier.Node }, SemanticRole.Modifier);
-                        }
-                    }
-
-                }
-
-                return true;
-            }, token);
-
-
-            return result;
         }
     }
 }

@@ -11,6 +11,9 @@ namespace Sempiler.Transformation
 
     public class IOSSwiftUITransformer : ViewTransformer
     {
+        // [dho] fill the available space in the parent container - 07/11/19
+        public const string MatchParentPropertyLexeme = "matchParent";
+        
         // // [dho] this map translates source prop names to their corresponding
         // // SwiftUI names (init argument name or builder function name) - 30/06/19
         // private static readonly Dictionary<string, Dictionary<string, string>> SourcePropNameToSwiftUIName = new Dictionary<string, Dictionary<string, string>>
@@ -27,18 +30,21 @@ namespace Sempiler.Transformation
             { "Alert", new [] { ("title", true), ("message", true), ("dismissButton", true), ("primaryButton", true), ("secondaryButton", true) } },
             { "Button", new [] { ("action", true), ("label", true) } },
             { "EditButton", new (string,bool)[] { } },
-            { "ForEach", new [] { ("data",false), ("content", true) }  },
+            { "ForEach", new [] { ("data",false), ("id", true), ("content", true) }  },
             { "GeometryReader", new [] { ("content",false) }},
             { "HStack", new [] { ("alignment",true), ("spacing", true), ("content", true) } },
             { "Image", new [] {  ( "src", false ), ( "nsImage", true ), ( "systemName", true ), ( "uiImage", true ), ( "decorative", true ), ( "bundle", true ), ( "scale", true ), ( "label", true ) } },
             { "MenuButton", new [] { ("label", true), ("content", true) } },
-            { "NavigationLink", new [] { ( "destination", true ), ( "in", true ), ( "label", true ) } },
+            { "NavigationLink", new [] { ( "destination", true ), ("isActive", true), ( "in", true ), ( "label", true ) } },
             { "List", new [] { ("selection", false), ("content", false) } },
+            { "LinearGradient", new [] { ("gradient", true), ("startPoint", true), ("endPoint", true) } },
             { "PasteButton", new [] { ("supportedTypes", true), ("onTrigger", true) } },
             { "Path", new [] { ("string", true), ("ellipseIn", true), ("roundedRect", true), ("cornerRadius", true), ("cornerSize", true), ("style", true), ("path", false) }},
             { "PresentationLink", new [] { ( "destination", true ), ( "label", true ), } },
             { "ScrollView", new [] { ("isScrollEnabled", true), ("alwaysBounceHorizontal", true), ("alwaysBounceVertical", true), ("showsHorizontalIndicator", true), ("showsVerticalIndicator", true), ("content", true) }},
             { "Section", new [] { ("header", true), ("footer", true), ("content", true) } },
+            { "SecureField", new [] { ("label", false), ("text", true), ("onCommit", true) } },
+            { "Slider", new [] { ("value", true), ("in", true), ("step", true), ("onEditingChanged", true), ("minimumValueLabel", true), ("maximumValueLabel", true), ("label", true) } },
             { "Spacer", new [] { ("minLength", true) } },
             { "Stepper", new [] { ("label", false), ("value", true), ("in", true), ("step", true), ("onIncrement", true), ("onDecrement", true), ("onEditingChanged", true) } },
             { "TabView", new [] { ("selection", true), ("content", true) } },
@@ -51,9 +57,9 @@ namespace Sempiler.Transformation
 
 
         public static readonly Dictionary<string, string> SempilerViewNameSwiftUIAliases = new Dictionary<string, string>{
-            { Sempiler.Core.SempilerPackageSymbols.View , "VStack" },
-            { Sempiler.Core.SempilerPackageSymbols.Column, "VStack" },
-            { Sempiler.Core.SempilerPackageSymbols.Row, "HStack" }
+            { Sempiler.Core.CompilerPackageSymbols.View , "VStack" },
+            { Sempiler.Core.CompilerPackageSymbols.Column, "VStack" },
+            { Sempiler.Core.CompilerPackageSymbols.Row, "HStack" }
         };
 
 
@@ -62,7 +68,7 @@ namespace Sempiler.Transformation
         {
         }
 
-        protected override Result<object> TransformViewDeclaration(Session session, RawAST ast, ViewDeclaration node, Context context, CancellationToken token)
+        protected override Result<object> TransformViewDeclaration(Session session, Artifact artifact, RawAST ast, ViewDeclaration node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
 
@@ -285,6 +291,8 @@ namespace Sempiler.Transformation
 
                     var bodyFieldInitializer = NodeFactory.LambdaDeclaration(ast, node.Origin);
                     {
+                        result.AddMessages(WrapMultipleExitsAsAnyViews(session, ast, node.Body, token));
+
                         ASTHelpers.Connect(ast, bodyFieldInitializer.ID, new[] { node.Body }, SemanticRole.Body);
                     }
                     ASTHelpers.Connect(ast, bodyField.ID, new[] { bodyFieldInitializer.Node }, SemanticRole.Initializer);
@@ -431,7 +439,7 @@ namespace Sempiler.Transformation
         }
 
 
-        protected override Result<object> TransformViewConstruction(Session session, RawAST ast, ViewConstruction node, Context context, CancellationToken token)
+        protected override Result<object> TransformViewConstruction(Session session, Artifact artifact, RawAST ast, ViewConstruction node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
             
@@ -474,8 +482,10 @@ namespace Sempiler.Transformation
 
 
                 var properties = node.Properties;
-                var children = ASTHelpers.QueryEdgeNodes(ast, node.ID, SemanticRole.Child);
+                var children = ASTHelpers.QueryLiveEdgeNodes(ast, node.ID, SemanticRole.Child);
                 var hasChildren = children.Length > 0;
+                // [dho] fill the available space in the parent container - 07/11/19
+                var matchParent = false;
 
                 var arguments = default(List<Node>);
 
@@ -643,6 +653,24 @@ namespace Sempiler.Transformation
                         {
                             var rawPropNameLexeme = propName.Lexeme;
 
+                            if(rawPropNameLexeme == MatchParentPropertyLexeme)
+                            {
+                                if(propValue == default(Node))
+                                {
+                                    matchParent = true;
+                                }
+                                else
+                                {
+                                    result.AddMessages(new NodeMessage(MessageKind.Error, $"'{MatchParentPropertyLexeme}' does not support specifying a value", propValue)
+                                    {
+                                        Hint = GetHint(propValue.Origin),
+                                        Tags = DiagnosticTags
+                                    });
+                                }
+
+                                continue;
+                            }
+
                             // if(sourcePropNameToSwiftUINameConfig != null)
                             // {
                             //     if(sourcePropNameToSwiftUINameConfig.ContainsKey(rawPropNameLexeme))
@@ -785,7 +813,75 @@ namespace Sempiler.Transformation
                     // [dho] NOTE we filter out any arguments that were not provided (null) - 02/07/19
                     ASTHelpers.Connect(ast, construction.ID, arguments.FindAll(x => x != default(Node)).ToArray(), SemanticRole.Argument);
                 }
+
+
+                if(matchParent)
+                {
+                    var lambda = NodeFactory.LambdaDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                    {
+                        var parentParam = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, parentParam.ID, new [] { 
+                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent").Node
+                            }, SemanticRole.Value);
+                        }
+
+                        var widthArg = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, widthArg.ID, new [] { 
+                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent.size.width").Node
+                            }, SemanticRole.Value);
+                            ASTHelpers.Connect(ast, widthArg.ID, new [] {
+                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "width").Node 
+                            }, SemanticRole.Label);
+                        }
+
+                        var heightArg = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, heightArg.ID, new [] { 
+                                NodeFactory.NumericConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent.size.height").Node
+                            }, SemanticRole.Value);
+                            ASTHelpers.Connect(ast, heightArg.ID, new [] { 
+                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "height").Node 
+                            }, SemanticRole.Label);
+                        }
+
+                        var lambdaBody = CreateBuilder(
+                            ast, 
+                            result.Value, 
+                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "frame").Node,
+                            new [] {
+                                widthArg.Node,
+                                heightArg.Node
+                            },
+                            new PhaseNodeOrigin(PhaseKind.Transformation)
+                        );
+
+                        ASTHelpers.Connect(ast, lambda.ID, new [] { parentParam.Node }, SemanticRole.Parameter);
+                        ASTHelpers.Connect(ast, lambda.ID, new [] { lambdaBody }, SemanticRole.Body);
+                    }
+
+                    // [dho] `GeometryReader(parent => view.frame(...))` - 06/11/19
+                    var invocation = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                    {
+                        var invocationName = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "GeometryReader");
+                        
+                        var lambdaArgument = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                        {
+                            ASTHelpers.Connect(ast, lambdaArgument.ID, new [] { lambda.Node }, SemanticRole.Value);
+                        }
+
+                        ASTHelpers.Connect(ast, invocation.ID, new [] { invocationName.Node }, SemanticRole.Subject);
+                        ASTHelpers.Connect(ast, invocation.ID, new [] { lambdaArgument.Node }, SemanticRole.Argument);
+                    }
+
+                    result.Value = invocation.Node;
+                }
             }
+
+
+            
+
 
 
             ASTHelpers.Replace(ast, node.ID, new [] { result.Value });
@@ -849,7 +945,7 @@ namespace Sempiler.Transformation
 
                     for(int i = 1; i < identifierList.Count; ++i)
                     {
-                        var members = ASTHelpers.QueryEdgeNodes(ast, incident.ID, SemanticRole.Member);
+                        var members = ASTHelpers.QueryLiveEdgeNodes(ast, incident.ID, SemanticRole.Member);
 
                         resolved = false;
 
@@ -975,6 +1071,122 @@ namespace Sempiler.Transformation
                 });
 
                 arguments.Add(argValue);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// [dho] swiftc complains if you have multiple returns for different view types, but wrapping each in `AnyView(...)` seems
+        /// to satisfy it, so we do that automatically with this function - 05/11/19
+        /// </summary>
+        private Result<object> WrapMultipleExitsAsAnyViews(Session session, RawAST ast, Node body, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            var exits = LanguageSemantics.Swift.GetExplicitExits(session, ast, body, token);
+
+            if(exits.Count == 0)
+            {
+                result.AddMessages(
+                    new NodeMessage(MessageKind.Error, $"Missing return value for View", body)
+                    {
+                        Hint = GetHint(body.Origin),
+                        Tags = DiagnosticTags
+                    }
+                );
+            }
+            else if(exits.Count == 1)
+            {
+                var exit = exits[0];
+
+                if(exit.Kind == SemanticKind.FunctionTermination)
+                {
+                    var returnValue = ASTNodeFactory.FunctionTermination(ast, exit).Value;
+
+                    if(returnValue == null)
+                    {
+                        result.AddMessages(
+                            new NodeMessage(MessageKind.Error, $"Expected View to be returned", exit)
+                            {
+                                Hint = GetHint(exit.Origin),
+                                Tags = DiagnosticTags
+                            }
+                        );
+                    }
+                    else if(returnValue.Kind == SemanticKind.PredicateFlat)
+                    {
+                        result.AddMessages(InsertAnyViewInvocations(session, ast, returnValue, token));
+                    }
+                    else if(returnValue.Kind == SemanticKind.Association)
+                    {
+                        var assoc = ASTNodeFactory.Association(ast, returnValue);
+
+                        if(assoc.Subject.Kind == SemanticKind.PredicateFlat)
+                        {
+                            result.AddMessages(InsertAnyViewInvocations(session, ast, assoc.Subject, token));
+                        }
+                    }
+                }
+            }
+            else if(exits.Count > 1)
+            {
+                foreach(var exit in exits)
+                {   
+                    if(exit.Kind == SemanticKind.FunctionTermination)
+                    {
+                        var returnValue = ASTNodeFactory.FunctionTermination(ast, exit).Value;
+
+                        if(returnValue == null)
+                        {
+                            result.AddMessages(
+                                new NodeMessage(MessageKind.Error, $"Expected View to be returned", exit)
+                                {
+                                    Hint = GetHint(exit.Origin),
+                                    Tags = DiagnosticTags
+                                }
+                            );
+                        }
+                        else 
+                        {
+                            result.AddMessages(InsertAnyViewInvocations(session, ast, returnValue, token));
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private Result<object> InsertAnyViewInvocations(Session session, RawAST ast, Node node, CancellationToken token)
+        {
+            var result = new Result<object>();
+            
+            if(node.Kind == SemanticKind.PredicateFlat)
+            {
+                var pred = ASTNodeFactory.PredicateFlat(ast, node);
+
+                result.AddMessages(InsertAnyViewInvocations(session, ast, pred.TrueValue, token));
+                result.AddMessages(InsertAnyViewInvocations(session, ast, pred.FalseValue, token));
+            }    
+            else if(node.Kind == SemanticKind.Association)
+            {
+                var subject = ASTNodeFactory.Association(ast, node).Subject;
+
+                result.AddMessages(InsertAnyViewInvocations(session, ast, subject, token));
+            }   
+            else // [dho] whatever is being returned is expected to be a View so we wrap it in an `AnyView(...)` wrapper - 05/11/19
+            {
+                var inv = NodeFactory.Invocation(ast, node.Origin);
+                var identifier = NodeFactory.Identifier(ast, node.Origin, "AnyView");
+                var invArg = NodeFactory.InvocationArgument(ast, node.Origin);
+
+                ASTHelpers.Replace(ast, node.ID, new [] { inv.Node });
+
+                ASTHelpers.Connect(ast, inv.ID, new [] { identifier.Node }, SemanticRole.Subject);
+                ASTHelpers.Connect(ast, inv.ID, new [] { invArg.Node }, SemanticRole.Argument);
+
+                ASTHelpers.Connect(ast, invArg.ID, new [] { node }, SemanticRole.Value);
             }
 
             return result;

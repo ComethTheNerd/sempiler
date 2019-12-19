@@ -1,5 +1,5 @@
 
-namespace Sempiler.Core.Directives
+namespace Sempiler.CTExec
 {
     public static class CTDirective
     {

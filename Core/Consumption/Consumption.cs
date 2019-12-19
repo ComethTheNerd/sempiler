@@ -88,7 +88,7 @@ namespace Sempiler.Consumption
             try
             {
                 var execResult = await Sempiler.CommandLine.Exec(FileName, arguments, token);
-
+          
                 // [dho] NOTE we are not just adding the execMessages straight to the result
                 // because we may want to parse diagnostics out of them first (see below) - 28/08/18
                 execMessages = execResult.Messages;
@@ -148,50 +148,26 @@ namespace Sempiler.Consumption
                                         if(hint != null && hint.File != null)
                                         {
                                             var filePath = hint.File.ToPathString();
+                                            var lineNumberStart = hint.LineNumber.Start;
+                                            var columnIndexStart = hint.ColumnIndex.Start;
 
-                                            // [dho] the error may originate from a supporting file (ie. not in the artifact), 
-                                            // in which case we would not have an ArtifactItem to refer back to in order to parse
-                                            // the Node. We first do our best to track down the Node that caused the compilation error, 
-                                            // and fall back to just reporting a general error if we are unable to find the culprit - 11/08/18
-                                            if (filesWritten.ContainsKey(filePath))
+                                            var closestNode = CompilerHelpers.GetClosestNode(filePath, lineNumberStart, columnIndexStart, filesWritten);
+
+                                            if(closestNode != null)
                                             {
-                                                var file = filesWritten[filePath].Emission as IEmission;
-
-                                                if (file != null && hint.LineNumber.Start > -1 && hint.ColumnIndex.Start > -1)
-                                                {   
-                                                    // [dho] NOTE purposely not using a range because we will not know
-                                                    // the precise range if the hint was parsed from a command line message - 16/09/18
-                                                    var pos = file.GetPositionFromLineAndColumn(hint.LineNumber.Start, hint.ColumnIndex.Start);
-
-                                                    // [dho] we allow some margin of error when looking for markers because if our emitter
-                                                    // emits a statement for an Node eg. `import Foo.Bar.Baz`, but the consumer (eg. swiftc)
-                                                    // complains about a subpart of that statement eg. `Foo.Bar.Baz` then none of our markers
-                                                    // would line up with that exact position in the file. So in that case we fall back to markers 
-                                                    // closest to before that position which would give us the Node for `import Foo.Bar.Baz` - 29/08/18
-                                                    var markers = file.GetClosestMarkersAtOrBeforePosition(pos);
-
-                                                    if (markers.Count > 0)
+                                                result.AddMessages(
+                                                    new Message(message.Kind, description)
                                                     {
-                                                        // [dho] we might find multiple nodes at this position but for now we 
-                                                        // just find the shortest one and go with that.. this will highlight the wrong
-                                                        // node in some cases but at least the position will be right for now - 10/08/18
-                                                        var node = markers.OrderBy(x => x.EndPos - x.StartPos).First().Node;
-
-                                                        result.AddMessages(
-                                                            new Message(message.Kind, description)
-                                                            {
-                                                                // [dho] this hint will let us display the cause of the problem in the original
-                                                                // source file before it was sempiled, eg. a statement in the TypeScript file that was
-                                                                // then sempiled to Swift and triggered an error from the Swift compiler consuming it - 09/09/18
-                                                                Hint = Sempiler.AST.Diagnostics.DiagnosticsHelpers.GetHint(node.Origin),
-                                                                Tags = tags
-                                                            }
-                                                        );
-                        
-                                                        continue;
+                                                        // [dho] this hint will let us display the cause of the problem in the original
+                                                        // source file before it was sempiled, eg. a statement in the TypeScript file that was
+                                                        // then sempiled to Swift and triggered an error from the Swift compiler consuming it - 09/09/18
+                                                        Hint = Sempiler.AST.Diagnostics.DiagnosticsHelpers.GetHint(closestNode.Origin),
+                                                        Tags = tags
                                                     }
-                                                }
-                                            }
+                                                );
+
+                                                continue;
+                                            }                
                                         }
 
                                         // [dho] fall through to here if we were unable to 

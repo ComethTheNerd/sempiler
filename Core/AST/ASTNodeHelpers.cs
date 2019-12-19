@@ -10,6 +10,11 @@ namespace Sempiler.AST
     using NodeID = System.String;
     public static class ASTNodeHelpers
     {
+        public static void PrintNode(Node node)
+        {
+            System.Console.WriteLine($"PRINT NODE {node.ID} : {node.Kind}\n{GetLexeme(node)}");
+        }
+
         public static string GetLexeme(ASTNode nodeWrapper) => GetLexeme(nodeWrapper.Node);
         public static string GetLexeme(Node node)
         {
@@ -18,7 +23,7 @@ namespace Sempiler.AST
 
         public static Node[] GetMeta(RawAST ast, NodeID nodeID)
         {
-            return ASTHelpers.QueryEdgeNodes(ast, nodeID, SemanticRole.Meta);
+            return ASTHelpers.QueryLiveEdgeNodes(ast, nodeID, SemanticRole.Meta);
         }
 
         public static MetaFlag GetMetaFlags(RawAST ast, NodeID nodeID)
@@ -36,9 +41,9 @@ namespace Sempiler.AST
         }
 
 
-        public static IEnumerable<(AST.Node, bool)> IterateChildren(RawAST ast, AST.ASTNode nodeWrapper) => IterateChildren(ast, nodeWrapper.ID);
+        public static IEnumerable<(AST.Node, bool)> IterateLiveChildren(RawAST ast, AST.ASTNode nodeWrapper) => IterateLiveChildren(ast, nodeWrapper.ID);
 
-        public static IEnumerable<(AST.Node, bool)> IterateChildren(RawAST ast, NodeID nodeID)
+        public static IEnumerable<(AST.Node, bool)> IterateLiveChildren(RawAST ast, NodeID nodeID)
         {
             var edges = new List<Edge>();
 

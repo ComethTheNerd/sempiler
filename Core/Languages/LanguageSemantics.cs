@@ -86,11 +86,11 @@ namespace Sempiler.Languages
                     }
                 }
 
-                ASTHelpers.PreOrderTraversal(session, ast, node, focus => {
+                ASTHelpers.PreOrderLiveTraversal(ast, node, focus => {
 
                     if(IsEligibleForSymbolResolutionTarget(ast, focus))
                     {
-                        var name = ASTHelpers.GetSingleMatch(ast, focus.ID, SemanticRole.Name);
+                        var name = ASTHelpers.GetSingleLiveMatch(ast, focus.ID, SemanticRole.Name);
 
                         if(name != null)
                         {
@@ -198,7 +198,7 @@ namespace Sempiler.Languages
                     parent = ASTHelpers.GetParent(ast, parent.ID);
                 }
             }
-
+            
             return null;
         }
 
@@ -211,7 +211,7 @@ namespace Sempiler.Languages
                 return references;
             }
 
-            ASTHelpers.PreOrderTraversal(session, ast, start, node => {
+            ASTHelpers.PreOrderLiveTraversal(ast, start, node => {
                 
                 var shouldExploreChildren = true;
 
@@ -353,7 +353,7 @@ namespace Sempiler.Languages
             // {
                 // System.Console.WriteLine("GET SYM DEPS " + start.ID + "   " + start.Kind);
             // }
-            ASTHelpers.PreOrderTraversal(session, ast, start, node => {
+            ASTHelpers.PreOrderLiveTraversal(ast, start, node => {
                 // System.Console.WriteLine("NODE ID " + node.ID);
                 // if(node.ID.EndsWith("_$1006") || node.ID.EndsWith("_$1007") || node.ID.EndsWith("_$1008"))
                 // {
@@ -451,38 +451,137 @@ namespace Sempiler.Languages
             return symbolicDependencyList;
         }
 
-        public bool IsStaticallyComputable(Session session, Artifact artifact, RawAST ast, Node node, CancellationToken token)
-        {
-            if(node.Kind == SemanticKind.Invocation || 
-                node.Kind == SemanticKind.ParameterDeclaration || 
-                node.Kind == SemanticKind.ViewDeclaration || 
-                IsConstruction(ast, node))
-            {
-                return false;
-            }
+        // [dho] can this node be used entirely at compile time (statically), ie. doesn't
+        // require any dynamism - 27/11/19
+        // public bool IsCTComputable(Session session, Artifact artifact, RawAST ast, Node node, CancellationToken token)
+        // {
+        //     if(MetaHelpers.HasFlags(ast, node, MetaFlag.CTExec))
+        //     {
+        //         return true;
+        //     }
+            
+        //     // if(node.Kind == SemanticKind.Identifier || 
+        //     //     node.Kind == SemanticKind.StringConstant ||
+        //     //     node.Kind == SemanticKind.NumericConstant || 
+        //     //     node.Kind == SemanticKind.Null || 
+        //     //     node.Kind == SemanticKind.BooleanConstant
+        //     // )
+        //     // {
+        //     //     return true;
+        //     // }
 
-            var dependencies = GetSymbolicDependencies(session, artifact, ast, node, token);
+        //     // if(node.Kind == SemanticKind.InterimSuspension)
+        //     // {
+        //     //     var operand = ASTNodeFactory.InterimSuspension(ast, node).Operand;
 
-            foreach(var dependency in dependencies)
-            {
-                // System.Console.WriteLine(">>> " + node.ID + " " + node.Kind + " has a dependency on " + dependency.Declaration.ID + "  " + ASTNodeHelpers.GetLexeme(dependency.Declaration));
-                
-                var decl = dependency.Declaration;
+        //     //     return IsCTComputable(
+        //     //         session, artifact, ast, operand, token
+        //     //     );
+        //     // }
 
-                // [dho] we could not resolve the declaration for the symbol - 23/09/19
-                if(decl == null)
-                {
-                    return false;
-                }
+        //     // if(node.Kind == SemanticKind.QualifiedAccess)
+        //     // {
+        //     //     var qa = ASTNodeFactory.QualifiedAccess(ast, node);
 
-                if(!IsStaticallyComputable(session, artifact, ast, dependency.Declaration, token))
-                {
-                    return false;
-                }
-            }
+        //     //     // [dho] just need to check if the leftmost identifier
+        //     //     // is a CT computable 
+        //     //     foreach(var (child, hasNext) in ASTNodeHelpers.IterateQualifiedAccessLTR(qa))
+        //     //     {
+        //     //         if(!IsCTComputable(session, artifact, ast, child, token))
+        //     //         {
+        //     //             return false;
+        //     //         }
+        //     //         break;
+        //     //     }
 
-            return true;
-        }
+        //     //     return true;
+        //     // }
+
+
+        //     if(node.Kind == SemanticKind.ParameterDeclaration || 
+        //         node.Kind == SemanticKind.ViewDeclaration || 
+        //         IsConstruction(ast, node))
+        //     {
+        //         return false;
+        //     }
+
+        //     // if(ASTNodeHelpers.GetLexeme(node) == "admin")
+        //     // {
+        //     //     int i = 0;
+        //     // }
+
+
+        //     // var pos = ASTHelpers.GetPosition(ast, node.ID);
+
+        //     // System.Diagnostics.Debug.Assert(pos.Index > -1);
+
+        //     // if(pos.Role == SemanticRole.Clause && pos.Parent.Kind == SemanticKind.ImportDeclaration)
+        //     // {
+        //     //     return false;
+        //     // }
+
+
+        //     var dependencies = GetSymbolicDependencies(session, artifact, ast, node, token);
+
+
+        //     System.Console.WriteLine("\n\n🍀 🍀 LISTING DEPENDENCIES FOR " + node.ID + " : " + node.Kind);
+        //     System.Console.WriteLine(ASTNodeHelpers.GetLexeme(node));
+
+        //     System.Console.WriteLine("\nSTART:");
+
+        //     // if(node.Kind == SemanticKind.QualifiedAccess)
+        //     // {
+        //     //     var qa = ASTNodeFactory.QualifiedAccess(ast, node);
+
+        //     //     foreach(var item in ASTNodeHelpers.IterateQualifiedAccessLTR(qa))
+        //     //     {
+        //     //         int ii = 0;
+        //     //     }
+
+        //     //     int i = 0;
+        //     // }
+            
+        //     foreach(var dependency in dependencies)
+        //     {
+        //         if(dependency.Declaration == null)
+        //         {
+        //             continue;
+        //         }
+        //         System.Console.Write("🔥");
+        //         ASTNodeHelpers.PrintNode(dependency.Declaration);
+        //     }
+        //     System.Console.WriteLine("\nEND!🌕\n\n");
+
+        //     foreach(var dependency in dependencies)
+        //     {
+
+        //         var decl = dependency.Declaration;
+
+        //         // [dho] we could not resolve the declaration for the symbol - 23/09/19
+        //         if(decl == null)
+        //         {
+        //             // [dho] maybe we did not find the declaration because this is a compiler
+        //             // API, so let's check that case - 27/11/19
+        //             foreach(var symbolName in dependency.References.Keys)
+        //             {
+        //                 if(!Sempiler.CTExec.CTAPISymbols.IsCTAPISymbolName(symbolName))
+        //                 {
+        //                     return false;
+        //                 }
+        //             }
+        //         }
+        //         else 
+        //         {
+        //             System.Console.WriteLine("🎃 RECURSING WITH dependency decl " + decl.ID);
+        //             if(!IsCTComputable(session, artifact, ast, decl, token))
+        //             {
+        //                 return false;
+        //             }
+        //         }
+        //     }
+
+        //     return true;
+        // }
 
         public bool IsConstruction(RawAST ast, Node node)
         {
@@ -608,7 +707,7 @@ namespace Sempiler.Languages
                     // [dho] we don't care about nested functions as they are a different `return` scope - 14/06/19
                     else if(!IsFunctionLikeDeclarationStatement(ast, node))
                     {
-                        var b = ASTHelpers.GetSingleMatch(ast, node.ID, SemanticRole.Body);
+                        var b = ASTHelpers.GetSingleLiveMatch(ast, node.ID, SemanticRole.Body);
                     
                         if(b != null) // [dho] loops and clauses may have a body, so this captures them - 14/06/19
                         {

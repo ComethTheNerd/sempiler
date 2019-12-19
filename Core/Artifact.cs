@@ -4,13 +4,14 @@ namespace Sempiler
     using Sempiler.Diagnostics;
     using System.Collections.Generic;
 
-    public struct Artifact
+    public class Artifact
     {
         public readonly ArtifactRole Role;
         public readonly string Name;
         public readonly string TargetLang;
         public readonly string TargetPlatform;
 
+        public string TeamName;
 
         // public readonly Dictionary<string, OutFile> FilesWritten;
     
@@ -23,8 +24,8 @@ namespace Sempiler
             Name = name;
             TargetLang = targetLang;
             TargetPlatform = targetPlatform;
-            
-            // FilesWritten = filesWritten;
+
+            TeamName = "sempiler";
         }
         
 
@@ -37,6 +38,8 @@ namespace Sempiler
 
     public enum ArtifactRole 
     {
+        Compiler,
+
         Client,
         Server,
         Database
@@ -44,6 +47,8 @@ namespace Sempiler
 
     public static class ArtifactTargetLang
     {
+        // public const string Compiler = "compiler";
+        
         public const string Java = "java";
         public const string SQL = "sql";
         public const string Swift = "swift";
@@ -52,6 +57,8 @@ namespace Sempiler
 
     public static class ArtifactTargetPlatform
     {
+        // public const string Compiler = "compiler";
+
         public const string Android = "android";
         public const string AWSLambda = "aws/lambda";
         public const string FirebaseFunctions = "firebase/functions";

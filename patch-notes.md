@@ -1,5 +1,69 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 19/12/19 
+- Fixed bug with parsing `httpVerb` annotation for Firebase Functions
+
+# 🗓 14/12/19 
+- Myriad fixes for bugs in AST mutation operations
+- Fixed bug with parsing `keypath` annotation for iOS 
+
+# 🗓 13/12/19
+- Argument expressions are now parsed into `InvocationArgument` nodes, rather than just incorrectly using their raw expression value (without the wrapper)
+
+# 🗓 11/12/19
+- Sharing single CT exec Node process for all artifacts as opposed to overhead of orchestrating one process per artifact
+
+# 🗓 10/12/19
+- Added compiler internal artifact placeholder so there is now no longer a need to have the `build(..)` command as the first line of the input file. CT exec requires an artifact instance, which is now the compiler artifact by default, and replaced by explicitly created artifacts in the input sources 
+- Renamed `build` to `addArtifact`
+- Added source file parameter to `addArtifact` so caller has to specify the root input file for an artifact now
+- Renamed `Ancillary` to `Shard`
+
+# 🗓 09/12/19
+- Added ability to query AST by `SemanticKind` to find all Nodes in tree of particular kind in O(1) time
+
+# 🗓 07/12/19
+- Fix for bug in copying component state accidentally when cloning a component from the cache
+
+# 🗓 03/12/19
+- Component caching so a source file only has to be read from disk and parsed once
+- iOS bundler no longer combines separate ancillary ASTs into a single AST before emission
+
+# 🗓 01/12/19
+- Extracted CT exec code into new centralized `CTExec` directory
+- Clearer and cleaner logging output for determining if a session was successful or failed 📘📕📙📗
+
+# 🗓 26/11/19
+- Separated compilation into logical frontend and backend phases
+- Removed some instances of parallelization to simplify engine for now and make debugging easier
+
+# 🗓 25/11/19
+- `CTExecInfo` added to `Session` object to help share CT exec information across the compilation of separate artifacts
+
+# 🗓 21/11/19
+- Null coallesce operator support (eg. `x ?? y`)
+
+# 🗓 16/11/19
+- iOS Bundler now supports setting team name (front end API `setTeamName(...)`)
+- iOS Bundler now supports setting display name (front end API `setDisplayName(...)`)
+- iOS Bundler now supports setting version (front end API `setVersion(...)`)
+- Backend support for setting orientation flags (no frontend API yet)
+- iOS Bundler now supports setting orientation
+- Support for adding `"font"` asset role for adding font resources
+- iOS Bundler now bundles font assets
+
+# 🗓 09/11/19
+- Frontend `addAsset(..)` CT exec support for adding image and app icon assets to a build, implementing in iOS Bundler backend
+
+# 🗓 07/11/19
+- iOS Bundler supports _magic_ attribute `matchParent` on `ViewDeclarations` which performs the necessary heavy-lifting wrapping view constructions with `GeometryReader` logic to fill the available space in the parent
+
+# 🗓 06/11/19
+- Added SwiftUI definitions for `ForEach` and `LinearGradient`
+
+# 🗓 05/11/19
+- `IOSSwiftUITransformer` automatically detects multiple return statements in a `ViewDeclaration`, and wraps each in an `AnyView(...)` call to satisfy the swiftc compiler
+
 # 🗓 31/10/19
 - Firebase Functions Bundler now parses parameters from `req.params` and `req.query` for GET requests
 
@@ -28,16 +92,16 @@
 - Resources are now per Ancillary, rather than per Artifact, to allow for Ancillaries to use their own distinct resources without clashes
 
 # 🗓 19/10/19
-- Fixed bugs in `IOSBundler` around share extension generation
+- Fixed bugs in iOS Bundler around share extension generation
 
 # 🗓 18/10/19
 - Added AST `DeepRegister(...)` helper function that registers all nodes from a source subtree in a destination subtree, for quick _copying_ of arbitrarily deep subtrees
-- `IOSBundler` no longer generates `AppDelegate` and `SceneDelegate` automatically
-- `IOSBundler` no longer inlines all components into single output file, due to constraints of this abstraction when generating arbitrarily complex source programs in a way that stays true to the source. Components are emitted to separate files and shared between multiple ancillary schemes in the manifest
-- `IOSBundler` now omits empty components from the emitted artifact bundle for more compact output
+- iOS Bundler no longer generates `AppDelegate` and `SceneDelegate` automatically
+- iOS Bundler no longer inlines all components into single output file, due to constraints of this abstraction when generating arbitrarily complex source programs in a way that stays true to the source. Components are emitted to separate files and shared between multiple ancillary schemes in the manifest
+- iOS Bundler now omits empty components from the emitted artifact bundle for more compact output
 
 # 🗓 17/10/19
-- Fixed `IOSBundler` so it now produces a valid `.xcodeproj` with schemes and Podfile for main app and share extension
+- Fixed iOS Bundler so it now produces a valid `.xcodeproj` with schemes and Podfile for main app and share extension
 - Added compile time API support for Ancillary creation with `addAncillary(role, entrypointSource)`
 - Cleaned up naming convention for AST manipulation API
 
@@ -100,7 +164,7 @@
 - Added support for `addCapability(name : string, value : string | string[])` compile time API function
 - Added support for `isTargetLanguage(name : string) : bool` compile time API function
 - Added support for `isTargetPlatform(name : string) : bool` compile time API function
-- `IOSBundler` now allows for entrypoint function to access launch options, eg. `export default function main(launchOptions : { [key : UIApplication.LaunchOptionsKey] : Any }){...}`
+- iOS Bundler now allows for entrypoint function to access launch options, eg. `export default function main(launchOptions : { [key : UIApplication.LaunchOptionsKey] : Any }){...}`
 - Fixed `NullPointerException` when `addRawSources(...)` did not match any file paths
 
 # 🗓 28/09/19

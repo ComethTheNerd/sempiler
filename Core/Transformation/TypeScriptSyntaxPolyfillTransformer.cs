@@ -14,6 +14,9 @@ namespace Sempiler.Transformation
     {
         protected readonly string[] DiagnosticTags;
 
+
+        const string KeypathSymbolLexeme = "keypath";
+
         public TypeScriptSyntaxPolyfillTransformer()
         {
             DiagnosticTags = new [] { "transformer", "typescript-syntax-polyfill-transformer" };
@@ -36,7 +39,7 @@ namespace Sempiler.Transformation
 
             var nodeIDsToRemove = new List<string>();
 
-            ASTHelpers.PreOrderTraversal(session, ast/*clonedAST*/, root, node => {
+            ASTHelpers.PreOrderLiveTraversal(ast/*clonedAST*/, root, node => {
 
                 if(node.Kind == SemanticKind.ObjectTypeDeclaration)
                 {
@@ -159,27 +162,37 @@ namespace Sempiler.Transformation
                 {
                     var inv = ASTNodeFactory.Invocation(ast/*clonedAST*/, node);
 
-                    if(ASTNodeHelpers.IsIdentifierWithName(ast/*clonedAST*/, inv.Subject, "keypath"))
+                    // [dho] polyfill for handling keypath support in Swift 
+                    // https://www.swiftbysundell.com/articles/the-power-of-key-paths-in-swift/ - 14/12/19
+                    if(ASTNodeHelpers.IsIdentifierWithName(ast/*clonedAST*/, inv.Subject, KeypathSymbolLexeme))
                     {
                         var args = inv.Arguments;
 
-                        if(args.Length == 1 && args[0].Kind == SemanticKind.Identifier)
+                        if(args.Length == 1)
                         {
-                            var lexeme = ASTNodeFactory.Identifier(ast/*clonedAST*/, (DataNode<string>)args[0]).Lexeme;
-                            var code = NodeFactory.CodeConstant(ast/*clonedAST*/, inv.Origin, $"\\.{lexeme}");
+                            var arg = args[0];
 
-                            ASTHelpers.Replace(ast/*clonedAST*/, inv.ID, new [] { code.Node });
+                            System.Diagnostics.Debug.Assert(arg.Kind == SemanticKind.InvocationArgument);
 
-                            return false;
-                        }
-                        else
-                        {
-                            result.AddMessages(new NodeMessage(MessageKind.Warning, $"`keypath` invocation expects identifier argument", inv)
+                            var invArg = ASTNodeFactory.InvocationArgument(ast, arg);
+                            var invArgValue = invArg.Value;
+
+                            if(invArgValue?.Kind == SemanticKind.Identifier)
                             {
-                                Hint = GetHint(inv.Origin),
-                                Tags = DiagnosticTags
-                            });
+                                var lexeme = ASTNodeFactory.Identifier(ast/*clonedAST*/, (DataNode<string>)invArgValue).Lexeme;
+                                var code = NodeFactory.CodeConstant(ast/*clonedAST*/, inv.Origin, $"\\.{lexeme}");
+
+                                ASTHelpers.Replace(ast/*clonedAST*/, inv.ID, new [] { code.Node });
+
+                                return false; // [dho] do not explore subtree - 14/12/19
+                            }                            
                         }
+
+                        result.AddMessages(new NodeMessage(MessageKind.Error, $"'{KeypathSymbolLexeme}' invocation expects identifier argument", inv)
+                        {
+                            Hint = GetHint(inv.Origin),
+                            Tags = DiagnosticTags
+                        });
                     }
                 }
 
@@ -193,7 +206,7 @@ namespace Sempiler.Transformation
             {
                 if(nodeIDsToRemove.Count > 0)
                 {
-                    ASTHelpers.RemoveNodes(ast/*clonedAST*/, nodeIDsToRemove.ToArray());
+                    ASTHelpers.DisableNodes(ast/*clonedAST*/, nodeIDsToRemove.ToArray());
                 }
 
                 // result.Value = ast/*clonedAST*/;

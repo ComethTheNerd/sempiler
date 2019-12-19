@@ -266,6 +266,19 @@ namespace Sempiler
                 return _javaC;
             }
         }
+
+        // private static CommandLineDiagnosticsParser _nodeStack;
+        // public static CommandLineDiagnosticsParser NodeStack {
+        //     get {
+        //         if(_nodeStack == null)
+        //         {
+        //             _nodeStack = Create(@"^$" + CommandLineVariables.DiagnosticFilePath + ":$" + CommandLineVariables.DiagnosticLineNumber + 
+        //                         @"\n\s+$" + CommandLineVariables.DiagnosticDescription);
+        //         }
+
+        //         return _nodeStack;
+        //     }
+        // }
     }
 
     public static class CommandLine
@@ -358,6 +371,8 @@ namespace Sempiler
 
         public static Task<Result<(int, List<string>)>> Exec(string fileName, string arguments, CancellationToken token)
         {
+            // Console.WriteLine($"SETUP COMMAND LINE EXEC {fileName} {string.Join("", arguments)}");
+
             var tcs = new TaskCompletionSource<Result<(int, List<string>)>>();
             var result = new Result<(int, List<string>)>();
 
@@ -379,6 +394,8 @@ namespace Sempiler
 
             proc.Exited += (sender, args) =>
             {
+                Console.WriteLine($"PROCESS EXITED COMMAND LINE EXEC {fileName} {string.Join("", arguments)}");
+
                 ctr.Dispose();
 
                 // while(proc.StandardOutput.Peek() >= 0)
@@ -418,11 +435,13 @@ namespace Sempiler
 
                 result.Value = (proc.ExitCode, outLines);
 
+                Console.WriteLine($"SET RESULT COMMAND LINE EXEC {fileName} {string.Join("", arguments)}");
                 tcs.SetResult(result);
             };
 
             try
             {
+                Console.WriteLine($"START COMMAND LINE EXEC {fileName} {string.Join("", arguments)}");
                 if(!proc.Start())
                 {
                     result.AddMessages(new Message(MessageKind.Error, $"Could not start process for : {fileName} {String.Join(" ", arguments)}"));
@@ -433,6 +452,7 @@ namespace Sempiler
             }
             catch(Exception e) // [dho] eg. throws if fileName is not known - 28/08/18
             {
+                Console.WriteLine($"ERROR COMMAND LINE EXEC {fileName} {string.Join("", arguments)}");
                 result.AddMessages(CreateErrorFromException(e));
 
                 tcs.SetResult(result);

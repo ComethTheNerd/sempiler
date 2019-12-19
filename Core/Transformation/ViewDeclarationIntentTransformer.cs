@@ -78,7 +78,7 @@ namespace Sempiler.Transformation
                 return shouldExploreChildren;
             };
 
-            ASTHelpers.PreOrderTraversal(session, ast, _node, del, token);
+            ASTHelpers.PreOrderLiveTraversal(ast, _node, del, token);
 
             return result;
         }

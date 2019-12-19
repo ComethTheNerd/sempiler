@@ -15,6 +15,7 @@ namespace Sempiler.Emission
     {
         public TypeScriptEmitter() : base(new string[]{ "typescript", PhaseKind.Emission.ToString("g").ToLower() })
         {
+            FileExtension = ".ts";
         }
 
         const MetaFlag AccessorDeclarationFlags = TypeDeclarationMemberFlags | /* MetaFlag.Generator | MetaFlag.Asynchronous |*/ MetaFlag.Optional;
@@ -395,92 +396,6 @@ namespace Sempiler.Emission
             return EmitNode(node.Subject, childContext, token);
         }
 
-        // [dho] TODO move to a helper for other emitters that will spit out 1 file per component, eg. Java etc - 21/09/18 (ported 24/04/19)
-        // [dho] TODO CLEANUP this is duplicated in CSEmitter (apart from FileEmission extension) - 21/09/18 (ported 24/04/19)
-        public override Result<object> EmitComponent(Component node, Context context, CancellationToken token)
-        {
-            var result = new Result<object>();
-
-            // if (node.Origin.Kind != NodeOriginKind.Source)
-            // {
-            //     result.AddMessages(
-            //         new NodeMessage(MessageKind.Error, $"Could not write emission in artifact due to unsupported origin kind '{node.Origin.Kind}'", node)
-            //         {
-            //             Hint = GetHint(node.Origin),
-            //             Tags = DiagnosticTags
-            //         }
-            //     );
-
-            //     return result;
-            // }
-
-            // var sourceWithLocation = ((SourceNodeOrigin)node.Origin).Source as ISourceWithLocation<IFileLocation>;
-
-            // if (sourceWithLocation == null || sourceWithLocation.Location == null)
-            // {
-            //     result.AddMessages(
-            //         new NodeMessage(MessageKind.Error, $"Could not write emission in artifact because output location cannot be determined", node)
-            //         {
-            //             Hint = GetHint(node.Origin),
-            //             Tags = DiagnosticTags
-            //         }
-            //     );
-
-            //     return result;
-            // }
-
-            var location = node.Name;//sourceWithLocation.Location;
-
-            var relParentDirPath = node.Name.Replace(context.Session.BaseDirectory.ToPathString(), "");
-
-            // [dho] our emissions will be stored in a file with the same relative path and name
-            // as the original source for this component, eg. hello/World.ts => hello/World.java - 26/04/19
-            var file = new FileEmission(
-                FileSystem.ParseFileLocation($"{relParentDirPath}.ts")
-            );
-
-            if (context.OutFileCollection.Contains(file.Destination))
-            {
-                result.AddMessages(
-                    new NodeMessage(MessageKind.Error, $"Could not write emission in artifact at '{file.Destination.ToPathString()}' because location already exists", node)
-                    {
-                        Hint = GetHint(node.Origin),
-                        Tags = DiagnosticTags
-                    }
-                );
-            }
-
-            var childContext = ContextHelpers.Clone(context);
-            childContext.Component = node;
-            // // childContext.Parent = node;
-            childContext.Emission = file; // [dho] this is where children of this component should write to - 29/08/18
-
-            foreach (var (child, hasNext) in ASTNodeHelpers.IterateChildren(context.AST, node))
-            {
-                result.AddMessages(
-                    EmitNode(child, childContext, token)
-                );
-
-                if(RequiresSemicolonSentinel(child))
-                {
-                    childContext.Emission.Append(child, ";");
-                }
-
-                childContext.Emission.AppendBelow(node, "");
-
-                if (token.IsCancellationRequested)
-                {
-                    break;
-                }
-            }
-
-            if (!Diagnostics.DiagnosticsHelpers.HasErrors(result))
-            {
-                context.OutFileCollection[file.Destination] = file;
-            }
-
-            return result;
-        }
 
         public override Result<object> EmitConcatenation(Concatenation node, Context context, CancellationToken token)
         {
@@ -2744,11 +2659,8 @@ namespace Sempiler.Emission
             var result = new Result<object>();
 
             var childContext = ContextHelpers.Clone(context);
-            // // childContext.Parent = node;
 
-            context.Emission.Append(node, "!!");
-
-            result.AddMessages(EmitDelimited(node.Operands, " || !!", childContext, token));
+            result.AddMessages(EmitDelimited(node.Operands, "??", childContext, token));
 
             return result;
         }
@@ -3547,23 +3459,30 @@ namespace Sempiler.Emission
 
             var supers = node.Supers;
 
+            result.AddMessages(
+                EmitTypeDeclarationHeritageSupers(node, supers, childContext, token)
+            );
+            
+            var interfaces = node.Interfaces;
+
+            result.AddMessages(
+                EmitTypeDeclarationHeritageInterfaces(node, interfaces, childContext, token)
+            );
+
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected virtual Result<object> EmitTypeDeclarationHeritageSupers(TypeDeclaration node, Node[] supers, Context context, CancellationToken token)
+        {
+            var result = new Result<object>();
+
             if(supers.Length > 0)
             {
                 context.Emission.Append(node, " extends ");
 
                 result.AddMessages(
-                    EmitCSV(supers, childContext, token)
-                );
-            }
-            
-            var interfaces = node.Interfaces;
-
-            if(interfaces.Length > 0)
-            {
-                context.Emission.Append(node, " implements ");
-
-                result.AddMessages(
-                    EmitCSV(interfaces, childContext, token)
+                    EmitCSV(supers, context, token)
                 );
             }
 
@@ -3571,7 +3490,24 @@ namespace Sempiler.Emission
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected Result<object> EmitTypeDeclarationTemplate<T>(T typeDecl, Context context, CancellationToken token) where T : ASTNode, ITemplated
+        protected virtual Result<object> EmitTypeDeclarationHeritageInterfaces(TypeDeclaration node, Node[] interfaces, Context context, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            if(interfaces.Length > 0)
+            {
+                context.Emission.Append(node, " implements ");
+
+                result.AddMessages(
+                    EmitCSV(interfaces, context, token)
+                );
+            }
+
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected virtual Result<object> EmitTypeDeclarationTemplate<T>(T typeDecl, Context context, CancellationToken token) where T : ASTNode, ITemplated
         {
             var result = new Result<object>();
 
@@ -3765,11 +3701,15 @@ namespace Sempiler.Emission
 
                     context.Emission.AppendBelow(member, "");
 
+                    var prevEmissionLength = context.Emission.Length;
+
                     result.AddMessages(
                         EmitNode(member, context, token)
                     );
 
-                    if(RequiresSemicolonSentinel(member))
+                    var didAppend = context.Emission.Length > prevEmissionLength;
+
+                    if(didAppend && RequiresSemicolonSentinel(member))
                     {
                         context.Emission.Append(member, ";");
                     }
@@ -3878,7 +3818,7 @@ namespace Sempiler.Emission
 
         #endregion
 
-        protected bool RequiresSemicolonSentinel(Node node)
+        protected override bool RequiresSemicolonSentinel(Node node)
         {
             switch(node.Kind)
             {

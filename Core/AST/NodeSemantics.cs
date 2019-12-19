@@ -1,4 +1,6 @@
-﻿namespace Sempiler.AST
+﻿using System;
+
+namespace Sempiler.AST
 {
     /*
         We opt for conceptual (ArithmeticAdd, Assignment) rather than lexical kinds (AsteriskToken, PlusToken)
@@ -195,7 +197,7 @@
 
 
     // eg. could have an Identifier that plays the SemanticRole of a function name
-    public enum SemanticRole 
+    public enum SemanticRole
     {
         // wht about function? class?
         None, // ??

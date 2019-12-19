@@ -33,12 +33,12 @@ namespace Sempiler.AST
 
         public Node[] Annotations
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
         }
 
         public Node[] Modifiers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
         }
     }
 
@@ -61,6 +61,11 @@ namespace Sempiler.AST
     public interface IParametered
     {
         Node[] Parameters { get; } 
+    }
+
+    public interface ITyped 
+    {
+        Node Type { get; }
     }
 
     public interface IArgumented
@@ -121,7 +126,7 @@ namespace Sempiler.AST
 
         public Node[] Content
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Content);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Content);
             // get { 
             //     var nodes = ASTHelpers.GetEdgeNodes(AST, Node.ID);
 
@@ -143,7 +148,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -159,7 +164,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -203,12 +208,12 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
 
         public Node Content
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Content);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Content);
         }
     }
 
@@ -356,7 +361,7 @@ namespace Sempiler.AST
 
         public Node[] Components
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Component);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Component);
         }
     }
 
@@ -382,7 +387,7 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
     }
 
@@ -402,12 +407,12 @@ namespace Sempiler.AST
 
         public Node From
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.From);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.From);
         }
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
     }
     
@@ -421,17 +426,17 @@ namespace Sempiler.AST
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
         }
 
         public Node[] Annotations
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
         }
 
         public Node[] Modifiers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
         }
     }
 
@@ -451,12 +456,12 @@ namespace Sempiler.AST
 
         public Node Specifier
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Specifier);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Specifier);
         }
 
         public Node[] Clauses
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Clause);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Clause);
         }
     }
 
@@ -489,7 +494,7 @@ namespace Sempiler.AST
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
         }
 
        
@@ -567,7 +572,7 @@ namespace Sempiler.AST
 
         public Node[] Flags 
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Flag);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Flag);
         }
     }
 
@@ -584,7 +589,7 @@ namespace Sempiler.AST
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
             
         }
 
@@ -595,7 +600,7 @@ namespace Sempiler.AST
         /// </summary> - 06/10/18 (ported 23/03/19)
         public Node ParserName
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.ParserName);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.ParserName);
             
         }
     }
@@ -627,7 +632,7 @@ namespace Sempiler.AST
 
         public Node Operand
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
             
         }
     }
@@ -643,7 +648,7 @@ namespace Sempiler.AST
 
         public Node[] Operands
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -779,13 +784,13 @@ namespace Sempiler.AST
 
         public Node Base
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Base);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Base);
             
         }
 
         public Node Exponent
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Exponent);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Exponent);
             
         }
     }
@@ -842,7 +847,7 @@ namespace Sempiler.AST
         }
         public Node[] Operands
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -929,13 +934,13 @@ namespace Sempiler.AST
 
         public Node Storage
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Storage);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Storage);
             
         }
 
         public Node Value
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Value);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Value);
             
         }
     }
@@ -1037,13 +1042,13 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
 
         public Node Offset
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Offset);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Offset);
             
         }
     }
@@ -1103,13 +1108,13 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
     }
 
     // [dho] Equivalent in TypeScript to `keyof T` - 23/03/19
-    public class IndexTypeQuery : ASTNode
+    public class IndexTypeQuery : ASTNode, ITyped
     {
         
 
@@ -1120,13 +1125,13 @@ namespace Sempiler.AST
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
 
     // [dho] Equivalent in TypeScript to `infer T` - 23/03/19
-    public class InferredTypeQuery : ASTNode
+    public class InferredTypeQuery : ASTNode, ITyped
     {
         
 
@@ -1137,7 +1142,7 @@ namespace Sempiler.AST
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1156,13 +1161,13 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node[] Constraints
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Constraint);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Constraint);
             
         }
     }
@@ -1179,7 +1184,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
     }
@@ -1197,13 +1202,13 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
 
         public Node Criteria
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Criteria);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Criteria);
             
         }
 
@@ -1240,7 +1245,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
     }
@@ -1257,7 +1262,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
     }
@@ -1275,13 +1280,13 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
 
         public Node TargetType
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.TargetType);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.TargetType);
             
         }
     }
@@ -1320,7 +1325,7 @@ namespace Sempiler.AST
         }
     }
 
-    public abstract class TypeConstraint : ASTNode
+    public abstract class TypeConstraint : ASTNode, ITyped
     {
         
 
@@ -1331,7 +1336,7 @@ namespace Sempiler.AST
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1393,7 +1398,7 @@ namespace Sempiler.AST
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
     }
@@ -1408,23 +1413,23 @@ namespace Sempiler.AST
         // [dho] eg. Identifier or QualifiedAccess - 23/03/19
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
         }
 
         public Node[] Annotations
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Annotation);  
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Annotation);  
         }
 
         public Node[] Modifiers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Modifier); 
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Modifier); 
         }
     }
 
@@ -1438,41 +1443,38 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
          public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
     }
 
-    public abstract class FunctionLikeTypeReference : ASTNode, ITemplated, IParametered
+    public abstract class FunctionLikeTypeReference : ASTNode, ITemplated, IParametered, ITyped
     {
-        
-        
-        
 
         protected FunctionLikeTypeReference(RawAST ast, Node node) : base(ast, node)
         { }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
 
         public Node[] Parameters
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
             
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1502,13 +1504,13 @@ namespace Sempiler.AST
 
         public Node Literal
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Literal);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Literal);
             
         }
     }
 
     // [dho] Equivalent in TypeScript to `{ [P in keyof T]: T[P]; }`  - 24/03/19
-    public class MappedTypeReference : ASTNode, IAnnotated, IModified 
+    public class MappedTypeReference : ASTNode, IAnnotated, IModified, ITyped 
     {
 
         public MappedTypeReference(RawAST ast, Node node) : base(ast, node)
@@ -1518,25 +1520,25 @@ namespace Sempiler.AST
 
         public Node TypeParameter
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.TypeParameter);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.TypeParameter);
             
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
 
         public Node[] Annotations
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
             
         }
 
         public Node[] Modifiers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
             
         }
     }
@@ -1555,24 +1557,24 @@ namespace Sempiler.AST
 
         public Node Predicate
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Predicate);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Predicate);
             
         }
 
         public Node TrueType
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.TrueType);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.TrueType);
             
         }
 
         public Node FalseType
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.FalseType);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.FalseType);
             
         }
     }
 
-    public class ArrayTypeReference : ASTNode
+    public class ArrayTypeReference : ASTNode, ITyped
     {
         
 
@@ -1583,12 +1585,12 @@ namespace Sempiler.AST
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
 
-    public class PointerTypeReference : ASTNode
+    public class PointerTypeReference : ASTNode, ITyped
     {
         
 
@@ -1599,7 +1601,7 @@ namespace Sempiler.AST
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1615,12 +1617,12 @@ namespace Sempiler.AST
 
         public Node[] Types
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Type);
             
         }
     }
 
-    public class ParenthesizedTypeReference : ASTNode
+    public class ParenthesizedTypeReference : ASTNode, ITyped
     {
         
 
@@ -1631,7 +1633,7 @@ namespace Sempiler.AST
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1649,13 +1651,13 @@ namespace Sempiler.AST
 
         public Node KeyType
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.KeyType);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.KeyType);
             
         }
 
         public Node StoredType
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.StoredType);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.StoredType);
             
         }
     }
@@ -1671,7 +1673,7 @@ namespace Sempiler.AST
 
         public Node[] Types
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1687,7 +1689,7 @@ namespace Sempiler.AST
 
         public Node[] Types
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1708,7 +1710,7 @@ namespace Sempiler.AST
 
         public Node[] Signatures
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
             
         }
 
@@ -1728,19 +1730,19 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
             
         }
     }
@@ -1753,31 +1755,31 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
             
         }
 
         public Node[] Supers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Super);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Super);
             
         }
 
         public Node[] Interfaces
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Interface);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Interface);
             
         }
     }
@@ -1807,7 +1809,7 @@ namespace Sempiler.AST
         { }
     }
 
-    public class FieldSignature : ASTNode, INamed, IAnnotated, IModified
+    public class FieldSignature : ASTNode, INamed, IAnnotated, IModified, ITyped
     {
         public FieldSignature(RawAST ast, Node node) : base(ast, node)
         {
@@ -1816,67 +1818,62 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
 
         public Node Initializer
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Initializer);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Initializer);
             
         }
 
         public Node[] Annotations
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
             
         }
 
         public Node[] Modifiers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
             
         }
     }
 
-    public abstract class OperatorSignature : ASTNode, IAnnotated, IModified, IParametered
+    public abstract class OperatorSignature : ASTNode, IAnnotated, IModified, IParametered, ITyped
     {
-        
-        
-        
-        
-
         protected OperatorSignature(RawAST ast, Node node) : base(ast, node)
         {
         }
 
         public Node[] Parameters
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
             
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
 
         public Node[] Annotations
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
             
         }
 
         public Node[] Modifiers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
             
         }
     }
@@ -1910,21 +1907,20 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node Initializer
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Initializer);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Initializer);
             
         }
     }
 
-    public interface IFunctionLike : ITemplated, IAnnotated, IModified, IParametered
+    public interface IFunctionLike : ITemplated, IAnnotated, IModified, IParametered, ITyped
     {
         Node Name { get ; }
-        Node Type { get; }
     }
 
     public abstract class FunctionLikeDeclaration : Declaration, INamed, IFunctionLike
@@ -1936,31 +1932,31 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
 
         public Node[] Parameters
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
             
         }
 
         public Node Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Body);
             
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
     }
@@ -1972,35 +1968,35 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
         }
 
         public Node[] Parameters
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
             
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
             
         }
 
         public Node[] Annotations
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Annotation);
         }
 
         public Node[] Modifiers
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Modifier);
         }
     }
 
@@ -2084,19 +2080,19 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
 
         public Node[] Arguments
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Argument);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Argument);
             
         }
     }
@@ -2110,12 +2106,12 @@ namespace Sempiler.AST
 
         public Node Value
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Value);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Value);
         }
 
         public Node Label
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Label);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Label);
             
         }
     }
@@ -2130,13 +2126,13 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
             
         }
 
         public Node[] Arguments
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Argument);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Argument);
         }
     }
 
@@ -2154,19 +2150,19 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
             
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
             
         }
 
         public Node[] Arguments
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Argument);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Argument);
             
         }
     }
@@ -2182,12 +2178,12 @@ namespace Sempiler.AST
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
         }
     }
 
     // [dho] Equivalent in TypeScript to `[1, 2, 3]` - 23/03/19
-    public class ArrayConstruction : ASTNode
+    public class ArrayConstruction : ASTNode, ITyped
     {
     
         public ArrayConstruction(RawAST ast, Node node) : base(ast, node)
@@ -2197,17 +2193,17 @@ namespace Sempiler.AST
 
         public Node Size
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Size);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Size);
         }
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
         }
 
         public Node Type 
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
         }
     }
 
@@ -2220,12 +2216,12 @@ namespace Sempiler.AST
 
         public Node Key
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Key);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Key);
         }
 
         public Node Value
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Value);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Value);
         }
     }
 
@@ -2239,7 +2235,7 @@ namespace Sempiler.AST
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
         }
     }
 
@@ -2254,7 +2250,7 @@ namespace Sempiler.AST
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
         }
     }
 
@@ -2270,7 +2266,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -2299,12 +2295,12 @@ namespace Sempiler.AST
 
         public Node Value
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Value);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Value);
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
         }
     }
 
@@ -2319,7 +2315,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -2333,7 +2329,7 @@ namespace Sempiler.AST
 
         public Node[] Members
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Member);
         }
     }
 
@@ -2366,12 +2362,12 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node Default
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Default);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Default);
         }
     }
 
@@ -2385,7 +2381,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -2400,33 +2396,33 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
-    public class ParameterDeclaration : Declaration, INamed, IAnnotated, IModified
+    public class ParameterDeclaration : Declaration, INamed, IAnnotated, IModified, ITyped
     {
         public ParameterDeclaration(RawAST ast, Node node) : base(ast, node)
         { }
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
         }
 
         public Node Default
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Default);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Default);
         }
 
         public Node Label
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Label);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Label);
         }
     }
 
@@ -2437,21 +2433,21 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node Default
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Default);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Default);
         }
 
         public Node[] Constraints
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Constraint);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Constraint);
         }
     }
 
-    public class FieldDeclaration : Declaration, INamed, IAnnotated, IModified
+    public class FieldDeclaration : Declaration, INamed, IAnnotated, IModified, ITyped
     {
 
         public FieldDeclaration(RawAST ast, Node node) : base(ast, node)
@@ -2461,22 +2457,22 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
         }
 
         public Node Initializer
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Initializer);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Initializer);
         }
     }
 
     // [dho] a property is a type member that has either an accessor, mutator or both - 23/03/19
-    public class PropertyDeclaration : Declaration, INamed
+    public class PropertyDeclaration : Declaration, INamed, ITyped
     {
         public PropertyDeclaration(RawAST ast, Node node) : base(ast, node)
         {
@@ -2484,28 +2480,28 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
         }
 
         public Node Accessor
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Accessor);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Accessor);
         }
 
         public Node Mutator
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Mutator);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Mutator);
         }
     }
 
 
     // [dho] Equivalent in TypeScript to `var`, `let` or `const` - 23/03/19
-    public class DataValueDeclaration : Declaration, INamed, IAnnotated, IModified
+    public class DataValueDeclaration : Declaration, INamed, IAnnotated, IModified, ITyped
     {
 
         public DataValueDeclaration(RawAST ast, Node node) : base(ast, node)
@@ -2514,17 +2510,17 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node Initializer
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Initializer);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Initializer);
         }
 
         public Node Type
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Type);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Type);
         }
     }
 
@@ -2540,7 +2536,7 @@ namespace Sempiler.AST
 
         public Node Operand
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -2558,17 +2554,17 @@ namespace Sempiler.AST
 
         public Node Predicate
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Predicate);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Predicate);
         }
 
         public Node TrueBranch
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.TrueBranch);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.TrueBranch);
         }
 
         public Node FalseBranch
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.FalseBranch);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.FalseBranch);
         }
     }
 
@@ -2586,17 +2582,17 @@ namespace Sempiler.AST
 
         public Node Predicate
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Predicate);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Predicate);
         }
 
         public Node TrueValue
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.TrueValue);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.TrueValue);
         }
 
         public Node FalseValue
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.FalseValue);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.FalseValue);
         }
     }
 
@@ -2612,12 +2608,12 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
 
         public Node[] Clauses
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Clause);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Clause);
         }
     }
   
@@ -2632,12 +2628,12 @@ namespace Sempiler.AST
 
         public Node[] Expression
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Pattern);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Pattern);
         }
 
         public Node[] Body
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Body);
         }
     }
 
@@ -2677,7 +2673,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -2693,7 +2689,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -2708,7 +2704,7 @@ namespace Sempiler.AST
 
         public Node Operand
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -2725,12 +2721,12 @@ namespace Sempiler.AST
 
         public Node[] Body
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Body);
         }
 
         public Node[] Clauses
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Clause);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Clause);
         }
     }
 
@@ -2761,7 +2757,7 @@ namespace Sempiler.AST
         
         public Node Expression
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Label);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Label);
         }
     }
 
@@ -2776,7 +2772,7 @@ namespace Sempiler.AST
         
         public Node Expression
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Label);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Label);
         }
     }
 
@@ -2793,12 +2789,12 @@ namespace Sempiler.AST
 
         public Node SymbolProvider
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.SymbolProvider);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.SymbolProvider);
         }
 
         public Node Scope 
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Scope);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Scope);
         }
     }
 
@@ -2814,12 +2810,12 @@ namespace Sempiler.AST
 
         public Node Incident
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Incident);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Incident);
         }
 
         public Node Member
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Member);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Member);
         }
     }
 
@@ -2857,7 +2853,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -2878,17 +2874,17 @@ namespace Sempiler.AST
 
         public Node Handle
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Handle);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Handle);
         }
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
 
         public Node Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Body);
         }
     }
 
@@ -2906,22 +2902,22 @@ namespace Sempiler.AST
 
         public Node Initializer
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Initializer);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Initializer);
         }
 
         public Node Condition
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Condition);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Condition);
         }
 
         public Node Iterator
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Iterator);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Iterator);
         }
 
         public Node Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Body);
         }
     }
 
@@ -2938,17 +2934,17 @@ namespace Sempiler.AST
 
         public Node Handle
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Handle);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Handle);
         }
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
 
         public Node Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Body);
         }
     }
 
@@ -2964,12 +2960,12 @@ namespace Sempiler.AST
 
         public Node Condition
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Condition);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Condition);
         }
 
         public Node Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Body);
         }
     }
 
@@ -2986,12 +2982,12 @@ namespace Sempiler.AST
 
         public Node Condition
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Condition);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Condition);
         }
 
         public Node Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Body);
         }
     }
 
@@ -3006,7 +3002,7 @@ namespace Sempiler.AST
 
         public Node Label
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Label);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Label);
         }
     }
 
@@ -3025,7 +3021,7 @@ namespace Sempiler.AST
 
         public Node Value
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Value);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Value);
         }
     }
 
@@ -3040,7 +3036,7 @@ namespace Sempiler.AST
 
         public Node Value
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Value);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Value);
             
         }
     }
@@ -3056,7 +3052,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -3071,7 +3067,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Subject);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Subject);
         }
     }
 
@@ -3093,7 +3089,7 @@ namespace Sempiler.AST
 
         public Node Incident
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Incident);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Incident);
         }
     }
 
@@ -3107,7 +3103,7 @@ namespace Sempiler.AST
 
         public Node Expression
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -3145,7 +3141,7 @@ namespace Sempiler.AST
 
         public Node Expression
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 
@@ -3159,7 +3155,7 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
     }
 
@@ -3179,18 +3175,18 @@ namespace Sempiler.AST
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node[] Properties
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Property);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Property);
             
         }
 
         public Node[] Children
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Child);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Child);
         }
     }
 
@@ -3202,27 +3198,27 @@ namespace Sempiler.AST
 
         public Node[] Previews
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.ViewPreview);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.ViewPreview);
         }
 
         public Node Name
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Name);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Name);
         }
 
         public Node[] Template
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Template);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Template);
         }
 
         public Node[] Parameters
         {
-            get => ASTHelpers.QueryEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
+            get => ASTHelpers.QueryLiveEdgeNodes(AST, Node.ID, SemanticRole.Parameter);
         }
 
         public Node Body
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Body);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Body);
         }
     }
 
@@ -3234,7 +3230,7 @@ namespace Sempiler.AST
 
         public Node Subject
         {
-            get => ASTHelpers.GetSingleMatch(AST, Node.ID, SemanticRole.Operand);
+            get => ASTHelpers.GetSingleLiveMatch(AST, Node.ID, SemanticRole.Operand);
         }
     }
 

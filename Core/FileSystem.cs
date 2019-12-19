@@ -265,7 +265,34 @@
             {
                 var written = new Dictionary<string, OutFile>();
 
-                object l = new object();
+                // foreach(var item in outFileCollection)
+                // {
+                //     var absPath = FileSystem.Resolve(absOutDirPath, item.Path);
+
+                //     try
+                //     {
+                //         Directory.CreateDirectory(
+                //             Directory.GetParent(absPath).ToString()
+                //         );
+
+                //         File.WriteAllBytes(absPath, item.Emission.Serialize());
+
+                //         // lock(l)
+                //         // {
+                //             written[absPath] = item;
+                //         // }
+                //     }
+                //     catch(Exception exception)
+                //     {
+                //         // lock(l)
+                //         // {
+                //             result.AddMessages(
+                //                 CreateErrorFromException(exception, $"Failed to write to '{absPath}'")
+                //             );
+                //         // }
+                //     }
+                // }
+
 
                 Parallel.ForEach(outFileCollection, item => {
 
@@ -277,16 +304,16 @@
                             Directory.GetParent(absPath).ToString()
                         );
 
-                        File.WriteAllText(absPath, item.Emission.Serialize());
+                        File.WriteAllBytes(absPath, item.Emission.Serialize());
 
-                        lock(l)
+                        lock(written)
                         {
                             written[absPath] = item;
                         }
                     }
                     catch(Exception exception)
                     {
-                        lock(l)
+                        lock(result)
                         {
                             result.AddMessages(
                                 CreateErrorFromException(exception, $"Failed to write to '{absPath}'")
@@ -307,9 +334,8 @@
 
             Dictionary<string, bool> deleted = new Dictionary<string, bool>();
 
-            object l = new object();
-
-            Parallel.ForEach(absPaths, absPath => {
+            foreach(var absPath in absPaths)
+            {
                 try
                 {
                     var didDelete = false;
@@ -325,23 +351,59 @@
                         didDelete = true;
                     }   
 
-                    lock(l)
-                    {
+                    // lock(l)
+                    // {
                         deleted[absPath] = didDelete;
-                    }
+                    // }
                 }
                 catch(Exception exception)
                 {
-                    lock(l)
-                    {
+                    // lock(l)
+                    // {
                         result.AddMessages(
                             CreateErrorFromException(exception, $"Failed to delete '{absPath}'")
                         );
 
                         deleted[absPath] = false;
-                    }
+                    // }
                 }
-            });
+            }
+
+            // object l = new object();
+
+            // Parallel.ForEach(absPaths, absPath => {
+            //     try
+            //     {
+            //         var didDelete = false;
+
+            //         if(File.Exists(absPath))
+            //         {
+            //             System.IO.File.Delete(absPath);
+            //             didDelete = true;
+            //         }
+            //         else if(Directory.Exists(absPath))
+            //         {
+            //             DeleteDirectory(absPath);
+            //             didDelete = true;
+            //         }   
+
+            //         lock(l)
+            //         {
+            //             deleted[absPath] = didDelete;
+            //         }
+            //     }
+            //     catch(Exception exception)
+            //     {
+            //         lock(l)
+            //         {
+            //             result.AddMessages(
+            //                 CreateErrorFromException(exception, $"Failed to delete '{absPath}'")
+            //             );
+
+            //             deleted[absPath] = false;
+            //         }
+            //     }
+            // });
 
             result.Value = deleted;
 

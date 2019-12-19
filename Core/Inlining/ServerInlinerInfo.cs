@@ -55,7 +55,7 @@ namespace Sempiler.Inlining
                 Members = new List<Node>()
             };
 
-            foreach(var (child, hasNext) in ASTNodeHelpers.IterateChildren(ast, component.ID))
+            foreach(var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, component.ID))
             {
                 if(child.Kind == SemanticKind.ImportDeclaration)
                 {
@@ -78,7 +78,7 @@ namespace Sempiler.Inlining
                             if(languageSemantics.IsFunctionLikeDeclarationStatement(ast, clause))
                             {
                                 // [dho] TODO CLEANUP HACK to get function name!! - 01/06/19
-                                var handlerName = ASTHelpers.GetSingleMatch(ast, clause.ID, SemanticRole.Name);
+                                var handlerName = ASTHelpers.GetSingleLiveMatch(ast, clause.ID, SemanticRole.Name);
                                 
                                 if(handlerName?.Kind == SemanticKind.Identifier)
                                 {

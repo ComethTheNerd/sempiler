@@ -36,6 +36,16 @@
             set => outFiles[location.ToPathString()] = value;
         }
 
+        public void AddAll(OutFileCollection other)
+        {
+            foreach(var kv in other.outFiles)
+            {
+                System.Diagnostics.Debug.Assert(!this.outFiles.ContainsKey(kv.Key));
+
+                this.outFiles[kv.Key] = kv.Value;
+            }
+        }
+
         public IEnumerator<OutFile> GetEnumerator()
         {
             foreach(var item in outFiles)
@@ -52,7 +62,7 @@
 
     public interface IOutFileContent
     {
-        string Serialize();
+        byte[] Serialize();
     }
 
     public struct OutFile
@@ -320,9 +330,9 @@
             return markers ?? (new List<EmissionMarker>());
         }
 
-        public string Serialize()
+        public byte[] Serialize()
         {
-            return mBuilder.ToString();
+            return System.Text.Encoding.UTF8.GetBytes(mBuilder.ToString());
         }
     }
 
@@ -354,14 +364,14 @@
 
     public class RawOutFileContent : IOutFileContent
     {
-        public readonly string Content;
+        public readonly byte[] Content;
 
-        public RawOutFileContent(string content)
+        public RawOutFileContent(byte[] content)
         {
             Content = content;
         }
 
-        public string Serialize() 
+        public byte[] Serialize() 
         {
             return Content;
         }

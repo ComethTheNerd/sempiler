@@ -33,7 +33,7 @@ namespace Sempiler.Transformation
 
             var root = ASTHelpers.GetRoot(/* clonedAST */ ast);
 
-            result.AddMessages(TransformNode(session, root, context, token));
+            result.AddMessages(TransformNode(session, artifact, root, context, token));
 
             // if (!HasErrors(result))
             // {
@@ -45,53 +45,32 @@ namespace Sempiler.Transformation
             return Task.FromResult(result);
         }
 
-        protected Result<object> TransformNode(Session session, Node start, Context context, CancellationToken token)
+        protected Result<object> TransformNode(Session session, Artifact artifact, Node start, Context context, CancellationToken token)
         {
             var result = new Result<object>() { };
 
-            var viewConstructions = new List<ViewConstruction>();
-            var viewDeclarations = new List<ViewDeclaration>();
+            var ast = context.AST;
             var childContext = ContextHelpers.Clone(context);
 
-            var ast = context.AST;
-
-            ASTHelpers.PreOrderTraversal(session, ast, start, node =>
+            foreach (var node in ASTHelpers.QueryByKind(ast, SemanticKind.ViewConstruction))
             {
-                // if (node != null)
-                // {
-                    if (node.Kind == SemanticKind.ViewConstruction)
-                    {
-                        viewConstructions.Add(ASTNodeFactory.ViewConstruction(ast, node));
+                if(!ASTHelpers.IsLive(ast, node.ID)) continue;
 
-                        // return false; // [dho] do not explore this node any further - 17/06/19
-                    }
-                    else if (node.Kind == SemanticKind.ViewDeclaration)
-                    {
-                        viewDeclarations.Add(ASTNodeFactory.ViewDeclaration(ast, node));
+                var viewConstruction = ASTNodeFactory.ViewConstruction(ast, node);
 
-                        // result.Value = false; // [dho] do not explore this node any further - 17/06/19
-                    }
-
-                    return true; // explore subtree
-                // }
-
-
-                // return false; // do not explore subtree
-
-
-            }, token);
-
-            foreach (var viewConstruction in viewConstructions)
-            {
                 result.AddMessages(
-                    TransformViewConstruction(session, ast, viewConstruction, childContext, token)
+                    TransformViewConstruction(session, artifact, ast, viewConstruction, childContext, token)
                 );
             }
 
-            foreach (var viewDecl in viewDeclarations)
+            foreach (var node in ASTHelpers.QueryByKind(ast, SemanticKind.ViewDeclaration))
             {
+                if(!ASTHelpers.IsLive(ast, node.ID)) continue;
+
+                var viewDecl = ASTNodeFactory.ViewDeclaration(ast, node);
+
                 result.AddMessages(
-                    TransformViewDeclaration(session, ast, viewDecl, childContext, token)
+                    TransformViewDeclaration(session, artifact, ast, viewDecl, childContext, token)
                 );
             }
 
@@ -99,7 +78,7 @@ namespace Sempiler.Transformation
             return result;
         }
    
-        protected abstract Result<object> TransformViewDeclaration(Session session, RawAST ast, ViewDeclaration node, Context context, CancellationToken token);
-        protected abstract Result<object> TransformViewConstruction(Session session, RawAST ast, ViewConstruction node, Context context, CancellationToken token);
+        protected abstract Result<object> TransformViewDeclaration(Session session, Artifact artifact, RawAST ast, ViewDeclaration node, Context context, CancellationToken token);
+        protected abstract Result<object> TransformViewConstruction(Session session, Artifact artifact, RawAST ast, ViewConstruction node, Context context, CancellationToken token);
     }
 }

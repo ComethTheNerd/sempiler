@@ -7,21 +7,41 @@ using static Sempiler.AST.Diagnostics.DiagnosticsHelpers;
 using Sempiler.Diagnostics;
 using static Sempiler.Diagnostics.DiagnosticsHelpers;
 
-namespace Sempiler.Bundler
+namespace Sempiler.Bundling
 {
     public interface IBundler
     { 
         // [dho] creates a bundle of files that can be deployed and executed in the target platform, eg. inferring and injecting
         // a manifest file where none has been explicitly provided - 21/05/19
-        Task<Sempiler.Diagnostics.Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Ancillary> ancillaries, CancellationToken token);
+        Task<Sempiler.Diagnostics.Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token);
 
         IList<string> GetPreservedDebugEmissionRelPaths();
     }
 
     public static class BundlerHelpers
     {
-          // [dho] TODO HACK make dynamic! - 01/06/19
-        public const string EmittedPackageName = "com.sempiler";
+        public static string ProductIdentifier(Artifact artifact, Shard shard)
+        {
+            return PackageIdentifier(artifact) + "." + shard.Name;  
+        }
+
+        public static string PackageIdentifier(Artifact artifact)
+        {
+            return "com." + artifact.TeamName;  
+        }
+
+        public static Shard GetMainAppOrThrow(Session session, Artifact artifact)
+        {
+            foreach(var shard in session.Shards[artifact.Name])
+            {
+                if(shard.Role == ShardRole.MainApp)
+                {
+                    return shard;
+                }
+            }
+
+            throw new System.Exception($"Could not find main app for artifact '{artifact.Name}'");
+        }
 
         public static bool IsInferredSessionEntrypointComponent(Session session, Component component)
         {
@@ -75,7 +95,7 @@ namespace Sempiler.Bundler
 
             if (!ofc.Contains(location))
             {
-                ofc[location] = new Sempiler.Emission.RawOutFileContent(content);
+                ofc[location] = new Sempiler.Emission.RawOutFileContent(System.Text.Encoding.UTF8.GetBytes(content));
 
                 return true;
             }
@@ -89,7 +109,7 @@ namespace Sempiler.Bundler
 
             if (!ofc.Contains(location))
             {
-                ofc[location] = new Sempiler.Emission.RawOutFileContent(System.IO.File.ReadAllText(sourcePath));
+                ofc[location] = new Sempiler.Emission.RawOutFileContent(System.IO.File.ReadAllBytes(sourcePath));
 
                 return true;
             }

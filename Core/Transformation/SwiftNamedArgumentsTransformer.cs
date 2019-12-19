@@ -34,9 +34,14 @@ namespace Sempiler.Transformation
                 AST = ast//clonedAST
             };
 
-            var root = ASTHelpers.GetRoot(/* clonedAST */ ast);
-
-            result.AddMessages(TransformNode(session, root, context, token));
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.SpreadDestructuring))
+            {
+                if(!ASTHelpers.IsLive(ast, node.ID)) continue;
+                
+                result.AddMessages(
+                    TransformSpreadDestructuring(session, node, context, token)
+                );
+            }
 
             // if (!HasErrors(result))
             // {
@@ -48,53 +53,40 @@ namespace Sempiler.Transformation
             return Task.FromResult(result);
         }
 
-        private Result<object> TransformNode(Session session, Node start, Context context, CancellationToken token)
+        
+        private Result<object> TransformSpreadDestructuring(Session session, Node node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
 
             var ast = context.AST;
+            var spread = ASTNodeFactory.SpreadDestructuring(ast, node);
 
-            ASTHelpers.PreOrderTraversal(session, ast, start, node =>
+            // var replacementPoint = spread.Node;
+            // var parent = spread.Parent;
+            // {
+            //     while(parent?.Kind == SemanticKind.InvocationArgument || parent?.Kind == SemanticKind.Association) 
+            //     {   
+            //         replacementPoint = parent;
+            //         parent = ASTHelpers.GetParent(ast, parent.ID);
+            //     }
+            // }
+
+            var parent = spread.Parent;
+
+            if (parent.Kind == SemanticKind.InvocationArgument)
             {
-                if (node.Kind == SemanticKind.SpreadDestructuring)
-                {
-                    var spread = ASTNodeFactory.SpreadDestructuring(ast, node);
+                var arguments = result.AddMessages(AsNamedArguments(session, ast, node, context, token));
 
-                    // var replacementPoint = spread.Node;
-                    // var parent = spread.Parent;
-                    // {
-                    //     while(parent?.Kind == SemanticKind.InvocationArgument || parent?.Kind == SemanticKind.Association) 
-                    //     {   
-                    //         replacementPoint = parent;
-                    //         parent = ASTHelpers.GetParent(ast, parent.ID);
-                    //     }
-                    // }
-    
-                    var parent = spread.Parent;
+                // [dho] NOTE replace the spread parent Node if it is an invocation argument - 04/07/19
+                ASTHelpers.Replace(ast, parent.ID, arguments.ToArray());
+            }
+            else if(LanguageSemantics.Swift.IsInvocationLikeExpression(ast, parent))
+            {
+                var arguments = result.AddMessages(AsNamedArguments(session, ast, node, context, token));
 
-                    if (parent.Kind == SemanticKind.InvocationArgument)
-                    {
-                        var arguments = result.AddMessages(AsNamedArguments(session, ast, node, context, token));
-
-                        // [dho] NOTE replace the spread parent Node if it is an invocation argument - 04/07/19
-                        ASTHelpers.Replace(ast, parent.ID, arguments.ToArray());
-
-                        return false;
-                    }
-                    else if(LanguageSemantics.Swift.IsInvocationLikeExpression(ast, parent))
-                    {
-                        var arguments = result.AddMessages(AsNamedArguments(session, ast, node, context, token));
-
-                        // [dho] NOTE replace the spread Node itself if it is in an invocation like expression - 04/07/19
-                        ASTHelpers.Replace(ast, spread.ID, arguments.ToArray());
-
-                        return false;
-                    }
-                }
-
-                return true;
-            }, token);
-
+                // [dho] NOTE replace the spread Node itself if it is in an invocation like expression - 04/07/19
+                ASTHelpers.Replace(ast, spread.ID, arguments.ToArray());
+            }
 
             return result;
         }
@@ -127,9 +119,11 @@ namespace Sempiler.Transformation
                         var name = fieldDecl.Name;
                         var init = fieldDecl.Initializer;
 
-                        if(init != null)
+                        if(init?.Kind == SemanticKind.SpreadDestructuring)
                         {
-                            result.AddMessages(TransformNode(session, init, context, token));
+                            result.AddMessages(
+                                TransformSpreadDestructuring(session, init, context, token)
+                            );
 
                             init = fieldDecl.Initializer;
                         }

@@ -40,7 +40,16 @@ namespace Sempiler.Transformation
 
             var root = ASTHelpers.GetRoot(/* clonedAST */ ast);
 
-            result.AddMessages(TransformNode(session, root, context, token));
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.ObjectTypeDeclaration))
+            {
+                if(!ASTHelpers.IsLive(ast, node.ID)) continue;
+
+                var objectTypeDecl = ASTNodeFactory.ObjectTypeDeclaration(ast, node);
+
+                result.AddMessages(
+                    QualifyReferencesToObjectTypeDeclarationInstanceSymbols(session, objectTypeDecl, context, token)
+                );
+            }
 
             // if (!HasErrors(result))
             // {
@@ -50,30 +59,6 @@ namespace Sempiler.Transformation
             result.Value = ast;
 
             return Task.FromResult(result);
-        }
-
-        private Result<object> TransformNode(Session session, Node start, Context context, CancellationToken token)
-        {
-            var result = new Result<object>();
-
-            var ast = context.AST;
-
-            ASTHelpers.PreOrderTraversal(session, ast, start, node =>
-            {
-                if(node.Kind == SemanticKind.ObjectTypeDeclaration)
-                {
-                    var objectTypeDecl = ASTNodeFactory.ObjectTypeDeclaration(ast, node);
-
-                    result.AddMessages(
-                        QualifyReferencesToObjectTypeDeclarationInstanceSymbols(session, objectTypeDecl, context, token)
-                    );
-                }
-
-                return true;
-            }, token);
-
-
-            return result;
         }
 
         private Result<object> QualifyReferencesToObjectTypeDeclarationInstanceSymbols(Session session, ObjectTypeDeclaration objectTypeDecl, Context context, CancellationToken token)
@@ -92,12 +77,12 @@ namespace Sempiler.Transformation
                 }
             }
 
-            ASTHelpers.PreOrderTraversal(session, ast, objectTypeDecl.Node, node =>
+            ASTHelpers.PreOrderLiveTraversal(ast, objectTypeDecl.Node, node =>
             {
                 // [dho] nested function context - 03/10/19
                 if(node.Kind == SemanticKind.LambdaDeclaration || node.Kind == SemanticKind.FunctionDeclaration)
                 {
-                    var body = ASTHelpers.GetSingleMatch(ast, node.ID, SemanticRole.Body);
+                    var body = ASTHelpers.GetSingleLiveMatch(ast, node.ID, SemanticRole.Body);
 
                     if(body != null)
                     {
@@ -118,7 +103,7 @@ namespace Sempiler.Transformation
         {
             foreach(var node in nodes)
             {
-                var name = ASTHelpers.GetSingleMatch(ast, node.ID, SemanticRole.Name);
+                var name = ASTHelpers.GetSingleLiveMatch(ast, node.ID, SemanticRole.Name);
 
                 if(name == null)
                 {

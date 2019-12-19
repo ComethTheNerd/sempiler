@@ -62,6 +62,7 @@ namespace Sempiler.Parsing
 { "&&", SyntaxKind.AmpersandAmpersandToken },
 { "||", SyntaxKind.BarBarToken },
 { "?", SyntaxKind.QuestionToken },
+{ "??", SyntaxKind.QuestionQuestionToken },
 { ":", SyntaxKind.ColonToken },
 { "=", SyntaxKind.EqualsToken },
 { "+=", SyntaxKind.PlusEqualsToken },
@@ -1286,9 +1287,16 @@ namespace Sempiler.Parsing
                         return result;
                     }
                     case (int)CharacterCodes.Question:{
-                        Pos++;
-                        token.Kind = SyntaxKind.QuestionToken;
-                        
+                        if (TokenUtils.CharCodeAt(SourceText, Pos + 1) == (int)CharacterCodes.Question)
+                        {
+                            Pos += 2;
+                            token.Kind = SyntaxKind.QuestionQuestionToken;
+                        }
+                        else
+                        {
+                            Pos++;
+                            token.Kind = SyntaxKind.QuestionToken;
+                        }
 
                         return result;
                     }
