@@ -198,6 +198,49 @@ namespace Sempiler.Bundling
 
         }
 
+
+        public static void FilterNonEmptyComponents(RawAST ast)
+        {
+            var nodeIDsToDisable = new List<string>();
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
+            {
+                var isEmpty = ASTHelpers.QueryLiveChildEdges(ast, node.ID).Length == 0;
+
+                if(isEmpty)
+                {
+                    nodeIDsToDisable.Add(node.ID);
+                }
+            }
+
+            if(nodeIDsToDisable.Count > 0)
+            {
+                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
+            }
+        }
+        
+        public static void FilterSharedComponents(RawAST ast, Dictionary<string, bool> componentsProcessed)
+        {
+            var nodeIDsToDisable = new List<string>();
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
+            {
+                if(componentsProcessed.ContainsKey(node.ID))
+                {
+                    nodeIDsToDisable.Add(node.ID);
+                }
+                else
+                {
+                    componentsProcessed[node.ID] = true;
+                }
+            }
+
+            if(nodeIDsToDisable.Count > 0)
+            {
+                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
+            }
+        }
+
         // public static string GenerateCTID()
         // {
         //     return "_" + System.Guid.NewGuid().ToString().Replace('-', '_');

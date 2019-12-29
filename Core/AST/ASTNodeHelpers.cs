@@ -40,6 +40,20 @@ namespace Sempiler.AST
             return flags;
         }
 
+        public static (Association, InterimSuspension) CreateAwait(RawAST ast, Node operand)
+        {
+            var awaitExp = NodeFactory.InterimSuspension(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                ASTHelpers.Connect(ast, awaitExp.ID, new[] { operand }, SemanticRole.Operand);
+            }
+
+            var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                ASTHelpers.Connect(ast, parentheses.ID, new[] { awaitExp.Node }, SemanticRole.Subject);
+            }
+
+            return (parentheses, awaitExp);
+        }
 
         public static IEnumerable<(AST.Node, bool)> IterateLiveChildren(RawAST ast, AST.ASTNode nodeWrapper) => IterateLiveChildren(ast, nodeWrapper.ID);
 
@@ -446,10 +460,22 @@ namespace Sempiler.AST
             return qa;
         }
 
+        public static Assignment CreateAssignment(RawAST ast, Node storage, Node value)
+        {
+            var assignment = NodeFactory.Assignment(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                ASTHelpers.Connect(ast, assignment.ID, new [] { storage }, SemanticRole.Storage);
+
+                ASTHelpers.Connect(ast, assignment.ID, new [] { value }, SemanticRole.Value);
+            }
+
+            return assignment;
+        }
+
         public static (Invocation, LambdaDeclaration) CreateIIFE(RawAST ast, List<Node> content)
         {
             var iife = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            
+
             var lambdaDecl = CreateLambda(ast, content);
 
             var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));

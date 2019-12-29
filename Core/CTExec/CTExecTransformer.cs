@@ -162,7 +162,7 @@ namespace Sempiler.CTExec
    
             BindSubjectToPassContext(session, artifact, shard, ast, inv.Node, token);
 
-            InterimSuspension awaitInv = CreateAwait(ast, inv.Node).Item2;
+            InterimSuspension awaitInv = ASTNodeHelpers.CreateAwait(ast, inv.Node).Item2;
 
             MarkAsCTExec(ast, awaitInv.Node);
 
@@ -271,7 +271,7 @@ namespace Sempiler.CTExec
 
             BindSubjectToPassContext(session, artifact, shard, ast, inv.Node, token);
 
-            InterimSuspension awaitInv = CreateAwait(ast, inv.Node).Item2;
+            InterimSuspension awaitInv = ASTNodeHelpers.CreateAwait(ast, inv.Node).Item2;
 
             MarkAsCTExec(ast, awaitInv.Node);
 
@@ -532,21 +532,5 @@ namespace Sempiler.CTExec
 
             return arg;
         }
-
-        private static (Association, InterimSuspension) CreateAwait(RawAST ast, Node operand)
-        {
-            var awaitExp = NodeFactory.InterimSuspension(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            {
-                ASTHelpers.Connect(ast, awaitExp.ID, new[] { operand }, SemanticRole.Operand);
-            }
-
-            var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            {
-                ASTHelpers.Connect(ast, parentheses.ID, new[] { awaitExp.Node }, SemanticRole.Subject);
-            }
-
-            return (parentheses, awaitExp);
-        }
-
     }
 }

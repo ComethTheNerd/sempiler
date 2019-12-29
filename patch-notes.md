@@ -1,5 +1,22 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 28/12/19 
+- Fixed bug where `for of` body was not being attached as child of `ForMembersLoop`
+- Fixed bug for emitting strings containing escape sequences (ie. '\') in TypeScript Emitter
+- Firebase Functions Bundler now only returns detailed unexpected error diagnostics if not in production environment (`process.env.ENV !== 'production'`)
+
+# 🗓 27/12/19 
+- Fix TypeScript Emitter bug for imported and exported symbols that are not aliased
+- Firebase Functions Bundler no longer performs inlining, and instead emits one file per component
+- Fix for issue that arose with previous Firebase Functions Bundler strategy that used inlining and IIFEs, which meant it was tricky to share type definitions between files
+
+# 🗓 26/12/19 
+- Firebase Functions Bundler `skipLibCheck` in generated TypeScript config to avoid build errors with untyped or badly typed dependencies
+- Firebase Functions Bundler now hoists platform imports and uses `esModuleInterop` in generated TypeScript config (instead of nested dynamic `import(...)`) to avoid asynchronous IIFE wrapper at top level (which is invalid for Firebase Functions anyway)
+
+# 🗓 24/12/19 
+- Firebase Functions Bundler inlining change to support dynamic `import(...)`, so that type definitions are available to TypeScript compiler and source code
+
 # 🗓 19/12/19 
 - Fixed bug with parsing `httpVerb` annotation for Firebase Functions
 

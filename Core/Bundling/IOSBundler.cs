@@ -306,7 +306,7 @@ embed_extensions_phase.symbol_dst_subfolder_spec = :plug_ins
 
             foreach (var shard in shards)
             {
-                __FilterNonEmptyComponents(shard.AST);
+                FilterNonEmptyComponents(shard.AST);
 
                 var targetInfo = default(TargetInfo);
 
@@ -871,51 +871,12 @@ $@"
             }
         }
 
-        private static void __FilterNonEmptyComponents(RawAST ast)
-        {
-            var nodeIDsToDisable = new List<string>();
-
-            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
-            {
-                var isEmpty = ASTHelpers.QueryLiveChildEdges(ast, node.ID).Length == 0;
-
-                if(isEmpty)
-                {
-                    nodeIDsToDisable.Add(node.ID);
-                }
-            }
-
-            if(nodeIDsToDisable.Count > 0)
-            {
-                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
-            }
-        }
-        private static void __FilterSharedComponents(RawAST ast, Dictionary<string, bool> componentsProcessed)
-        {
-            var nodeIDsToDisable = new List<string>();
-
-            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
-            {
-                if(componentsProcessed.ContainsKey(node.ID))
-                {
-                    nodeIDsToDisable.Add(node.ID);
-                }
-                else
-                {
-                    componentsProcessed[node.ID] = true;
-                }
-            }
-
-            if(nodeIDsToDisable.Count > 0)
-            {
-                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
-            }
-        }
+        
         private static Result<object> PrepareForEmission(Session session, Artifact artifact, RawAST ast, Dictionary<string, bool> componentsProcessed, CancellationToken token)
         {
             var result = new Result<object>();
 
-            __FilterSharedComponents(ast, componentsProcessed);
+            FilterSharedComponents(ast, componentsProcessed);
 
             foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.ImportDeclaration))
             {

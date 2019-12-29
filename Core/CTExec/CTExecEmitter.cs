@@ -23,7 +23,6 @@ namespace Sempiler.CTExec
 
         public CTExecEmitter(BaseLanguageSemantics languageSemantics) : this(null, false, languageSemantics)
         {
-            FileExtension = ".js";
         }
         public CTExecEmitter(string shardRootComponentNodeID, bool invokeShardRootComponent, BaseLanguageSemantics languageSemantics)
         {
@@ -31,6 +30,8 @@ namespace Sempiler.CTExec
             InvokeShardRootComponent = invokeShardRootComponent;
             LanguageSemantics = languageSemantics;
             VanillaEmitter = new TypeScriptEmitter();
+
+            FileExtension = ".js";
         }
 
         public override Result<object> EmitNode(Node node, Context context, CancellationToken token)
@@ -217,6 +218,12 @@ module.exports = async ({ArtifactNameSymbolLexeme}, {ShardIndexSymbolLexeme}) =>
             if(LanguageSemantics.IsValueExpression(context.AST, node.Node))
             {
                 context.Emission.Append(node, "void 0");
+                
+                return new Result<object>();
+            }
+            else if(LanguageSemantics.IsFunctionLikeDeclarationStatement(context.AST, node.Parent))
+            {
+                context.Emission.Append(node, "{}");
                 
                 return new Result<object>();
             }
@@ -451,22 +458,7 @@ module.exports = async ({ArtifactNameSymbolLexeme}, {ShardIndexSymbolLexeme}) =>
         {
             return $"`${{{ArtifactNameSymbolLexeme}}}_${{{ShardIndexSymbolLexeme}}}_{CompilerHelpers.NextInternalGUID()}`";
         }
-
-        public override string RelativeComponentOutFilePath(Session session, Artifact artifact, Shard shard, Component node)
-        {
-            var filePath = base.RelativeComponentOutFilePath(session, artifact, shard, node);
-
-            if (filePath.EndsWith(base.FileExtension))
-            {
-                return filePath.Substring(0, filePath.Length - base.FileExtension.Length) + FileExtension;
-            }   
-
-            return filePath;
-
-            // return artifact.Name + System.IO.Path.DirectorySeparatorChar + shard.Name + System.IO.Path.DirectorySeparatorChar + filePath;
-        }
-
-  
+ 
         private Result<object> __EmitWithoutTypeInfo<T>(T node, Context context, EmitDelegate<T> emitDelegate, CancellationToken token) where T : ASTNode
         {
             var result = new Result<object>();

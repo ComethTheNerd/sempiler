@@ -10696,6 +10696,7 @@ namespace Sempiler.Parsing
 
             result.AddMessages(AddOutgoingEdges(loop, handle, SemanticRole.Handle));
             result.AddMessages(AddOutgoingEdges(loop, subject, SemanticRole.Subject));
+            result.AddMessages(AddOutgoingEdges(loop, body, SemanticRole.Body));
 
             result.Value = result.AddMessages(FinishNode(loop, lexer, context, ct));
 

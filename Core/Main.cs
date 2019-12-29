@@ -296,7 +296,6 @@ namespace Sempiler.Core
                         EnableRaisingEvents = false
                     };
 
-
                     try
                     {
                         if (proc.Start())
