@@ -15,7 +15,7 @@ namespace Sempiler.Bundling
         // a manifest file where none has been explicitly provided - 21/05/19
         Task<Sempiler.Diagnostics.Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token);
 
-        IList<string> GetPreservedDebugEmissionRelPaths();
+        IList<string> GetPreservedDebugEmissionRelPaths(Session session, Artifact artifact, CancellationToken token);
     }
 
     public static class BundlerHelpers

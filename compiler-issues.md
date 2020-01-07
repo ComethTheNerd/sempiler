@@ -1,3 +1,13 @@
+# 🗓 07/01/19
+- 💡 Shall we move the `init.rb` execution into the compiler so what you get out is the an `.xcodeproj` file rather than an `init.rb`. Then it is on the user to just run `pod install` afterwards *[dho]*
+
+# 🗓 05/01/19
+- 💡 We need to support SPM version matching that is not exact in nature, but let user use wildcards etc *[dho]*
+
+# 🗓 03/01/19
+- 💡 It seems like SwiftUI does not support having local variables inside a `@ViewBuilder` closure at the moment (https://forums.swift.org/t/local-vars-in-swiftui-builders/26672/8), eg. this bites us when we use a `GeometryReader` and try to have local variables in it *[dho]*
+- 💡 Swift Packages support rather than using Podfile (though we will still need the `init.rb` step because this builds the `.xcodeproj` file etc.) *[dho]*
+
 # 🗓 20/10/19
 - 🐛 Resolving source file patterns with a file path yields multiple fuzzy matches *[dho]*
 - 🐛 **(FIXED 21/10/19  *[dho]*)** Compilation hangs for a session with multiple artifacts that have one or more facets *[dho]*
@@ -14,7 +24,7 @@
 
 # 🗓 23/09/19
 - 🐛 Semicolon inside interpolated string expression causes `NullPointerException` (eg. `hello ${[1,2,3].join();} world`);  *[dho]*
-- 💭 Should we use `Unknown` as a new Node type for cases where the declaration was not found, instead of `null`?  *[dho]*
+- 💡 Should we use `Unknown` as a new Node type for cases where the declaration was not found, instead of `null`?  *[dho]*
 - 🐛 Use of enum causes `SyntaxError : Unexpected reserved word` during compile time execution (need to transpile enums..) *[dho]*
 
 

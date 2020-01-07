@@ -98,7 +98,7 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
   }}
 }};";
 
-        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[] { $"{FunctionsCodeDirName}/node_modules" };
+        public IList<string> GetPreservedDebugEmissionRelPaths(Session session, Artifact artifact, CancellationToken token) => new string[] { $"{FunctionsCodeDirName}/node_modules" };
 
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token)
         {
@@ -326,6 +326,24 @@ $@"{{
                         var dependency = dependencies[i];
                         var name = dependency.Name;
                         var version = dependency.Version ?? "*";
+                        var packageManager = dependency.PackageManager;
+                        var url = dependency.URL;
+
+                        if(packageManager != PackageManager.NPM && packageManager != null)
+                        {
+                            result.AddMessages(
+                                new Message(MessageKind.Error,
+                                    $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' references unsupported package manager '{packageManager}'")
+                            );
+                        }
+
+                        if(url != null)
+                        {
+                            result.AddMessages(
+                                new Message(MessageKind.Error,
+                                    $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' does not support specifying a URL for {packageManager} dependency '{dependency.Name}'")
+                            );
+                        }
 
                         dependenciesContent.Append($@"""{name}"": ""{version}""");
 

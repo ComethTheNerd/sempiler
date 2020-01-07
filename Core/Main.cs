@@ -128,6 +128,8 @@ namespace Sempiler.Core
         {
             var result = new Result<object>();
 
+            var parseTimer = CompilerHelpers.StartTimer("PARSING PHASE");
+
             // [dho] NOTE CT exec writes diagnostics directly into `result.Messages` asynchronously as it
             // processes commands, so we need to ensure the collection is initialized - 25/11/19
             result.Messages = result.Messages ?? new MessageCollection();
@@ -167,12 +169,20 @@ namespace Sempiler.Core
                     // [dho] NOTE `break` because we have some clean up of CT exec below - 26/11/19
                 }
 
+                CompilerHelpers.StopTimer(parseTimer);
+                CompilerHelpers.PrintElapsed(parseTimer);
+
                 if (!HasErrors(result) && !token.IsCancellationRequested)
                 {
                     result.AddMessages(
                         await __Middle(session, compilerArtifact, compilerShard, seedComponents, sourceProvider, server, token)
                     );
                 }
+            }
+            else
+            {
+                CompilerHelpers.StopTimer(parseTimer);
+                CompilerHelpers.PrintElapsed(parseTimer);
             }
 
             result.AddMessages(
@@ -186,6 +196,7 @@ namespace Sempiler.Core
         {
             var result = new Result<object>();
 
+            var ctExecTimer = CompilerHelpers.StartTimer("CT EXEC PHASE");
             try
             {
                 // [dho] disabling inferred folders - 20/10/19
@@ -253,9 +264,6 @@ namespace Sempiler.Core
                 }*/
 
 
-                
-
-
                 var absOutDirPath = session.CTExecInfo.OutDirectory.ToPathString();
 
                 {
@@ -265,13 +273,24 @@ namespace Sempiler.Core
                         CTExecHelpers.AddSessionCTExecSourceFiles(session, artifact, mainAppShard, seedComponents, ofc, token)
                     );
 
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
+                    if (HasErrors(result) || token.IsCancellationRequested)
+                    {
+                        CompilerHelpers.StopTimer(ctExecTimer);
+                        CompilerHelpers.PrintElapsed(ctExecTimer);
+                        return result;
+                    }
 
                     var filesWritten = result.AddMessages(
                         await FileSystem.Write(absOutDirPath, ofc, token)
                     );
                 
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
+                    if (HasErrors(result) || token.IsCancellationRequested)
+                    {
+                        CompilerHelpers.StopTimer(ctExecTimer);
+                        CompilerHelpers.PrintElapsed(ctExecTimer);
+                        return result;
+                    }
+
 
                     {
                         foreach(var kv in filesWritten)
@@ -342,12 +361,17 @@ namespace Sempiler.Core
 
             }
 
+            CompilerHelpers.StopTimer(ctExecTimer);
+            CompilerHelpers.PrintElapsed(ctExecTimer);
+
             return result;
         }
 
         private static Result<object> __BackEnd(Session session, DuplexSocketServer server, CancellationToken token)
         {
             var result = new Result<object>();
+
+            var backEndTimer = CompilerHelpers.StartTimer("BACK END PHASE");
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -376,7 +400,12 @@ namespace Sempiler.Core
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             {
-                if (HasErrors(result) || token.IsCancellationRequested) return result;
+                if (HasErrors(result) || token.IsCancellationRequested)
+                {
+                    CompilerHelpers.StopTimer(backEndTimer);
+                    CompilerHelpers.PrintElapsed(backEndTimer);
+                    return result;
+                }
 
                 // var l = new object();
 
@@ -443,6 +472,9 @@ namespace Sempiler.Core
                 //     }
                 // });
             }
+
+            CompilerHelpers.StopTimer(backEndTimer);
+            CompilerHelpers.PrintElapsed(backEndTimer);
 
             return result;
         }
@@ -885,11 +917,15 @@ namespace Sempiler.Core
                 }
             }
 
+            var bundleTimer = CompilerHelpers.StartTimer("BUNDLING");
             var outFileCollection = result.AddMessages(CompilerHelpers.Bundle(bundler, session, artifact, token));
+
+            CompilerHelpers.StopTimer(bundleTimer);
+            CompilerHelpers.PrintElapsed(bundleTimer);
 
             if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-
+            var writeTimer = CompilerHelpers.StartTimer("WRITING");
             // [dho] write the package to disk - 21/05/19
             {
                 var absOutDirPath = FileSystem.Resolve(session.BaseDirectory.ToPathString(), $"{InferredConfig.OutDirName}/{artifact.Name}/");
@@ -898,22 +934,56 @@ namespace Sempiler.Core
                 // such as the Pods that get downloaded and installed for an iOS project - these can be large dependencies
                 // so nuking that folder and reinstalling them for every build is time consuming and frustrating - 04/11/19
                 // [dho] TODO optimize deletions - 04/10/19
-                var preservedRelPaths = bundler.GetPreservedDebugEmissionRelPaths();
+                var preservedRelPaths = bundler.GetPreservedDebugEmissionRelPaths(session, artifact, token);
 
                 if (preservedRelPaths.Count > 0)
                 {
                     // [dho] subdirectories - 04/10/19
                     if (Directory.Exists(absOutDirPath))
                     {
-                        foreach (var absItemPath in Directory.EnumerateDirectories(absOutDirPath))
                         {
-                            result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+                            var absPathsToDelete = new List<string>();
+
+                            foreach (var absItemPath in Directory.GetDirectories(absOutDirPath, "*.*", SearchOption.AllDirectories))
+                            {
+                                var shouldDelete = result.AddMessages(ShouldDeleteDirectory(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+
+                                if(shouldDelete)
+                                {
+                                    absPathsToDelete.Add(absItemPath);
+                                }
+                            }
+
+                            // [dho] delete directories before looping for files to save us checking if 
+                            // we need to preserve file paths unnecessarily below - 31/12/19
+                            if(absPathsToDelete.Count > 0)
+                            {
+                                result.AddMessages(
+                                    await FileSystem.Delete(absPathsToDelete)
+                                );
+                            }
                         }
 
-                        // [dho] files - 04/10/19                    
-                        foreach (var absItemPath in Directory.GetFiles(absOutDirPath, "*.*", SearchOption.AllDirectories))
                         {
-                            result.AddMessages(await DeletePathIfNotPreserved(artifact, preservedRelPaths, absOutDirPath, absItemPath));
+                            var absPathsToDelete = new List<string>();
+
+                            // [dho] files - 04/10/19                    
+                            foreach (var absFilePath in Directory.GetFiles(absOutDirPath, "*.*", SearchOption.AllDirectories))
+                            {
+                                var shouldDelete = result.AddMessages(ShouldDeleteFile(artifact, preservedRelPaths, absOutDirPath, absFilePath));
+
+                                if(shouldDelete)
+                                {
+                                    absPathsToDelete.Add(absFilePath);
+                                }
+                            }
+
+                            if(absPathsToDelete.Count > 0)
+                            {
+                                result.AddMessages(
+                                    await FileSystem.Delete(absPathsToDelete)
+                                );
+                            }
                         }
                     }
 
@@ -923,39 +993,80 @@ namespace Sempiler.Core
                     result.AddMessages(await FileSystem.Delete(new string[] { absOutDirPath }));
                 }
 
-                if (HasErrors(result) || token.IsCancellationRequested) return result;
+                if (HasErrors(result) || token.IsCancellationRequested)
+                {
+                    CompilerHelpers.StopTimer(writeTimer);
+                    CompilerHelpers.PrintElapsed(writeTimer);
+                    return result;
+                }
 
                 var filesWritten = result.AddMessages(await FileSystem.Write(absOutDirPath, outFileCollection, token));
 
                 result.Value = filesWritten;
             }
 
+            CompilerHelpers.StopTimer(writeTimer);
+            CompilerHelpers.PrintElapsed(writeTimer);
 
             return result;
         }
-        private static async Task<Result<object>> DeletePathIfNotPreserved(Artifact artifact, IList<string> preservedRelPaths, string absBaseDirPath, string absItemPath)
-        {
-            var result = new Result<object>();
 
-            var relItemPath = absItemPath.Substring(absBaseDirPath.Length + 1);
+        private static Result<bool> ShouldDeleteDirectory(Artifact artifact, IList<string> preservedRelPaths, string absBaseDirPath, string absDirPath)
+        {
+            var result = new Result<bool>
+            {
+                Value = true
+            };
+
+            var relDirPath = absDirPath.Substring(absBaseDirPath.Length + 1);
 
             foreach (var preservedRelPath in preservedRelPaths)
             {
-                if (relItemPath == preservedRelPath)
+                if (relDirPath == preservedRelPath)
                 {
-                    result.AddMessages(new Message(MessageKind.Info, $"Compiler is preserving '{artifact.Name}' item '{relItemPath}' from previous build"));
-                    return result;
+                    result.AddMessages(new Message(MessageKind.Info, $"Compiler is preserving '{artifact.Name}' directory '{absDirPath}' from previous build"));
+                    
+                    result.Value = false;
+                    
+                    break;
                 }
-                else if (relItemPath.IndexOf(preservedRelPath) == 0) // [dho] child path - 04/11/19
+                // [dho] the relative item path is a child of a reserved path - 04/11/19
+                else if (preservedRelPath.IndexOf(relDirPath) == 0)
                 {
-                    return result;
+                    result.Value = false;
+
+                    break;
                 }
             }
 
-            result.AddMessages(await FileSystem.Delete(new string[] { absItemPath }));
+            return result;
+        }
+
+        private static Result<bool> ShouldDeleteFile(Artifact artifact, IList<string> preservedRelPaths, string absBaseDirPath, string absFilePath)
+        {
+            var result = new Result<bool>
+            {
+                Value = true
+            };
+
+            var relFilePath = absFilePath.Substring(absBaseDirPath.Length + 1);
+
+            foreach (var preservedRelPath in preservedRelPaths)
+            {
+                if (relFilePath == preservedRelPath)
+                {
+                    result.AddMessages(new Message(MessageKind.Info, $"Compiler is preserving '{artifact.Name}' file '{absFilePath}' from previous build"));
+                    
+                    result.Value = false;
+                    
+                    break;
+                }
+            }
 
             return result;
         }
+
+        
     }
 
 

@@ -1,5 +1,32 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 07/01/20
+- SwiftUI transformer now uses unique lexeme for geometry handle when injecting code to `matchParent` dimensions, instead of using the lexeme `parent` which has a higher probability of clashing with symbols in user code
+
+# 🗓 06/01/20
+- SwiftUI transformer now injects `some` modifier to any function that has return type `: View`, in order to satisfy the Swift compiler
+- Adding `BUILD_LIBRARY_FOR_DISTRIBUTION=YES` build setting to ensure compatibility between the user code, and frameworks compiled with a different version of the Swift compiler (https://stackoverflow.com/a/58656323/300037)
+
+# 🗓 05/01/20
+- Adding timers to investigate improving performance
+- Passing session and artifact to preserved debug file paths bundler function to allow for artifact specific file preservation
+
+# 🗓 04/01/20
+- Added support for Swift Package Manager dependencies in iOS bundler
+
+# 🗓 02/01/20
+- Fixed bugs around transforming ternary expressions in view constructions for Swift targets
+- Increased socket server buffer size from 1kb to 512kb to help tackle performance issues 
+
+# 🗓 01/01/20
+- Added function to return the left hand side of a qualified access node
+
+# 🗓 31/12/19
+- Fixed issue where bundler preserved paths were not being preserved if the path contained more than one level
+
+# 🗓 30/12/19 
+- SwiftUI transformation now converts ternary expressions in views to their equivalent if statement, with only non-null branches present in the emitted output (instead of replacing `null` values with `EmptyView` and wrapping branches in `AnyView(...)` construct to satisfy swiftc)
+
 # 🗓 28/12/19 
 - Fixed bug where `for of` body was not being attached as child of `ForMembersLoop`
 - Fixed bug for emitting strings containing escape sequences (ie. '\') in TypeScript Emitter

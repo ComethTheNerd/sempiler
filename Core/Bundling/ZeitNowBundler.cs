@@ -21,7 +21,7 @@ namespace Sempiler.Bundling
         const string APIDirName = "api";
         const string AppFileName = "app";
 
-        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[]{ "node_modules" };
+        public IList<string> GetPreservedDebugEmissionRelPaths(Session session, Artifact artifact, CancellationToken token) => new string[]{ "node_modules" };
 
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token)
         {
@@ -37,8 +37,25 @@ namespace Sempiler.Bundling
                 return result;
             }
 
+            if(shards.Count > 1)
+            {
+                result.AddMessages(
+                    new Message(MessageKind.Error,
+                        $"Artifact '{artifact.Role.ToString()}' does not currently support multiple shards")
+                );
+            }
+
             // [dho] TODO FIXUP TEMPORARY HACK - need to add proper support for multiple targets!! - 16/10/19
             var shard = shards[0];
+
+
+            if(shard.Dependencies.Count > 0)
+            {
+                result.AddMessages(
+                    new Message(MessageKind.Error,
+                        $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' does not currently support dependencies")
+                );
+            }
 
 
             var routeInfos = default(List<ServerInlining.ServerRouteInfo>);

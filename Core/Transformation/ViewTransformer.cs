@@ -45,7 +45,7 @@ namespace Sempiler.Transformation
             return Task.FromResult(result);
         }
 
-        protected Result<object> TransformNode(Session session, Artifact artifact, Node start, Context context, CancellationToken token)
+        protected virtual Result<object> TransformNode(Session session, Artifact artifact, Node start, Context context, CancellationToken token)
         {
             var result = new Result<object>() { };
 

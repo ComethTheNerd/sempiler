@@ -327,6 +327,10 @@ module.exports = async function () {{
 
                 // console.log(`SENDING :::: ${{message}}{DuplexSocketServer.MessageSentinel}`)
 
+                const timerName = id;
+
+                console.time(timerName);
+
                 socket.write(`${{message}}{DuplexSocketServer.MessageSentinel}`);
             
                 socket.on('data', buffer => {{
@@ -337,6 +341,8 @@ module.exports = async function () {{
 
                     const {{ ok, id : respMessageID, data : respData }} = JSON.parse(serializedJSON);
 
+                    // console.log('finished \'' + message + '\'');
+                    console.timeEnd(timerName);
 
                     if(!ok)
                     {{
@@ -401,17 +407,26 @@ module.exports = async function () {{
         }}
     }}
 
-    async function {CTAPISymbols.AddDependency}(name, version)
+    async function {CTAPISymbols.AddDependency}(name, version, packageManager, url)
     {{
         const {{ {ArtifactNameSymbolLexeme}, {ShardIndexSymbolLexeme}, {NodeIDSymbolLexeme}, {MessageIDSymbolLexeme} }} = this;
 
+        {/* [dho] TODO CLEANUP - 04/01/20 */""}
         if(arguments.length === 1)
         {{
             return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}})`);
         }}
-        else
+        else if(arguments.length === 2)
         {{
             return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}})`);
+        }}
+        else if(arguments.length === 3)
+        {{
+            return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}}{CTProtocolHelpers.ArgumentDelimiter}${{packageManager}})`);
+        }}
+        else
+        {{
+            return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}}{CTProtocolHelpers.ArgumentDelimiter}${{packageManager}}{CTProtocolHelpers.ArgumentDelimiter}${{url}})`);
         }}
     }}
 

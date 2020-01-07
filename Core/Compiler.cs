@@ -51,7 +51,7 @@ namespace Sempiler
                 ts.Hours, ts.Minutes, ts.Seconds,
                 ts.Milliseconds / 10);
 
-            Console.WriteLine("⏱ " +  t.Label + " " + elapsedTime);
+            Console.WriteLine("⏱  " +  t.Label + " " + elapsedTime);
         }
 
         public static Result<List<Component>> Parse(IParser parser, Session session, RawAST ast, ISourceProvider sourceProvider, IEnumerable<string> inputPaths, CancellationToken token)

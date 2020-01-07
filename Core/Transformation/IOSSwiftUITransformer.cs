@@ -68,6 +68,43 @@ namespace Sempiler.Transformation
         {
         }
 
+        protected override Result<object> TransformNode(Session session, Artifact artifact, Node start, Context context, CancellationToken token)
+        {
+            var result = base.TransformNode(session, artifact, start, context, token);
+
+            if(HasErrors(result) || token.IsCancellationRequested) return result;
+
+            var ast = context.AST;
+            var root = ASTHelpers.GetRoot(ast);
+
+            // [dho] for any functions that have a return type `View` we add the `some` modifier
+            // to satisfy the Swift compiler - 06/01/20
+            ASTHelpers.PreOrderLiveTraversal(ast, root, node => {
+
+                if(LanguageSemantics.Swift.IsFunctionLikeDeclarationStatement(ast, node))
+                {
+                    var type = ASTHelpers.GetSingleLiveMatch(ast, node.ID, SemanticRole.Type);
+
+                    if(type?.Kind == SemanticKind.NamedTypeReference)
+                    {
+                        var ntr = ASTNodeFactory.NamedTypeReference(ast, type);
+                        
+                        if(ASTNodeHelpers.IsIdentifierWithName(ast, ntr.Name, "View"))
+                        {
+                            ASTHelpers.Connect(ast, ntr.ID, new [] { 
+                                NodeFactory.Modifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "some").Node
+                            }, SemanticRole.Modifier);
+                        }
+                    }
+
+                }
+
+                return true;
+            }, token);
+
+            return result;
+        }
+
         protected override Result<object> TransformViewDeclaration(Session session, Artifact artifact, RawAST ast, ViewDeclaration node, Context context, CancellationToken token)
         {
             var result = new Result<object>();
@@ -586,6 +623,7 @@ namespace Sempiler.Transformation
                             if (property.Kind == SemanticKind.Identifier)
                             {
                                 propName = ASTNodeFactory.Identifier(ast, (DataNode<string>)property);
+
                                 // propValue = NodeFactory.Identifier(ast, property.Origin, propName.Lexeme).Node;
                             }
                             // [dho] `x=y` - 15/06/19
@@ -615,19 +653,40 @@ namespace Sempiler.Transformation
                             // [dho] convert `{...{ a : 1, b : 2 }}` to named arguments - 30/06/19
                             else if(property.Kind == SemanticKind.SpreadDestructuring)
                             {
-                                var namedArguments = result.AddMessages(
-                                    new SwiftNamedArgumentsTransformer().AsNamedArguments(session, ast, property, context, token)
-                                );
+                                // var namedArguments = result.AddMessages(
+                                //     new SwiftNamedArgumentsTransformer().AsNamedArguments(session, ast, property, context, token)
+                                // );
 
-                                if(namedArguments != null)
-                                {
-                                    foreach(var namedArg in namedArguments)
-                                    {
-                                        result.AddMessages(
-                                            AddArgument(ast, viewDeclParamNames, propName, propValue, arguments)
-                                        );
-                                    }
-                                }
+                                // if(namedArguments != null)
+                                // {
+                                //     foreach(var namedArg in namedArguments)
+                                //     {
+                                //         var invArg = ASTNodeFactory.InvocationArgument(ast, namedArg);
+
+                                //         var invArgLabel = invArg.Label;
+
+                                //         if(invArgLabel.Kind != SemanticKind.Identifier)
+                                //         {
+                                //             result.AddMessages(
+                                //                 new NodeMessage(MessageKind.Error, $"Spread member name must be identifier but found '{invArgLabel.Kind}'", invArg)
+                                //                 {
+                                //                     Hint = GetHint(invArg.Origin),
+                                //                     Tags = DiagnosticTags
+                                //                 }
+                                //             );
+                                //             continue;
+                                //         }
+
+                                //         var invArgValue = invArg.Value;
+
+                                //         result.AddMessages(
+                                //             AddArgument(ast, viewDeclParamNames, ASTNodeFactory.Identifier(invArg.AST, (DataNode<string>)invArg.Label), invArg.Node, arguments)
+                                //         );
+                                //     }
+                                // }
+                                result.AddMessages(
+                                    CreateUnsupportedFeatureResult(property, "spread view properties")
+                                );
 
                                 continue;
                             }
@@ -695,13 +754,23 @@ namespace Sempiler.Transformation
                                 }
 
 
-
+                                // [dho] if this property is an argument to the initializer for the native Swift type (ie. passed in the constructor) - 30/12/19
                                 if(initArgIndex > -1)
                                 {
+                                    // [dho] not supporting properties without value like `<X y />` because the default value to supply for `y`
+                                    // as an argument here would require knowing it's underlying type (which we don't know!) - 30/12/19 
+                                    if(propValue == default(Node))
+                                    {
+                                        result.AddMessages(CreateMissingPropValueError(propName));
+                                        continue;
+                                    }
+
+
                                     var argument = NodeFactory.InvocationArgument(ast, property.Origin);
-                                    
-                                    ASTHelpers.Connect(ast, argument.ID, propValue != null ? new [] { propValue } : new Node[]{}, SemanticRole.Value);
+
+                                    ASTHelpers.Connect(ast, argument.ID, new [] { propValue }, SemanticRole.Value);
         
+                                    // [dho] does the argument require an argument label when we are passing it - 30/12/19
                                     var useLabel = swiftUINativeViewArgConfig[initArgIndex].Item2;
 
                                     if(useLabel)
@@ -713,17 +782,28 @@ namespace Sempiler.Transformation
                                         AddArgument(ast, viewDeclParamNames, propName, argument.Node, arguments)
                                     );
                                 }
+                                // [dho] otherwise we use the property name as the function name in a fluent builder invocation `Foo().x(...)` - 30/12/19
                                 else
                                 {
                                     result.Value = CreateBuilder(ast, result.Value, propName.Node, propValue != null ? new [] { propValue } : new Node[]{}, property.Origin);
                                 }
                             }
+                            // [dho] this is not a SwiftUI core type, we are passing the property to a user defined view declaration - 30/12/19
                             else
                             {
-                                var index = ASTNodeHelpers.IndexOfArgument(viewDeclParamNames, propName);
+                                // [dho] we check whether this is an argument to the constructor of the user defined view declaration - 30/12/19
+                                 var index = ASTNodeHelpers.IndexOfArgument(viewDeclParamNames, propName);
 
                                 if(index > -1)
                                 {
+                                    // [dho] not supporting properties without value like `<X y />` because the default value to supply for `y`
+                                    // as an argument here would require knowing it's underlying type (which we don't know!) - 30/12/19 
+                                    if(propValue == default(Node))
+                                    {
+                                        result.AddMessages(CreateMissingPropValueError(propName));
+                                        continue;
+                                    }
+
                                     var argument = NodeFactory.InvocationArgument(ast, property.Origin);
                                         
                                     ASTHelpers.Connect(ast, argument.ID, propValue != null ? new [] { propValue } : new Node[]{}, SemanticRole.Value);
@@ -732,6 +812,7 @@ namespace Sempiler.Transformation
 
                                     result.AddMessages(AddArgument(ast, viewDeclParamNames, propName, argument.Node, arguments));
                                 }
+                                // [dho] otherwise we use the property name as the function name in a fluent builder invocation `Foo().x(...)` - 30/12/19
                                 else
                                 {
                                     result.Value = CreateBuilder(ast, result.Value, propName.Node, propValue != null ? new [] { propValue } : new Node[]{}, property.Origin);
@@ -741,41 +822,161 @@ namespace Sempiler.Transformation
                     }
                 }
 
-
                 if(hasChildren)
                 {
                     var lambda = NodeFactory.LambdaDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                     {
                         var lambdaBody = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                         {
+                            var nodeIDsToRemove = new List<string>();
+
                             foreach(var child in children)
                             {
+                                // [dho] syntactically in TSX we can only represent expressions inside TSX tags..
+                                // so we now convert those expression into if statements for SwiftUI - 30/12/19
                                 if(child.Kind == SemanticKind.PredicateFlat)
                                 {
-                                    var ifStatement = NodeFactory.PredicateJunction(ast, child.Origin);
-
                                     var predicateFlat = ASTNodeFactory.PredicateFlat(ast, child);
                                     var predicate = predicateFlat.Predicate;
-                                    var trueValue = predicateFlat.TrueValue;
-                                    var falseValue = predicateFlat.FalseValue;
+                                    var rawTrueValue = predicateFlat.TrueValue;
+                                    var rawFalseValue = predicateFlat.FalseValue;
+                                    var trueValue = ASTNodeHelpers.UnwrapAssociations(ast, rawTrueValue);
+                                    var falseValue = ASTNodeHelpers.UnwrapAssociations(ast, rawFalseValue);
 
+                                    var anc = ASTHelpers.GetFirstAncestorOfKind(ast, child.ID, 
+                                        new [] { SemanticKind.ViewConstruction, SemanticKind.FunctionTermination }
+                                    );
 
-                                    if(trueValue.Kind == SemanticKind.Null)
+                                    // [dho] we are only interested in performing a transformation on ternary expressions to if statements
+                                    // as long as they are not used as part of a return statement - 02/01/19
+                                    if(anc?.Kind == SemanticKind.ViewConstruction)
                                     {
-                                        trueValue = CreateNopView(ast, trueValue.Origin);
-                                    }
+                                        if(trueValue.Kind == SemanticKind.Null)
+                                        {
+                                            if(falseValue.Kind == SemanticKind.Null)
+                                            {
+                                                /* [dho] 
+                                        
+                                                    remove:
+                                                    `foo ? null : null`
+                                                
+                                                    - 30/12/19
+                                                */
+                                                nodeIDsToRemove.Add(child.ID);
+                                                continue;
+                                            }
+                                            else
+                                            {
+                                                /* [dho] 
+                                        
+                                                    change:
+                                                    `foo ? null : <SomeView />`
+                                                
+                                                    to:
+                                                    `if(!(foo)) { <SomeView /> }`
 
-                                    if(falseValue.Kind == SemanticKind.Null)
+                                                    NOTE negation!
+
+                                                    - 30/12/19
+                                                */
+                                                var ifStatement = NodeFactory.PredicateJunction(ast, child.Origin);
+
+                                                // [dho] negating the original predicate because only the false branch was populated - 30/12/19
+                                                var negatedPredicate = NodeFactory.LogicalNegation(ast, predicate.Origin);
+                                                {
+                                                    ASTHelpers.Connect(ast, negatedPredicate.ID, new [] { predicate }, SemanticRole.Operand);
+                                                }
+
+                                                ASTHelpers.Connect(ast, ifStatement.ID, new [] { negatedPredicate.Node }, SemanticRole.Predicate);
+
+                                                // [dho] NOTE the false value is now in the true branch because we have negated the original
+                                                // predicate - 02/01/19
+                                                ASTHelpers.Connect(ast, ifStatement.ID, new [] { falseValue }, SemanticRole.TrueBranch);
+
+                                                ASTHelpers.Replace(ast, child.ID, new [] { ifStatement.Node });
+                                            }
+                                        }
+                                        else if(falseValue.Kind == SemanticKind.Null)
+                                        {
+                                            /* [dho] 
+                                            
+                                                change:
+                                                `foo ? <SomeView /> : null`
+                                            
+                                                to:
+                                                `if(foo) { <SomeView /> }`
+
+                                                - 30/12/19
+                                            */
+                                            var ifStatement = NodeFactory.PredicateJunction(ast, child.Origin);
+
+                                            ASTHelpers.Connect(ast, ifStatement.ID, new [] { predicate }, SemanticRole.Predicate);
+
+                                            ASTHelpers.Connect(ast, ifStatement.ID, new [] { trueValue }, SemanticRole.TrueBranch);
+
+                                            ASTHelpers.Replace(ast, child.ID, new [] { ifStatement.Node });
+                                        }
+                                        else
+                                        {
+                                            /* [dho] 
+                                            
+                                                change:
+                                                `foo ? <SomeView /> : <AnotherView />`
+                                            
+                                                to:
+                                                `if(foo) { <SomeView /> } else { <AnotherView /> }`
+
+                                                - 30/12/19
+                                            */
+                                            var ifStatement = NodeFactory.PredicateJunction(ast, child.Origin);
+
+                                            ASTHelpers.Connect(ast, ifStatement.ID, new [] { predicate }, SemanticRole.Predicate);
+
+                                            ASTHelpers.Connect(ast, ifStatement.ID, new [] { trueValue }, SemanticRole.TrueBranch);
+
+                                            ASTHelpers.Connect(ast, ifStatement.ID, new [] { falseValue }, SemanticRole.FalseBranch);
+
+                                            ASTHelpers.Replace(ast, child.ID, new [] { ifStatement.Node });
+                                        }
+                                    }
+                                    // [dho] otherwise we just want to switch out `nulls` for empty views because this is a return statement - 02/01/19
+                                    else
                                     {
-                                        falseValue = CreateNopView(ast, falseValue.Origin);
+                                        if(trueValue.Kind == SemanticKind.Null)
+                                        {
+                                            // [dho] NOTE we replace the raw value, because that is the outer part
+                                            // including any parens (associations) - 02/01/19 
+                                            ASTHelpers.Replace(ast, rawTrueValue.ID, new [] {
+                                                CreateNopView(ast, rawTrueValue.Origin)
+                                            });
+                                        }
+                                        else if(rawTrueValue.ID != trueValue.ID)
+                                        {
+                                            // [dho] remove any unnecessary parens (associations) - 02/01/19
+                                            ASTHelpers.Replace(ast, rawTrueValue.ID, new [] { trueValue });
+                                        }
+
+
+                                        if(falseValue.Kind == SemanticKind.Null)
+                                        {
+                                            // [dho] NOTE we replace the raw value, because that is the outer part
+                                            // including any parens (associations) - 02/01/19 
+                                            ASTHelpers.Replace(ast, rawFalseValue.ID, new [] {
+                                                CreateNopView(ast, rawFalseValue.Origin)
+                                            });
+                                        }
+                                        else if(rawFalseValue.ID != falseValue.ID)
+                                        {
+                                            // [dho] remove any unnecessary parens (associations) - 02/01/19
+                                            ASTHelpers.Replace(ast, rawFalseValue.ID, new [] { falseValue });
+                                        }
                                     }
-
-                                    ASTHelpers.Connect(ast, ifStatement.ID, new [] { predicate }, SemanticRole.Predicate);
-                                    ASTHelpers.Connect(ast, ifStatement.ID, new [] { trueValue }, SemanticRole.TrueBranch);
-                                    ASTHelpers.Connect(ast, ifStatement.ID, new [] { falseValue }, SemanticRole.FalseBranch);
-
-                                    ASTHelpers.Replace(ast, child.ID, new [] { ifStatement.Node });
                                 }
+                            }
+
+                            if(nodeIDsToRemove.Count > 0)
+                            {
+                                ASTHelpers.DisableNodes(ast, nodeIDsToRemove.ToArray());
                             }
 
 
@@ -819,17 +1020,19 @@ namespace Sempiler.Transformation
                 {
                     var lambda = NodeFactory.LambdaDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                     {
+                        var geometryHandleLexeme = ASTHelpers.NextID();
+
                         var parentParam = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                         {
                             ASTHelpers.Connect(ast, parentParam.ID, new [] { 
-                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent").Node
+                                NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), geometryHandleLexeme).Node
                             }, SemanticRole.Value);
                         }
 
                         var widthArg = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                         {
                             ASTHelpers.Connect(ast, widthArg.ID, new [] { 
-                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent.size.width").Node
+                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), geometryHandleLexeme + ".size.width").Node
                             }, SemanticRole.Value);
                             ASTHelpers.Connect(ast, widthArg.ID, new [] {
                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "width").Node 
@@ -839,7 +1042,7 @@ namespace Sempiler.Transformation
                         var heightArg = NodeFactory.InvocationArgument(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                         {
                             ASTHelpers.Connect(ast, heightArg.ID, new [] { 
-                                NodeFactory.NumericConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "parent.size.height").Node
+                                NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), geometryHandleLexeme + ".size.height").Node
                             }, SemanticRole.Value);
                             ASTHelpers.Connect(ast, heightArg.ID, new [] { 
                                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "height").Node 
@@ -923,6 +1126,15 @@ namespace Sempiler.Transformation
             return result;
         }
 
+        private Message CreateMissingPropValueError(Identifier propName)
+        {
+            return new NodeMessage(MessageKind.Error, $"Expected view property '{propName.Lexeme}' to have a value", propName)
+            {
+                Hint = GetHint(propName.Origin),
+                Tags = DiagnosticTags
+            };
+        }
+
         private Result<Node> ResolveSymbol(Session session, RawAST ast, Node symbol, CancellationToken token)
         {
             var result = new Result<Node>();
@@ -975,7 +1187,22 @@ namespace Sempiler.Transformation
             return result;
         }
 
+        private Node InsertAnyViewWrapper(RawAST ast, Node node)
+        {
+            var inv = NodeFactory.Invocation(ast, node.Origin);
+            var identifier = NodeFactory.Identifier(ast, node.Origin, "AnyView");
+            var invArg = NodeFactory.InvocationArgument(ast, node.Origin);
 
+            ASTHelpers.Replace(ast, node.ID, new [] { inv.Node });
+
+            ASTHelpers.Connect(ast, inv.ID, new [] { identifier.Node }, SemanticRole.Subject);
+
+            ASTHelpers.Connect(ast, inv.ID, new [] { invArg.Node }, SemanticRole.Argument);
+
+            ASTHelpers.Connect(ast, invArg.ID, new [] { node }, SemanticRole.Value);
+
+            return inv.Node;
+        }
         private Node CreateNopView(RawAST ast, INodeOrigin origin)
         {
             var nopView = NodeFactory.NamedTypeConstruction(ast, origin);
@@ -1100,93 +1327,82 @@ namespace Sempiler.Transformation
             {
                 var exit = exits[0];
 
-                if(exit.Kind == SemanticKind.FunctionTermination)
-                {
-                    var returnValue = ASTNodeFactory.FunctionTermination(ast, exit).Value;
-
-                    if(returnValue == null)
-                    {
-                        result.AddMessages(
-                            new NodeMessage(MessageKind.Error, $"Expected View to be returned", exit)
-                            {
-                                Hint = GetHint(exit.Origin),
-                                Tags = DiagnosticTags
-                            }
-                        );
-                    }
-                    else if(returnValue.Kind == SemanticKind.PredicateFlat)
-                    {
-                        result.AddMessages(InsertAnyViewInvocations(session, ast, returnValue, token));
-                    }
-                    else if(returnValue.Kind == SemanticKind.Association)
-                    {
-                        var assoc = ASTNodeFactory.Association(ast, returnValue);
-
-                        if(assoc.Subject.Kind == SemanticKind.PredicateFlat)
-                        {
-                            result.AddMessages(InsertAnyViewInvocations(session, ast, assoc.Subject, token));
-                        }
-                    }
-                }
+                TransformViewDeclarationExit(session, ast, exit, false /* do not enforce any view wrapper for single exit */, token);
             }
             else if(exits.Count > 1)
             {
                 foreach(var exit in exits)
                 {   
-                    if(exit.Kind == SemanticKind.FunctionTermination)
-                    {
-                        var returnValue = ASTNodeFactory.FunctionTermination(ast, exit).Value;
-
-                        if(returnValue == null)
-                        {
-                            result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Expected View to be returned", exit)
-                                {
-                                    Hint = GetHint(exit.Origin),
-                                    Tags = DiagnosticTags
-                                }
-                            );
-                        }
-                        else 
-                        {
-                            result.AddMessages(InsertAnyViewInvocations(session, ast, returnValue, token));
-                        }
-                    }
+                    result.AddMessages(TransformViewDeclarationExit(session, ast, exit, true, token));
                 }
             }
 
             return result;
         }
 
-        private Result<object> InsertAnyViewInvocations(Session session, RawAST ast, Node node, CancellationToken token)
+        private Result<object> TransformViewDeclarationExit(Session session, RawAST ast, Node exit, bool enforceAnyView, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            if(exit.Kind == SemanticKind.FunctionTermination)
+            {
+                // [dho] transformation below will unwrap parens - 02/01/20
+                var returnValue = ASTNodeFactory.FunctionTermination(ast, exit).Value;
+
+                if(returnValue == null)
+                {
+                    result.AddMessages(
+                        new NodeMessage(MessageKind.Error, $"Expected View construction to be returned", exit)
+                        {
+                            Hint = GetHint(exit.Origin),
+                            Tags = DiagnosticTags
+                        }
+                    );
+                }
+                else 
+                {
+                    result.AddMessages(InsertAnyViewAndNopView(session, ast, returnValue, enforceAnyView, token));
+                }
+            }
+
+            return result;
+        }
+
+        private Result<object> InsertAnyViewAndNopView(Session session, RawAST ast, Node node, bool enforceAnyView, CancellationToken token)
         {
             var result = new Result<object>();
             
-            if(node.Kind == SemanticKind.PredicateFlat)
+            if(node.Kind == SemanticKind.Null)
+            {
+                var nop = CreateNopView(ast, node.Origin);
+
+                ASTHelpers.Replace(ast, node.ID, new [] { nop });
+
+                if(enforceAnyView)
+                {
+                    InsertAnyViewWrapper(ast, nop);
+                }
+            }
+            else if(node.Kind == SemanticKind.PredicateFlat)
             {
                 var pred = ASTNodeFactory.PredicateFlat(ast, node);
 
-                result.AddMessages(InsertAnyViewInvocations(session, ast, pred.TrueValue, token));
-                result.AddMessages(InsertAnyViewInvocations(session, ast, pred.FalseValue, token));
+                result.AddMessages(InsertAnyViewAndNopView(session, ast, pred.TrueValue, true, token));
+                result.AddMessages(InsertAnyViewAndNopView(session, ast, pred.FalseValue, true, token));
             }    
             else if(node.Kind == SemanticKind.Association)
             {
-                var subject = ASTNodeFactory.Association(ast, node).Subject;
+                var subject = ASTNodeHelpers.UnwrapAssociations(ast, node);
 
-                result.AddMessages(InsertAnyViewInvocations(session, ast, subject, token));
+                System.Diagnostics.Debug.Assert(subject != null);
+
+                ASTHelpers.Replace(ast, node.ID, new [] { subject });
+
+                result.AddMessages(InsertAnyViewAndNopView(session, ast, subject, enforceAnyView, token));
             }   
-            else // [dho] whatever is being returned is expected to be a View so we wrap it in an `AnyView(...)` wrapper - 05/11/19
+            else if(enforceAnyView)// [dho] whatever is being returned is expected to be a View so we wrap it in an `AnyView(...)` wrapper - 05/11/19
             {
-                var inv = NodeFactory.Invocation(ast, node.Origin);
-                var identifier = NodeFactory.Identifier(ast, node.Origin, "AnyView");
-                var invArg = NodeFactory.InvocationArgument(ast, node.Origin);
-
-                ASTHelpers.Replace(ast, node.ID, new [] { inv.Node });
-
-                ASTHelpers.Connect(ast, inv.ID, new [] { identifier.Node }, SemanticRole.Subject);
-                ASTHelpers.Connect(ast, inv.ID, new [] { invArg.Node }, SemanticRole.Argument);
-
-                ASTHelpers.Connect(ast, invArg.ID, new [] { node }, SemanticRole.Value);
+                InsertAnyViewWrapper(ast, node);
             }
 
             return result;

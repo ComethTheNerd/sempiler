@@ -202,11 +202,70 @@ namespace Sempiler.Languages
             return null;
         }
 
-        public List<Node> GetUnqualifiedReferenceMatches(Session session, RawAST ast, Node start, Scope startScope, string identifierLexeme, System.Threading.CancellationToken token)
+    
+        ///<summary>[dho] Finds all occurrences in scope whereby the given symbols are referenced in a left to right sequence (ie. qualified access pattern) - 02/02/19</summary>
+        public List<Node> GetUnqualifiedReferenceMatches(Session session, RawAST ast, Node start, Scope startScope, List<string> ltrSymbols, System.Threading.CancellationToken token)
+        {
+            if(ltrSymbols.Count == 0)
+            {
+                return new List<Node>();
+            }
+            else 
+            {
+                var first = ltrSymbols[0];
+                var references = GetUnqualifiedReferenceMatches(session, ast, start, startScope, first, token);
+
+                if(ltrSymbols.Count == 1)
+                {
+                    return references;
+                }
+
+                var matches = new List<Node>(references.Count);
+
+                // [dho] we have to now detect whether the matches on the leftmost symbol were part of a qualified access
+                // pattern matching the rest of the symbols in the given sequence - 02/02/19
+                foreach(var reference in references)
+                {
+                    var pos = ASTHelpers.GetPosition(ast, reference.ID);
+                    var parent = pos.Parent;
+
+                    if(parent.Kind == SemanticKind.QualifiedAccess)
+                    {
+                        System.Diagnostics.Debug.Assert(pos.Role == SemanticRole.Subject);
+
+                        // [dho] get outermost QA because matching on the first lexeme we care about will have given us
+                        // a handle to the innermost QA, eg `x.y` in `x.y.z.a.b.c` (becuase it will be parsed as `((((x.y).z).a).b).c`- 01/01/20
+                        while(parent.Kind == SemanticKind.QualifiedAccess)
+                        {
+                            var p = ASTHelpers.GetParent(ast, parent.ID);
+
+                            if(p.Kind == SemanticKind.QualifiedAccess)
+                            {
+                                parent = p;
+                            }
+                        }
+
+                        if(ASTNodeHelpers.IsQualifiedAccessOfLexemesLTR(
+                            ASTNodeFactory.QualifiedAccess(ast, parent), 
+                            ltrSymbols, 
+                            1 /* start index because we have accounted for the 0th! */)
+                        )
+                        {
+                            matches.Add(parent);
+                        }
+                    }
+                }
+
+                return matches;
+            }
+        }
+
+        ///<summary>[dho] Finds all occurrences in scope whereby the given symbol is referenced - 02/02/19</summary>
+        public List<Node> GetUnqualifiedReferenceMatches(Session session, RawAST ast, Node start, Scope startScope, string symbol, System.Threading.CancellationToken token)
         {
             var references = new List<Node>();
 
-            if(!startScope.Declarations.ContainsKey(identifierLexeme))
+            if(!startScope.Declarations.ContainsKey(symbol))
             {
                 return references;
             }
@@ -233,7 +292,7 @@ namespace Sempiler.Languages
                 // }
                 // else// if(!JavaTreatsAsDeclaration(ast, node))
                 // {
-                    var _ = IsReferenceMatchAndShouldExploreChildren(session, ast, node, startScope, identifierLexeme, token);
+                    var _ = IsReferenceMatchAndShouldExploreChildren(session, ast, node, startScope, symbol, token);
 
                     var isReferenceMatch = _.Item1;
 
