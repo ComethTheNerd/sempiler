@@ -429,13 +429,13 @@ namespace Sempiler.AST
         
 
 
-        public static Node GetFirstAncestorOfKind(RawAST ast, NodeID start, SemanticKind kind)
+        public static Node GetFirstAncestorOfKind(RawAST ast, NodeID start, params SemanticKind[] kinds)
         {
             var parent = GetParent(ast, start);
 
             while(parent != null)
             {   
-                if(parent.Kind == kind)
+                if(Array.IndexOf(kinds, parent.Kind) > -1)
                 {
                     return parent;
                 }

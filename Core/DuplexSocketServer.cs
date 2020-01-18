@@ -13,7 +13,7 @@ namespace Sempiler.Core
         // Client  socket.  
         public Socket workSocket = null;  
         // Size of receive buffer.  
-        public const int BufferSize = 1024;  
+        public const int BufferSize = 1024 * 512; // 512kb 
         // Receive buffer.  
         public byte[] buffer = new byte[BufferSize];  
     // Received data string.  
@@ -67,7 +67,9 @@ namespace Sempiler.Core
             IPEndPoint localEndPoint = new IPEndPoint(IPAddress, port);  
     
             // Create a TCP/IP socket.  
-            listener = new Socket(IPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);  
+            listener = new Socket(IPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            // [dho] adapted from https://stackoverflow.com/a/422843/300037 - 05/01/20
+            listener.NoDelay = true;  
             try
             {
                 // listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
@@ -177,9 +179,11 @@ namespace Sempiler.Core
             // Create the state object.  
             SocketRequestState state = new SocketRequestState();  
             state.workSocket = handler;  
+            // [dho] adapted from https://stackoverflow.com/a/422843/300037 - 05/01/20
+            state.workSocket.NoDelay = true;
 
             // Begins to asynchronously receive data from a connected Socket.
-            handler.BeginReceive( state.buffer, 0, SocketRequestState.BufferSize, 0,  
+            handler.BeginReceive(state.buffer, 0, SocketRequestState.BufferSize, 0,  
                 new AsyncCallback(ReadCallback), state);  
         }  
     

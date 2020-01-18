@@ -582,28 +582,38 @@ namespace Sempiler.Emission
 
             context.Emission.Append(node, "[");
 
-            context.Emission.Indent();
+            var members = node.Members;
+
+            if(members.Length > 0)
             {
-                foreach(var (entry, hasNext) in ASTNodeHelpers.IterateMembers(node.Members))
+                context.Emission.Indent();
                 {
-                    result.AddMessages(
-                        EmitNode(entry, entryContext, token)
-                    );
-
-                    if(hasNext)
+                    foreach(var (entry, hasNext) in ASTNodeHelpers.IterateMembers(members))
                     {
-                        entryContext.Emission.Append(node, ",");
-                    }
+                        result.AddMessages(
+                            EmitNode(entry, entryContext, token)
+                        );
 
-                    entryContext.Emission.AppendBelow(node, "");
+                        if(hasNext)
+                        {
+                            entryContext.Emission.Append(node, ",");
+                        }
 
-                    if (token.IsCancellationRequested)
-                    {
-                        break;
+                        entryContext.Emission.AppendBelow(node, "");
+
+                        if (token.IsCancellationRequested)
+                        {
+                            break;
+                        }
                     }
                 }
+                context.Emission.Outdent();
             }
-            context.Emission.Outdent();
+            else
+            {
+                // [dho] empty dictionary is initialized as `[:]` - 10/01/20
+                context.Emission.Append(node, ":");
+            }
 
             context.Emission.Append(node, "]");
 
@@ -1042,7 +1052,28 @@ namespace Sempiler.Emission
 
         public override Result<object> EmitForMembersLoop(ForMembersLoop node, Context context, CancellationToken token)
         {
-            return CreateUnsupportedFeatureResult(node);
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+            // // childContext.Parent = node;
+
+            context.Emission.AppendBelow(node, "for ");
+
+            result.AddMessages(
+                EmitNode(node.Handle, childContext, token)
+            );
+
+            context.Emission.Append(node, " in ");
+
+            result.AddMessages(
+                EmitNode(node.Subject, childContext, token)
+            );
+
+            result.AddMessages(
+                EmitBlockLike(node.Body, node.Node, childContext, token)
+            );
+
+            return result;
         }
 
         public override Result<object> EmitForPredicateLoop(ForPredicateLoop node, Context context, CancellationToken token)

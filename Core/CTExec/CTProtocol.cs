@@ -132,6 +132,8 @@ namespace Sempiler.CTExec
     {
         public const int NameIndex = 0;
         public const int VersionIndex = 1;
+        public const int PackageManagerIndex = 2;
+        public const int URLIndex = 3;
     }
 
     public static class CTProtocolAddEntitlementCommand

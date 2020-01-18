@@ -23,7 +23,7 @@ namespace Sempiler.Parsing
         public ContextKind TotalKind;
         public ContextKind CurrentKind;
 
-        public ContextFlags Flags;
+        public ContextFlag Flags;
 
         // public bool ErrorBeforeNextFinishedNode;
 
@@ -411,7 +411,7 @@ namespace Sempiler.Parsing
 
             var childContext = ContextHelpers.CloneInKind(context, ContextKind.SourceElements);
 
-            childContext.Flags = ContextFlags.JavaScriptFile;
+            childContext.Flags = ContextFlag.JavaScriptFile;
             childContext.ErrorRecoveryMode = false;
 
             // childContext.ErrorBeforeNextFinishedNode = false;
@@ -815,13 +815,13 @@ namespace Sempiler.Parsing
             token = result.AddMessages(NextToken(lexer, context, cancellationToken));
             
             var expContext = ContextHelpers.Clone(context);
-            expContext.Flags &= ~ContextFlags.DisallowInContext;
+            expContext.Flags &= ~ContextFlag.DisallowInContext;
 
             bool isCTExec = false;
 
             var operand = default(Node);
 
-            if(name == Sempiler.CTExec.CTDirective.CodeGen)
+            if(name == Sempiler.CTExec.CTDirective.Emit)
             {
                 isCTExec = true;
 
@@ -846,7 +846,7 @@ namespace Sempiler.Parsing
                 }
                 else
                 {
-                    result.AddMessages(new Message(MessageKind.Error, $"Unexpected operand for '{Sempiler.CTExec.CTDirective.CodeGen}' directive")
+                    result.AddMessages(new Message(MessageKind.Error, $"Unexpected operand for '{Sempiler.CTExec.CTDirective.Emit}' directive")
                     {
                         Hint = GetHint(token, lexer, context),
                         Tags = DiagnosticTags
@@ -1197,7 +1197,7 @@ namespace Sempiler.Parsing
 
                 // [dho] `in` 
                 //        ^^   - 17/03/19
-                if (role == SymbolRole.KeyIn && ((context.Flags & ContextFlags.DisallowInContext) == ContextFlags.DisallowInContext))
+                if (role == SymbolRole.KeyIn && ((context.Flags & ContextFlag.DisallowInContext) == ContextFlag.DisallowInContext))
                 {
                     break;
                 }
@@ -1222,6 +1222,36 @@ namespace Sempiler.Parsing
 
                         var subject = leftOperand;
                         var targetType = type;
+
+        
+                        // // [dho] bit unfortunate and HACKY but we have to convert a dynamic type construction to a dictionary
+                        // // construction if we actually ended up parsing a safe cast - 10/01/20
+                        // if(targetType?.Kind == SemanticKind.DictionaryTypeReference)
+                        // {
+                        //     // [dho] the value being cast could be wrapped in parens, so we have to unwrap - 10/01/20
+                        //     var rawSubject = ASTNodeHelpers.UnwrapAssociations(context.AST, subject);
+
+                        //     if(rawSubject?.Kind == SemanticKind.DynamicTypeConstruction)
+                        //     {
+                        //         var members = ASTNodeFactory.DynamicTypeConstruction(context.AST, rawSubject).Members;
+
+                        //         var dict = result.AddMessages(FinishNode(
+                        //                 NodeFactory.DictionaryConstruction(context.AST, rawSubject.Origin),
+                        //                 lookAhead, context, ct
+                        //             )
+                        //         );
+
+                        //         result.AddMessages(AddOutgoingEdges(context.AST, dict, members, SemanticRole.Member));
+
+                        //         ASTHelpers.Replace(context.AST, rawSubject.ID, new [] { dict });
+
+                        //         if(rawSubject == subject)
+                        //         {
+                        //             subject = dict;
+                        //         }
+                        //     }
+                        // }
+
 
                         leftOperand = result.AddMessages(FinishNode(
                             NodeFactory.SafeCast(context.AST, CreateOrigin(range, lookAhead, context)),
@@ -1503,7 +1533,7 @@ namespace Sempiler.Parsing
             var startPos = token.StartPos;
             var expContext = ContextHelpers.Clone(context);
 
-            expContext.Flags &= ~(ContextFlags.DisallowInContext | ContextFlags.DecoratorContext);
+            expContext.Flags &= ~(ContextFlag.DisallowInContext | ContextFlag.DecoratorContext);
 
             var value = result.AddMessages(
                 ParseArgumentOrArrayLiteralElement(token, lexer, expContext, ct)
@@ -1620,7 +1650,7 @@ namespace Sempiler.Parsing
                     }
                 }
                 // [dho] if NOT in decorator context - 09/02/19
-                else if (((context.Flags & ContextFlags.DecoratorContext) == 0) &&
+                else if (((context.Flags & ContextFlag.DecoratorContext) == 0) &&
                         // [dho] `exp[` 
                         //           ^   - 05/02/19
                         token.Kind == SyntaxKind.OpenBracketToken)
@@ -1635,7 +1665,7 @@ namespace Sempiler.Parsing
                     {
                         var expContext = ContextHelpers.Clone(context);
                         // [dho] allow `in expressions` when parsing the expression - 09/02/19
-                        expContext.Flags &= ~ContextFlags.DisallowInContext;
+                        expContext.Flags &= ~ContextFlag.DisallowInContext;
 
                         // [dho] `exp[...]` 
                         //            ^^^   - 05/02/19
@@ -1818,7 +1848,7 @@ namespace Sempiler.Parsing
                 {
                     var expContext = ContextHelpers.Clone(context);
 
-                    expContext.Flags &= ~ContextFlags.DisallowInContext;
+                    expContext.Flags &= ~ContextFlag.DisallowInContext;
 
                     list.Add(
                         result.AddMessages(
@@ -2023,7 +2053,7 @@ namespace Sempiler.Parsing
                 var incidentContext = ContextHelpers.Clone(context);
 
                 // [dho] allow `in expressions` when parsing the expression - 09/02/19
-                incidentContext.Flags &= ~ContextFlags.DisallowInContext;
+                incidentContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 var incident = result.AddMessages(
                     ParseExpression(token, lexer, incidentContext, ct)
@@ -2065,7 +2095,7 @@ namespace Sempiler.Parsing
 
             // [dho] come out of decorator context - 09/02/19
             var expContext = ContextHelpers.Clone(context);
-            expContext.Flags &= ~ContextFlags.DecoratorContext;
+            expContext.Flags &= ~ContextFlag.DecoratorContext;
 
             var exp = result.AddMessages(
                 ParseAssignmentExpressionOrHigher(token, lexer, expContext, ct)
@@ -2188,8 +2218,8 @@ namespace Sempiler.Parsing
                         CreateOrigin(range, lexer, context)
                     );
 
-                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Operand));
-                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Operand));
+                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Base));
+                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Exponent));
                     break;
 
 
@@ -2359,8 +2389,8 @@ namespace Sempiler.Parsing
                     );
 
                     
-                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Operand));
-                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Operand));
+                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Subject));
+                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Offset));
                     break;
 
                 case SyntaxKind.GreaterThanGreaterThanEqualsToken: // x >>= y
@@ -2384,8 +2414,8 @@ namespace Sempiler.Parsing
                         CreateOrigin(range, lexer, context)
                     );
                     
-                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Operand));
-                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Operand));
+                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Subject));
+                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Offset));
                     break;
 
                 case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken: // x >>>= y
@@ -2429,8 +2459,8 @@ namespace Sempiler.Parsing
                         CreateOrigin(range, lexer, context)
                     );
                     
-                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Operand));
-                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Operand));
+                    result.AddMessages(AddOutgoingEdges(binExp, leftOperand, SemanticRole.Subject));
+                    result.AddMessages(AddOutgoingEdges(binExp, rightOperand, SemanticRole.Offset));
                     break;
 
                 case SyntaxKind.LessThanLessThanEqualsToken: // x <<= y
@@ -2695,11 +2725,19 @@ namespace Sempiler.Parsing
 
                 var range = new Range(startPos, lexer.Pos);
 
-                var dynamicType = NodeFactory.DynamicTypeConstruction(context.AST, CreateOrigin(range, lexer, context));
+                var origin = CreateOrigin(range, lexer, context);
 
-                result.AddMessages(AddOutgoingEdges(dynamicType, members, SemanticRole.Member));
+                // var isDict = (context.Flags & ContextFlag.Dictionary) == ContextFlag.Dictionary;
 
-                result.Value = result.AddMessages(FinishNode(dynamicType, lexer, context, ct));
+                var node = /*isDict ? (
+                    (ASTNode)NodeFactory.DictionaryConstruction(context.AST, origin)
+                ) : */(
+                    (ASTNode)NodeFactory.DynamicTypeConstruction(context.AST, origin)
+                );
+
+                result.AddMessages(AddOutgoingEdges(node, members, SemanticRole.Member));
+
+                result.Value = result.AddMessages(FinishNode(node, lexer, context, ct));
             }
             else
             {
@@ -3751,7 +3789,7 @@ namespace Sempiler.Parsing
                 token = result.AddMessages(NextToken(lexer, context, ct));
 
                 var expContext = ContextHelpers.Clone(context);
-                expContext.Flags &= ~ContextFlags.DisallowInContext;
+                expContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 // [dho] `case ...` 
                 //             ^^^    - 23/02/19
@@ -4748,7 +4786,7 @@ namespace Sempiler.Parsing
                     // [dho] `foo?` 
                     //           ^       - 23/03/19
                     EatIfNext(SyntaxKind.QuestionToken, lookAhead, context, ct);
-
+                    
                     // [dho] `foo(` 
                     //           ^       - 23/03/19
                     // [dho] `foo<` 
@@ -4850,7 +4888,7 @@ namespace Sempiler.Parsing
 
             var initializerContext = ContextHelpers.Clone(context);
             // [dho] allow `in expressions` when parsing the initializer - 12/02/19
-            initializerContext.Flags &= ~ContextFlags.DisallowInContext;
+            initializerContext.Flags &= ~ContextFlag.DisallowInContext;
 
             var initializer = result.AddMessages(
                 ParseAssignmentExpressionOrHigher(token, lexer, initializerContext, ct)
@@ -5378,7 +5416,7 @@ namespace Sempiler.Parsing
             var startPos = token.StartPos;
 
             var expContext = ContextHelpers.Clone(context);
-            expContext.Flags &= ~ContextFlags.DisallowInContext;
+            expContext.Flags &= ~ContextFlag.DisallowInContext;
 
             var exp = result.AddMessages(ParseExpression(token, lexer, expContext, ct));
 
@@ -5566,7 +5604,7 @@ namespace Sempiler.Parsing
         private Result<Node> ParseFunctionBlock(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
             var bodyContext = ContextHelpers.Clone(context);
-            bodyContext.Flags &= ~ContextFlags.DecoratorContext;
+            bodyContext.Flags &= ~ContextFlag.DecoratorContext;
 
             return ParseBlock(token, lexer, bodyContext, ct);
         }
@@ -6040,7 +6078,7 @@ namespace Sempiler.Parsing
 
                 var initContext = ContextHelpers.Clone(context);
 
-                initContext.Flags &= ~ContextFlags.DisallowInContext;
+                initContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 initializer = result.AddMessages(
                     ParseAssignmentExpressionOrHigher(token, lexer, initContext, ct)
@@ -6103,7 +6141,7 @@ namespace Sempiler.Parsing
                 var expContext = ContextHelpers.Clone(context);
 
                 // [dho] allow `in expressions` when parsing the expression - 09/02/19
-                expContext.Flags &= ~ContextFlags.DisallowInContext;
+                expContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 // [dho] `[...]` 
                 //         ^^^     - 22/03/19
@@ -8246,7 +8284,7 @@ namespace Sempiler.Parsing
                 if (HasErrors(result)) return result;
 
                 var decoratorContext = ContextHelpers.Clone(context);
-                decoratorContext.Flags |= ContextFlags.DecoratorContext;
+                decoratorContext.Flags |= ContextFlag.DecoratorContext;
 
                 Node expression = result.AddMessages(
                     ParseLeftHandSideExpressionOrHigher(token, lexer, decoratorContext, ct)
@@ -8469,8 +8507,15 @@ namespace Sempiler.Parsing
             {
                 token = result.AddMessages(NextToken(lexer, context, ct));
 
+                var initContext = ContextHelpers.Clone(context);
+
+                // if(type?.Kind == SemanticKind.DictionaryTypeReference)
+                // {
+                //     initContext.Flags |= ContextFlag.Dictionary;
+                // }
+
                 initializer = result.AddMessages(
-                    ParseAssignmentExpressionOrHigher(token, lexer, context, ct)
+                    ParseAssignmentExpressionOrHigher(token, lexer, initContext, ct)
                 );
             }
 
@@ -8573,7 +8618,7 @@ namespace Sempiler.Parsing
         public Result<Node[]> ParseParameters(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
             var paramsContext = ContextHelpers.CloneInKind(context, ContextKind.Parameters);
-            paramsContext.Flags |= ContextFlags.AwaitContext | ContextFlags.YieldContext;
+            paramsContext.Flags |= ContextFlag.AwaitContext | ContextFlag.YieldContext;
 
             // [dho] `(...)` 
             //        ^        - 18/03/19
@@ -8659,8 +8704,15 @@ namespace Sempiler.Parsing
             {
                 token = result.AddMessages(NextToken(lexer, context, ct));
 
+                var initContext = ContextHelpers.Clone(context);
+
+                // if(type?.Kind == SemanticKind.DictionaryTypeReference)
+                // {
+                //     initContext.Flags |= ContextFlag.Dictionary;
+                // }
+
                 defaultValue = result.AddMessages(
-                    ParseParameterInitializer(token, lexer, context, ct)
+                    ParseParameterInitializer(token, lexer, initContext, ct)
                 );
             }
 
@@ -8706,7 +8758,7 @@ namespace Sempiler.Parsing
         {
             var initializerContext = ContextHelpers.CloneInKind(context, ContextKind.Parameters);
 
-            initializerContext.Flags &= ~(ContextFlags.YieldContext | ContextFlags.DisallowInContext);
+            initializerContext.Flags &= ~(ContextFlag.YieldContext | ContextFlag.DisallowInContext);
 
             return ParseAssignmentExpressionOrHigher(token, lexer, initializerContext, ct);
         }
@@ -8715,7 +8767,7 @@ namespace Sempiler.Parsing
         {
             var initializerContext = ContextHelpers.Clone(context);
 
-            initializerContext.Flags &= ~(ContextFlags.YieldContext | ContextFlags.DisallowInContext);
+            initializerContext.Flags &= ~(ContextFlag.YieldContext | ContextFlag.DisallowInContext);
 
             return ParseAssignmentExpressionOrHigher(token, lexer, initializerContext, ct);
         }
@@ -10452,7 +10504,7 @@ namespace Sempiler.Parsing
                 var expContext = ContextHelpers.Clone(context);
 
                 // [dho] allow `in expressions` when parsing the expression - 17/02/19
-                expContext.Flags &= ~ContextFlags.DisallowInContext;
+                expContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 switch (role)
                 {
@@ -10495,7 +10547,7 @@ namespace Sempiler.Parsing
             var subjectContext = ContextHelpers.Clone(context);
 
             // [dho] allow `in expressions` when parsing the expression - 29/01/19
-            subjectContext.Flags &= ~ContextFlags.DisallowInContext;
+            subjectContext.Flags &= ~ContextFlag.DisallowInContext;
 
             Node subject = result.AddMessages(
                 ParseExpression(token, lexer, subjectContext, ct)
@@ -10561,7 +10613,7 @@ namespace Sempiler.Parsing
                 var conditionContext = ContextHelpers.Clone(context);
 
                 // [dho] allow `in expressions` when parsing the expression - 29/01/19
-                conditionContext.Flags &= ~ContextFlags.DisallowInContext;
+                conditionContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 condition = result.AddMessages(
                     ParseExpression(token, lexer, conditionContext, ct)
@@ -10595,7 +10647,7 @@ namespace Sempiler.Parsing
                 var iteratorContext = ContextHelpers.Clone(context);
 
                 // [dho] allow `in expressions` when parsing the expression - 29/01/19
-                iteratorContext.Flags &= ~ContextFlags.DisallowInContext;
+                iteratorContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 iterator = result.AddMessages(
                     ParseExpression(token, lexer, iteratorContext, ct)
@@ -10659,7 +10711,7 @@ namespace Sempiler.Parsing
             var subjectContext = ContextHelpers.Clone(context);
 
             // [dho] allow `in expressions` when parsing the expression - 29/01/19
-            subjectContext.Flags &= ~ContextFlags.DisallowInContext;
+            subjectContext.Flags &= ~ContextFlag.DisallowInContext;
 
             var subject = result.AddMessages(
                 ParseAssignmentExpressionOrHigher(token, lexer, subjectContext, ct)
@@ -10696,6 +10748,7 @@ namespace Sempiler.Parsing
 
             result.AddMessages(AddOutgoingEdges(loop, handle, SemanticRole.Handle));
             result.AddMessages(AddOutgoingEdges(loop, subject, SemanticRole.Subject));
+            result.AddMessages(AddOutgoingEdges(loop, body, SemanticRole.Body));
 
             result.Value = result.AddMessages(FinishNode(loop, lexer, context, ct));
 
@@ -10896,7 +10949,7 @@ namespace Sempiler.Parsing
             var expContext = ContextHelpers.Clone(context);
 
             // [dho] allow `in expressions` when parsing the expression - 17/02/19
-            expContext.Flags &= ~ContextFlags.DisallowInContext;
+            expContext.Flags &= ~ContextFlag.DisallowInContext;
 
             return ParseAssignmentExpressionOrHigher(token, lexer, expContext, ct);
         }
@@ -11392,10 +11445,18 @@ namespace Sempiler.Parsing
 
                 if (HasErrors(result)) return result;
 
+
+                var subjectContext = ContextHelpers.Clone(context);
+
+                // if(targetType?.Kind == SemanticKind.DictionaryTypeReference)
+                // {
+                //     subjectContext.Flags |= ContextFlag.Dictionary;
+                // }
+
                 // [dho] `<foo> bar` 
                 //              ^^^       - 23/03/19
                 Node subject = result.AddMessages(
-                    ParseSimpleUnaryExpression(token, lexer, context, ct)
+                    ParseSimpleUnaryExpression(token, lexer, subjectContext, ct)
                 );
 
                 if (HasErrors(result)) return result;
@@ -12094,7 +12155,7 @@ namespace Sempiler.Parsing
                 var expContext = ContextHelpers.Clone(context);
 
                 // [dho] allow `in expressions` when parsing the expression - 17/03/19
-                expContext.Flags &= ~ContextFlags.DisallowInContext;
+                expContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 // [dho] `... ? ...` 
                 //              ^^^   - 17/03/19
@@ -12288,7 +12349,7 @@ namespace Sempiler.Parsing
         private Result<Node> ParseType(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
             var typeContext = ContextHelpers.Clone(context);
-            typeContext.Flags &= ~ContextFlags.TypeExcludesFlags;
+            typeContext.Flags &= ~ContextFlag.TypeExcludesFlags;
 
             if(token.Kind == SyntaxKind.Directive)
             {
@@ -13224,7 +13285,7 @@ namespace Sempiler.Parsing
                 var expContext = ContextHelpers.Clone(context);
 
                 // [dho] allow `in expressions` when parsing the expression - 24/03/19
-                expContext.Flags &= ~ContextFlags.DisallowInContext;
+                expContext.Flags &= ~ContextFlag.DisallowInContext;
 
                 var exp = result.AddMessages(
                     ParseExpression(token, lexer, expContext, ct)
@@ -13279,7 +13340,7 @@ namespace Sempiler.Parsing
             var expContext = ContextHelpers.Clone(context);
 
             // [dho] allow `in expressions` when parsing the expression - 29/01/19
-            expContext.Flags &= ~ContextFlags.DisallowInContext;
+            expContext.Flags &= ~ContextFlag.DisallowInContext;
 
             var exp = result.AddMessages(
                 ParseExpression(token, lexer, expContext, ct)
@@ -14197,7 +14258,7 @@ namespace Sempiler.Parsing
         public bool IsBinaryOperator(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
             // [dho] in a disallow `in` context - 26/02/19
-            if ((context.Flags & ContextFlags.DisallowInContext) == ContextFlags.DisallowInContext)
+            if ((context.Flags & ContextFlag.DisallowInContext) == ContextFlag.DisallowInContext)
             {
                 // [dho] and the symbol is for `in`- 26/02/19
                 if (GetSymbolRole(token, lexer, context, ct) == SymbolRole.KeyIn)

@@ -1608,10 +1608,10 @@
 //                         TransformCTCodeExecDirective(session, artifact, shard, ast, component, directive, languageSemantics, serverInteropFnIDs, hoistedDirectiveStatements, hoistedNodes, token)
 //                     );
 //                 }
-//                 else if (directive.Name == CTDirective.CodeGen)
+//                 else if (directive.Name == CTDirective.Emit)
 //                 {
 //                     result.AddMessages(
-//                         TransformCTCodeGenDirective(session, artifact, shard, ast, component, directive, languageSemantics, serverInteropFnIDs, hoistedDirectiveStatements, hoistedNodes, token)
+//                         TransformCTEmitDirective(session, artifact, shard, ast, component, directive, languageSemantics, serverInteropFnIDs, hoistedDirectiveStatements, hoistedNodes, token)
 //                     );
 //                 }
 //                 else if (CTDirective.IsCTDirectiveName(directive.Name))
@@ -1736,7 +1736,7 @@
 //             return result;
 //         }
 
-//         private Result<object> TransformCTCodeGenDirective(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, Directive directive, BaseLanguageSemantics languageSemantics, ServerInteropFunctionIdentifiers serverInteropFnIDs, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
+//         private Result<object> TransformCTEmitDirective(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, Directive directive, BaseLanguageSemantics languageSemantics, ServerInteropFunctionIdentifiers serverInteropFnIDs, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
 //         {
 //             var result = new Result<object>();
 

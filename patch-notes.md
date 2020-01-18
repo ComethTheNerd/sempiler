@@ -1,5 +1,70 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 18/01/20
+- Updated definition for `ScrollView` in SwiftUI transformer
+
+# 🗓 16/01/20
+- Renamed literal code generation directive from `#codegen` to `#emit`
+- Added missing CT exec polyfill for `NotNull` expressions
+
+# 🗓 11/01/20
+- Parser now distinguishes between dynamic type construction (object literal), and dictionary construction where the type annotation accompanies the construction (eg. casts and initializers)
+- Fixed binary expression parsing for shifts, where child nodes were being attached using the wrong `SemanticRole` on edges
+
+# 🗓 10/01/20
+- Fixed invalid Swift syntax emitted for empty dictionary construction
+
+# 🗓 09/01/20
+- iOS bundler targeting Swift will remove the `export` part of a top level declaration, because symbols in Swift are shared in a singular global namespace
+
+# 🗓 08/01/20
+- Explicitly setting `GCC_OPTIMIZATION_LEVEL=0` in iOS bundler to help speed up Swift compile times
+- Updated `NavigationLink` init argument definition in iOS SwiftUI transformer
+
+# 🗓 07/01/20
+- SwiftUI transformer now uses unique lexeme for geometry handle when injecting code to `matchParent` dimensions, instead of using the lexeme `parent` which has a higher probability of clashing with symbols in user code
+
+# 🗓 06/01/20
+- SwiftUI transformer now injects `some` modifier to any function that has return type `: View`, in order to satisfy the Swift compiler
+- Adding `BUILD_LIBRARY_FOR_DISTRIBUTION=YES` build setting to ensure compatibility between the user code, and frameworks compiled with a different version of the Swift compiler (https://stackoverflow.com/a/58656323/300037)
+
+# 🗓 05/01/20
+- Adding timers to investigate improving performance
+- Passing session and artifact to preserved debug file paths bundler function to allow for artifact specific file preservation
+
+# 🗓 04/01/20
+- Added support for Swift Package Manager dependencies in iOS bundler
+
+# 🗓 02/01/20
+- Fixed bugs around transforming ternary expressions in view constructions for Swift targets
+- Increased socket server buffer size from 1kb to 512kb to help tackle performance issues 
+
+# 🗓 01/01/20
+- Added function to return the left hand side of a qualified access node
+
+# 🗓 31/12/19
+- Fixed issue where bundler preserved paths were not being preserved if the path contained more than one level
+
+# 🗓 30/12/19 
+- SwiftUI transformation now converts ternary expressions in views to their equivalent if statement, with only non-null branches present in the emitted output (instead of replacing `null` values with `EmptyView` and wrapping branches in `AnyView(...)` construct to satisfy swiftc)
+
+# 🗓 28/12/19 
+- Fixed bug where `for of` body was not being attached as child of `ForMembersLoop`
+- Fixed bug for emitting strings containing escape sequences (ie. '\') in TypeScript Emitter
+- Firebase Functions Bundler now only returns detailed unexpected error diagnostics if not in production environment (`process.env.ENV !== 'production'`)
+
+# 🗓 27/12/19 
+- Fix TypeScript Emitter bug for imported and exported symbols that are not aliased
+- Firebase Functions Bundler no longer performs inlining, and instead emits one file per component
+- Fix for issue that arose with previous Firebase Functions Bundler strategy that used inlining and IIFEs, which meant it was tricky to share type definitions between files
+
+# 🗓 26/12/19 
+- Firebase Functions Bundler `skipLibCheck` in generated TypeScript config to avoid build errors with untyped or badly typed dependencies
+- Firebase Functions Bundler now hoists platform imports and uses `esModuleInterop` in generated TypeScript config (instead of nested dynamic `import(...)`) to avoid asynchronous IIFE wrapper at top level (which is invalid for Firebase Functions anyway)
+
+# 🗓 24/12/19 
+- Firebase Functions Bundler inlining change to support dynamic `import(...)`, so that type definitions are available to TypeScript compiler and source code
+
 # 🗓 19/12/19 
 - Fixed bug with parsing `httpVerb` annotation for Firebase Functions
 

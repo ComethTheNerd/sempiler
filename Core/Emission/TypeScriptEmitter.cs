@@ -1905,7 +1905,22 @@ namespace Sempiler.Emission
 
         public override Result<object> EmitKeyValuePair(KeyValuePair node, Context context, CancellationToken token)
         {
-            return CreateUnsupportedFeatureResult(node);
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+            // // childContext.Parent = node;
+
+            result.AddMessages(
+                EmitNode(node.Key, childContext, token)
+            );
+
+            context.Emission.Append(node, ":");
+
+            result.AddMessages(
+                EmitNode(node.Value, childContext, token)
+            );
+
+            return result;
         }
 
         public override Result<object> EmitLabel(Label node, Context context, CancellationToken token)
@@ -1983,8 +1998,11 @@ namespace Sempiler.Emission
 
             context.Emission.Append(node, "=>");
 
+            // [dho] NOTE we do not want to wrap the body in braces arbitrarily
+            // because a single statement in a lambda declaration is implicitly the return
+            // value, which would be nullified if wrapped in braces - 23/12/19
             result.AddMessages(
-                EmitBlockLike(node.Body, node.Node, childContext, token)
+                EmitNode(node.Body, childContext, token)
             );
           
             return result;
@@ -3180,7 +3198,7 @@ namespace Sempiler.Emission
             }
             else
             {
-                context.Emission.Append(node, $"\"{node.Value}\"");
+                context.Emission.Append(node, $"\"{node.Value.Replace(@"\", @"\\")}\"");
             }
 
             return result;
@@ -3853,44 +3871,58 @@ namespace Sempiler.Emission
         {
             var result = new Result<object>();
 
-            // [dho] FIX for the code just assuming all the clauses were `ReferenceAliasDeclarations`... 
-            // why I originally wrote that, I don't know... - 01/06/19
-            if(node.Clauses.Length == 1 && node.Clauses[0].Kind != SemanticKind.ReferenceAliasDeclaration)
+            // [dho] this hack handles emitting exported functions etc.. TODO CLEANUP - 27/12/19
+            if(node.Clauses.Length == 1 && 
+                node.Clauses[0].Kind != SemanticKind.Identifier && 
+                node.Clauses[0].Kind != SemanticKind.ReferenceAliasDeclaration &&
+                node.Kind == SemanticKind.ExportDeclaration)
             {
                 return EmitNode(node.Clauses[0], context, token);
             }
 
-            List<ReferenceAliasDeclaration> symbolAliases = new List<ReferenceAliasDeclaration>();
+            List<Node> symbolAliases = new List<Node>();
 
             bool hasPreviousClause = false;
 
             foreach(var (m, hasNext) in ASTNodeHelpers.IterateMembers(node.Clauses))
             {
-                var alias = ASTNodeFactory.ReferenceAliasDeclaration(context.AST, m);
-
-                var from = alias.From;
-
-                if(from != null)
+                if(m.Kind == SemanticKind.Identifier)
                 {
-                    if(from.Kind == SemanticKind.DefaultExportReference || from.Kind == SemanticKind.WildcardExportReference)
+                    symbolAliases.Add(m);
+                }
+                else if(m.Kind == SemanticKind.ReferenceAliasDeclaration)
+                {
+                    var alias = ASTNodeFactory.ReferenceAliasDeclaration(context.AST, m);
+
+                    var from = alias.From;
+
+                    if(from != null)
                     {
-                        if(hasPreviousClause)
+                        if(from.Kind == SemanticKind.DefaultExportReference || from.Kind == SemanticKind.WildcardExportReference)
                         {
-                            context.Emission.Append(m, ",");
+                            if(hasPreviousClause)
+                            {
+                                context.Emission.Append(m, ",");
+                            }
+
+                            result.AddMessages(
+                                EmitImportOrExportAliasDeclaration(alias, context, token)
+                            );
+
+                            hasPreviousClause = true;
                         }
-
-                        result.AddMessages(
-                            EmitImportOrExportAliasDeclaration(alias, context, token)
-                        );
-
-                        hasPreviousClause = true;
-                    }
-                    else
-                    {
-                        symbolAliases.Add(alias);
+                        else
+                        {
+                            symbolAliases.Add(alias.Node);
+                        }
                     }
                 }
-
+                else
+                {
+                    result.AddMessages(
+                        CreateUnsupportedFeatureResult(m, $"'{m.Kind}' import or export clause")
+                    );
+                }
             }
 
             if(symbolAliases.Count > 0)
@@ -3904,9 +3936,23 @@ namespace Sempiler.Emission
 
                 for(var i = 0 ; i < symbolAliases.Count; ++i)
                 {
-                    result.AddMessages(
-                       EmitImportOrExportAliasDeclaration(symbolAliases[i], context, token)
-                    );
+                    var s = symbolAliases[i];
+
+                    if(s.Kind == SemanticKind.ReferenceAliasDeclaration)
+                    {
+                        var alias = ASTNodeFactory.ReferenceAliasDeclaration(context.AST, s);
+
+                        result.AddMessages(
+                            EmitImportOrExportAliasDeclaration(alias, context, token)
+                        );
+                    }
+                    else 
+                    {
+                        result.AddMessages(
+                            EmitNode(s, context, token)
+                        );
+                    }
+                    
 
                     if(i < symbolAliases.Count - 1)
                     {

@@ -31,6 +31,7 @@ namespace Sempiler.Diagnostics
             return result.Value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddMessages(MessageCollection m)
         {
             if (m != null)
@@ -39,7 +40,7 @@ namespace Sempiler.Diagnostics
             }
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddMessages(params Message[] m)
         {
             if (m != null && m.Length > 0)

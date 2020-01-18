@@ -56,7 +56,7 @@ namespace Sempiler.Core
                 // [dho] TODO store directive names centrally somewhere!! -15/05/19
                 switch (name)
                 {
-                    case CTDirective.CodeGen: // [dho] compile time code generation - 15/05/19
+                    case CTDirective.Emit: // [dho] compile time code generation - 15/05/19
                     case CTDirective.CodeExec: // [dho] compile time execution - 15/05/19
                         {
                             mpInfo.CTDirectives.Add(directive);

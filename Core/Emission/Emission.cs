@@ -1723,7 +1723,12 @@ namespace Sempiler.Emission
 
         public virtual string RelativeComponentOutFilePath(Session session, Artifact artifact, Shard shard, Component node)
         {
-            return node.Name.Replace(session.BaseDirectory.ToPathString(), "").Substring(1) + FileExtension;
+            var name = node.Name;
+            var sessionBaseDir = session.BaseDirectory.ToPathString() + '/';
+
+            var path = name.Replace(sessionBaseDir, "");
+
+            return System.IO.Path.ChangeExtension(path, FileExtension);
         }
 
         protected virtual bool RequiresSemicolonSentinel(Node node) => false;

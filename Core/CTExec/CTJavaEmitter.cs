@@ -1523,7 +1523,7 @@
 //         }
 
 
-//         // [dho] in the case that #codegen is arbtrarily nested inside other directives, we need to insert the 
+//         // [dho] in the case that #emit is arbtrarily nested inside other directives, we need to insert the 
 //         // generated code at the root most #compiler directive, otherwise the generated nodes will get removed 
 //         // from the tree when the #compiler directives are pruned - 18/05/19
 //         private Directive _codegenInsertionPoint = null;
@@ -1571,7 +1571,7 @@
 //                 if(_codegenInsertionPoint == node) _codegenInsertionPoint = null;
 
 //             }
-//             else if(name == CTDirective.CodeGen)
+//             else if(name == CTDirective.Emit)
 //             {
 //                 // context.Emission.AppendBelow(node, $"if(Boolean.FALSE.equals({EvalOnceFlagMapIdentifier}.get(\"{node.ID}\"))){{");
 
@@ -1665,7 +1665,7 @@
 //         //         {
 //         //             result.AddMessages(new CompileTimeEffectsEmitter().EmitNode(node.Node, context, token));
 //         //         }
-//         //         else if(name == "#codegen")
+//         //         else if(name == "#emit")
 //         //         {
 //         //             result.AddMessages(new Codegen().EmitNode(node.Node, context, token));
 //         //         }

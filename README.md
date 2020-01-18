@@ -194,16 +194,16 @@ The compiler API is barebones at present, but allows for the following:
 - `#compiler <declaration>` allow for symbols to be defined for compile time and referenced in the same scope
 
 ### Codegen Directive 📣
-Use the `#codegen` directive to write code that will be executed at *compilation time* to generate code that will be incuded in the emitted artifact
+Use the `#emit` directive to write code that will be executed at *compilation time* to generate code that will be incuded in the emitted artifact
 
 The syntax is:
 
-`#codegen <interpolated string>`
+`#emit <interpolated string>`
 
-The codegen feature can be useful for including some platform specific code verbatim, especially if it contains syntactic constructs not available in your source language (like `#available(iOS 11.0, *)` below):
+The emit feature can be useful for including some platform specific code verbatim, especially if it contains syntactic constructs not available in your source language (like `#available(iOS 11.0, *)` below):
 
 ```typescript
-#codegen`if #available(iOS 11.0, *)
+#emit`if #available(iOS 11.0, *)
 {
     let window = UIApplication.shared.windows[0]
     let safeFrame = window.safeAreaLayoutGuide.layoutFrame

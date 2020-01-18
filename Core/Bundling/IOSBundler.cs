@@ -36,7 +36,12 @@ namespace Sempiler.Bundling
         // [dho] NOTE INCOMPLETE! TODO finish implementation of non inlined output - 31/08/19
         // const bool PerformInlining = true;
 
-        public IList<string> GetPreservedDebugEmissionRelPaths() => new string[] { "Pods" };
+        public IList<string> GetPreservedDebugEmissionRelPaths(Session session, Artifact artifact, CancellationToken token) => new string[] { 
+            "Pods",
+            "Podfile.lock",
+            $"{artifact.Name}.xcodeproj",
+            $"{artifact.Name}.xcworkspace"
+        };
 
         public async Task<Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token)
         {
@@ -306,7 +311,7 @@ embed_extensions_phase.symbol_dst_subfolder_spec = :plug_ins
 
             foreach (var shard in shards)
             {
-                __FilterNonEmptyComponents(shard.AST);
+                FilterNonEmptyComponents(shard.AST);
 
                 var targetInfo = default(TargetInfo);
 
@@ -341,7 +346,7 @@ embed_extensions_phase.symbol_dst_subfolder_spec = :plug_ins
                 {
                     result.AddMessages(
                         new Message(MessageKind.Error,
-                            $"Unsupported shard role '{shard.Role.ToString()} in bundler for artifact role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
+                            $"Unsupported shard role '{shard.Role.ToString()}' in bundler for artifact role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
                     );
 
                 }
@@ -359,16 +364,87 @@ $@"target '{targetInfo.Name}' do
 
                 podfileContent.AppendLine();
 
+                int dependencyIDSeed = 0;
+
                 foreach (var dependency in shard.Dependencies)
                 {
-                    podfileContent.Append($"pod '{dependency.Name}'");
+                    var packageManager = dependency.PackageManager;
 
-                    if (dependency.Version != null)
+                    // [dho] Swift Package Manager dependency - 04/01/20
+                    if(packageManager == PackageManager.SwiftPackageManager)
                     {
-                        podfileContent.Append($", '~> {dependency.Version}'");
-                    }
+                        var depSeed = dependencyIDSeed++;
+                        var pkgProdDepLexeme = targetInfo.Name + "_swift_pkg_prod_dep" + depSeed;
+                        var pkgRefLexeme = targetInfo.Name + "_swift_pkg_ref" + depSeed;
 
-                    podfileContent.AppendLine();
+                        initRBContent.AppendLine($"{pkgProdDepLexeme} = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)");
+                        
+                        initRBContent.AppendLine($"{pkgRefLexeme} = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)");
+                        
+                        if(dependency.URL != null)
+                        {
+                            initRBContent.AppendLine($"{pkgRefLexeme}.repositoryURL = '{dependency.URL}'");
+                        }
+                        else
+                        {
+                            result.AddMessages(
+                                new Message(MessageKind.Error,
+                                    $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' must specify URL for {packageManager} dependency '{dependency.Name}'")
+                            );
+                        }
+
+                        if(dependency.Version != null)
+                        {
+                            // [dho] https://github.com/apple/swift-package-manager/blob/ec247b4b26bc046aeb68419f97a31b81092ad1aa/Sources/PackageDescription/PackageRequirement.swift - 04/01/20
+                            // [dho] NOTE for other version matching (upToNextMajorVersion etc), add a Swift Package manually using XCode then inspect the `project.pbxproj` entry for the correct 
+                            // values/strings to use here - 05/01/20
+                            // [dho] TODO support other version matching bases - 05/01/20
+                            initRBContent.AppendLine($"{pkgRefLexeme}.requirement = {{ 'kind' => 'exactVersion', 'version' => '{dependency.Version}' }}");
+                        }
+                        else
+                        {
+                            result.AddMessages(
+                                new Message(MessageKind.Error,
+                                    $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' must specify version for {packageManager} dependency '{dependency.Name}'")
+                            );
+                        }
+
+                        initRBContent.AppendLine($"{pkgProdDepLexeme}.product_name = '{dependency.Name}'");
+                        
+                        initRBContent.AppendLine($"{pkgProdDepLexeme}.package = {pkgRefLexeme}");
+                        
+                        initRBContent.AppendLine($"project.root_object.package_references << {pkgRefLexeme}");
+
+                        initRBContent.AppendLine($"{targetInfo.Name}.package_product_dependencies << {pkgProdDepLexeme}");
+
+                    }
+                    // [dho] CocoaPods dependency (default) - 04/01/20
+                    else if(packageManager == PackageManager.CocoaPods || packageManager == null)
+                    {    
+                        podfileContent.Append($"pod '{dependency.Name}'");
+
+                        if (dependency.Version != null)
+                        {
+                            podfileContent.Append($", '~> {dependency.Version}'");
+                        }
+
+                        if(dependency.URL != null)
+                        {
+                            result.AddMessages(
+                                new Message(MessageKind.Error,
+                                    $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' does not support specifying a URL for {packageManager} dependency '{dependency.Name}'")
+                            );
+                        }
+
+                        podfileContent.AppendLine();
+                    }
+                    else
+                    {
+                        result.AddMessages(
+                            new Message(MessageKind.Error,
+                                $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' references unsupported package manager '{packageManager}'")
+                        );
+                    }
                 }
 
                 podfileContent.Append("end");
@@ -843,9 +919,14 @@ $@"
 {targetInfo.Name}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
 {targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{productBundleIdentifier}')
 # {targetInfo.Name}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
+
+{/*[dho] adapted from https://stackoverflow.com/a/58656323/300037 - 06/01/20 */""}
+{targetInfo.Name}.build_configuration_list.set_setting('BUILD_LIBRARY_FOR_DISTRIBUTION', 'YES')
+
+{/*[dho] TODO change this if building for Release? - 08/01/20 */""}
+{targetInfo.Name}.build_configuration_list.set_setting('GCC_OPTIMIZATION_LEVEL', 0)
 "
             );
-
 
             result.Value = content.ToString();
 
@@ -871,51 +952,12 @@ $@"
             }
         }
 
-        private static void __FilterNonEmptyComponents(RawAST ast)
-        {
-            var nodeIDsToDisable = new List<string>();
-
-            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
-            {
-                var isEmpty = ASTHelpers.QueryLiveChildEdges(ast, node.ID).Length == 0;
-
-                if(isEmpty)
-                {
-                    nodeIDsToDisable.Add(node.ID);
-                }
-            }
-
-            if(nodeIDsToDisable.Count > 0)
-            {
-                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
-            }
-        }
-        private static void __FilterSharedComponents(RawAST ast, Dictionary<string, bool> componentsProcessed)
-        {
-            var nodeIDsToDisable = new List<string>();
-
-            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
-            {
-                if(componentsProcessed.ContainsKey(node.ID))
-                {
-                    nodeIDsToDisable.Add(node.ID);
-                }
-                else
-                {
-                    componentsProcessed[node.ID] = true;
-                }
-            }
-
-            if(nodeIDsToDisable.Count > 0)
-            {
-                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
-            }
-        }
+        
         private static Result<object> PrepareForEmission(Session session, Artifact artifact, RawAST ast, Dictionary<string, bool> componentsProcessed, CancellationToken token)
         {
             var result = new Result<object>();
 
-            __FilterSharedComponents(ast, componentsProcessed);
+            FilterSharedComponents(ast, componentsProcessed);
 
             foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.ImportDeclaration))
             {
@@ -1004,13 +1046,18 @@ $@"
                     if (LanguageSemantics.Swift.IsDeclarationStatement(ast, clause))
                     {
                         // [dho] make declaration public - 30/06/19
-                        var publicFlag = NodeFactory.Meta(
-                            ast,
-                            new PhaseNodeOrigin(PhaseKind.Bundling),
-                            MetaFlag.WorldVisibility
-                        );
+                        // var publicFlag = NodeFactory.Meta(
+                        //     ast,
+                        //     new PhaseNodeOrigin(PhaseKind.Bundling),
+                        //     MetaFlag.WorldVisibility
+                        // );
 
-                        ASTHelpers.Connect(ast, clause.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
+                        // ASTHelpers.Connect(ast, clause.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
+
+                        // [dho] remove the export construct because the symbol will be available in a 
+                        // shared singular scope anyway in Swift - 09/01/20
+                        ASTHelpers.Replace(ast, exportDecl.ID, new [] { clause });
+
                     }
                     else
                     {
@@ -1047,6 +1094,122 @@ $@"
                 );
             
             }
+
+            // [dho] TODO FINISH this is half finished code that aims to detect `if(x.y !== null){...}` and then find all references
+            // to `x.y` in the true branch and change them to `x.y!` so the user doesn't have to - 01/01/20
+            //
+            // foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.PredicateJunction))
+            // {
+            //     var predJunction = ASTNodeFactory.PredicateJunction(ast, node);
+            //     var predicate = predJunction.Predicate;
+            //     var trueBranch = predJunction.TrueBranch;
+
+            //     if(predicate.Kind == SemanticKind.StrictNonEquivalent)
+            //     {
+            //         var sne = ASTNodeFactory.StrictNonEquivalent(ast, predicate);
+            //         var ops = sne.Operands;
+
+            //         if(ops.Length == 2)
+            //         {
+            //             if(ops[0].Kind == SemanticKind.Null)
+            //             {
+            //                 var operand = ops[1];
+
+            //                 if(operand.Kind == SemanticKind.Identifier)
+            //                 {
+            //                     var identifier = ASTNodeFactory.Identifier(ast, (DataNode<string>)operand);
+                                
+            //                     var scope = new Scope(trueBranch);
+            //                     var references = LanguageSemantics.Swift.GetUnqualifiedReferenceMatches(session, ast, trueBranch, scope, identifier.Lexeme, token);
+
+            //                     foreach(var reference in references)
+            //                     {
+            //                         var parent = ASTHelpers.GetParent(ast, reference.ID);
+            //                         if(parent.Kind != SemanticKind.NotNull && parent.Kind != SemanticKind.MaybeNull)
+            //                         {
+            //                             var notNull = NodeFactory.NotNull(ast, reference.Origin);
+            //                             ASTHelpers.Replace(ast, reference.ID, new [] { notNull.Node });
+
+            //                             ASTHelpers.Connect(ast, notNull.ID, new [] { reference }, SemanticRole.Subject);
+            //                         }
+            //                     }
+            //                 }
+            //                 else if(operand.Kind == SemanticKind.QualifiedAccess)
+            //                 {
+            //                     var qa = ASTNodeFactory.QualifiedAccess(ast, operand);
+
+            //                     var lhs = ASTNodeHelpers.LHS(ast, qa.Node);
+
+            //                     if(lhs.Kind == SemanticKind.Identifier)
+            //                     {
+            //                         var identifier = ASTNodeFactory.Identifier(ast, (DataNode<string>)lhs);
+
+            //                         var scope = new Scope(trueBranch);
+            //                         var references = LanguageSemantics.Swift.GetUnqualifiedReferenceMatches(session, ast, trueBranch, scope, identifier.Lexeme, token);
+
+            //                         foreach(var reference in references)
+            //                         {
+            //                             var parent = ASTHelpers.GetParent(ast, reference.ID);
+            //                             if(parent.Kind != SemanticKind.NotNull && parent.Kind != SemanticKind.MaybeNull)
+            //                             {
+            //                                 var notNull = NodeFactory.NotNull(ast, reference.Origin);
+            //                                 ASTHelpers.Replace(ast, reference.ID, new [] { notNull.Node });
+
+            //                                 ASTHelpers.Connect(ast, notNull.ID, new [] { reference }, SemanticRole.Subject);
+            //                             }
+            //                         } 
+                                    
+            //                     }
+            //                     else if(lhs.Kind == SemanticKind.IncidentContextReference)
+            //                     {
+            //                         ASTHelpers.PreOrderLiveTraversal(ast, trueBranch, (n) => {
+
+            //                             if(n.Kind == SemanticKind.IncidentContextReference)
+            //                             {
+            //                                 var ancestorQA = ASTHelpers.GetParent(ast, n.ID);
+
+            //                                 if(ancestorQA.Kind == SemanticKind.QualifiedAccess)
+            //                                 {
+            //                                     // [dho] get outermost QA - 01/01/20
+            //                                     while(ancestorQA.Kind == SemanticKind.QualifiedAccess)
+            //                                     {
+            //                                         var p = ASTHelpers.GetParent(ast, ancestorQA.ID);
+
+            //                                         if(p.Kind == SemanticKind.QualifiedAccess)
+            //                                         {
+            //                                             ancestorQA = p;
+            //                                         }
+            //                                     }
+
+
+
+            //                                     if(ASTNodeHelpers.LHS(ast, ancestorQA).ID == lhs.ID)
+            //                                     {
+            //                                         var qai = 0;
+                                                    
+            //                                         foreach(var x in ASTNodeHelpers.IterateQualifiedAccessLTR(ASTNodeFactory.QualifiedAccess(ast, ancestorQA)))
+            //                                         {
+
+            //                                         }
+            //                                     }
+
+            //                                 }
+            //                             }
+
+            //                             return true;
+            //                         }, token);
+            //                     }
+
+                                
+            //                 }
+            //             }
+            //             else if(ops[1].Kind == SemanticKind.Null)
+            //             {
+
+            //             }
+            //         }
+            //     }
+            // }
 
             return result;
         }

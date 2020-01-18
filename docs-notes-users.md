@@ -1,5 +1,10 @@
 ** IN PROGRESS : Rough notes to form user guide / cook book / API reference **
 
+# Anatomy / Lexicon
+
+# Migration away
+Get native output so just take it and go
+
 
 @struct
 @extension
@@ -53,3 +58,20 @@ TODO
 @enforceAuth annotation
 
 http status code inference from error type
+
+
+
+
+#SwiftUI
+
+nested ternary expressions inside TSX/JSX tags are converted to equivalent if statements.. for conditional inclusion of views etc
+
+
+
+
+# Swift Packages From Git
+- guide on how to get URL
+- get release version from 'Releases'
+- get product name
+- limitations (exact version)
+

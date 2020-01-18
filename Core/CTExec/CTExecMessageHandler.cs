@@ -44,6 +44,8 @@ namespace Sempiler.CTExec
                 //     stopwatch.Reset();               
                 // }
 
+                System.Diagnostics.Stopwatch stopwatch = new System.Diagnostics.Stopwatch();
+                stopwatch.Start();
 
                 var command = CTProtocolHelpers.ParseCommand(message);
 
@@ -138,14 +140,15 @@ namespace Sempiler.CTExec
                         }
                     }
 
-                    // stopwatch.Stop();
-                    // var ts = stopwatch.Elapsed;
+                    stopwatch.Stop();
+                    var ts = stopwatch.Elapsed;
 
-                    // string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
-                    //     ts.Hours, ts.Minutes, ts.Seconds,
-                    //     ts.Milliseconds / 10);
+                    string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+                        ts.Hours, ts.Minutes, ts.Seconds,
+                        ts.Milliseconds / 10);
 
-                    // Console.WriteLine("\n\n>>> Processing Command '" + artifact.Name + "->" + shard.Name + "->" + command.Kind + "' took " + elapsedTime);
+                    Console.WriteLine("\n\n>>> Processing Command '" + artifact.Name + "->" + shard.Name + "->" + command.Kind + "' took " + elapsedTime);
+                    // Console.WriteLine("\n\n>>> Processing Command '" + artifact.Name + "->" + shard.Name + "->" + command.Kind);
 
                     // stopwatch.Start();
                 // }
@@ -261,28 +264,20 @@ namespace Sempiler.CTExec
                         }
 
                         var name = command.Arguments[CTProtocolAddDependencyCommand.NameIndex];
-
-                        if (command.Arguments.Length > 1)
-                        {
-                            var version = command.Arguments[CTProtocolAddDependencyCommand.VersionIndex];
-
-                            shard.Dependencies.Add(
-                                new Dependency
-                                {
-                                    Name = name,
-                                    Version = version
-                                }
-                            );
-                        }
-                        else
-                        {
-                            shard.Dependencies.Add(
-                                new Dependency
-                                {
-                                    Name = name
-                                }
-                            );
-                        }
+                        var version = command.Arguments.Length > CTProtocolAddDependencyCommand.VersionIndex ? command.Arguments[CTProtocolAddDependencyCommand.VersionIndex] : null;
+                        var packageManager = command.Arguments.Length > CTProtocolAddDependencyCommand.PackageManagerIndex ? command.Arguments[CTProtocolAddDependencyCommand.PackageManagerIndex] : null;
+                        var url = command.Arguments.Length > CTProtocolAddDependencyCommand.URLIndex ? command.Arguments[CTProtocolAddDependencyCommand.URLIndex] : null;
+                        
+                        shard.Dependencies.Add(
+                            new Dependency
+                            {
+                                Name = name,
+                                Version = version,
+                                PackageManager = packageManager,
+                                URL = url
+                            }
+                        );
+                    
                     }
                     break;
 

@@ -60,7 +60,7 @@ For example, referencing `process` in Node (a globally available symbol) will re
 
 Any imports that are not inside the scope of a CTExec directive will be ignored. This is necessary because imports that also execute at run time may reference files or libraries that only exist in the context of the target platform. The compiler context has no access to the target platform context.
 
-You cannot use `#codegen` on values that are not statically known. For example, a `#codegen` cannot try to bake in a parameter reference, because that parameter may be different each time a function is invoked, and so the generate code generation cannot be baked.
+You cannot use `#emit` on values that are not statically known. For example, a `#emit` cannot try to bake in a parameter reference, because that parameter may be different each time a function is invoked, and so the generate code generation cannot be baked.
 
 
 

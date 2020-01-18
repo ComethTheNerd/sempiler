@@ -69,6 +69,17 @@ namespace Sempiler
     {
         public string Name;
         public string Version;
+        public string PackageManager;
+        public string URL;
+    }
+
+    public static class PackageManager
+    {
+        // public const string Compiler = "compiler";
+        
+        public const string NPM = "npm";
+        public const string CocoaPods = "pod";
+        public const string SwiftPackageManager = "spm";
     }
 
     public enum ConfigurationPrimitive

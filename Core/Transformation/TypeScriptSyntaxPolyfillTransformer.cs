@@ -92,7 +92,7 @@ namespace Sempiler.Transformation
                 }
                 // [dho] this was an idea to detect any assignments to properties that exists on the 'this'/'self' and mark the method
                 // as a mutating function automatically. However, abandoning it for now because most of the properties defined in the
-                // Swift example app are done through #codegen and so the compiler does not know about the symbols inside that string - 29/08/18
+                // Swift example app are done through #emit and so the compiler does not know about the symbols inside that string - 29/08/18
                 // else if(node.Kind == SemanticKind.MethodDeclaration)
                 // {
                 //     var methodDecl = ASTNodeFactory.MethodDeclaration(ast/*clonedAST*/, node);
@@ -212,7 +212,128 @@ namespace Sempiler.Transformation
                 // result.Value = ast/*clonedAST*/;
             }
 
+            result.AddMessages(
+                ReplaceDynamicTypeConstructionsWithDictionaryConstructions(session, artifact, ast, token)
+            );
+
             return Task.FromResult(result);
+        }
+
+        private Result<object> ReplaceDynamicTypeConstructionsWithDictionaryConstructions(Session session, Artifact artifact, RawAST ast, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.ForcedCast))
+            {
+                if(token.IsCancellationRequested) return result;
+
+                var forcedCast = ASTNodeFactory.ForcedCast(ast, node);
+
+                result.AddMessages(
+                    ReplaceWithDictionaryConstructionIfRequired(session, artifact, ast, forcedCast.TargetType, forcedCast.Subject, token)
+                );
+
+            }
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.SafeCast))
+            {
+                if(token.IsCancellationRequested) return result;
+
+                var safeCast = ASTNodeFactory.SafeCast(ast, node);
+
+                result.AddMessages(
+                    ReplaceWithDictionaryConstructionIfRequired(session, artifact, ast, safeCast.TargetType, safeCast.Subject, token)
+                );
+            }
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.DataValueDeclaration))
+            {
+                if(token.IsCancellationRequested) return result;
+
+                var dataValueDecl = ASTNodeFactory.DataValueDeclaration(ast, node);
+
+                result.AddMessages(
+                    ReplaceWithDictionaryConstructionIfRequired(session, artifact, ast, dataValueDecl.Type, dataValueDecl.Initializer, token)
+                );
+            }
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.ParameterDeclaration))
+            {
+                if(token.IsCancellationRequested) return result;
+
+                var paramDecl = ASTNodeFactory.ParameterDeclaration(ast, node);
+
+                result.AddMessages(
+                    ReplaceWithDictionaryConstructionIfRequired(session, artifact, ast, paramDecl.Type, paramDecl.Default, token)
+                );
+            }
+
+            return result;
+        }
+
+        private Result<object> ReplaceWithDictionaryConstructionIfRequired(Session session, Artifact artifact, RawAST ast, Node type, Node value, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            if(type?.Kind == SemanticKind.DictionaryTypeReference)
+            {
+                var rawValue = ASTNodeHelpers.UnwrapAssociations(ast, value);
+
+                if(rawValue?.Kind == SemanticKind.DynamicTypeConstruction)
+                {
+                    var dictMembers = new List<Node>();
+
+                    var dictConstruction = NodeFactory.DictionaryConstruction(ast, rawValue.Origin);
+                    var dynamicTypeConstruction = ASTNodeFactory.DynamicTypeConstruction(ast, rawValue);
+
+                    foreach(var (member, hasNext) in ASTNodeHelpers.IterateMembers(dynamicTypeConstruction.Members))
+                    {
+                        if(member.Kind == SemanticKind.FieldDeclaration)
+                        {
+                            var fieldDecl = ASTNodeFactory.FieldDeclaration(ast, member);
+
+                            var kv = NodeFactory.KeyValuePair(ast, fieldDecl.Origin);
+
+                            ASTHelpers.Connect(ast, kv.ID, new [] { fieldDecl.Name }, SemanticRole.Key);
+                            ASTHelpers.Connect(ast, kv.ID, new [] { fieldDecl.Initializer }, SemanticRole.Value);
+                            ASTHelpers.Connect(ast, kv.ID, fieldDecl.Meta, SemanticRole.Meta);
+                        
+                            
+                            foreach(var mod in fieldDecl.Modifiers)
+                            {
+                                result.AddMessages(
+                                    CreateUnsupportedFeatureResult(mod, "dictionary entry modifiers")
+                                );
+                            }
+                            
+                            var fieldType = fieldDecl.Type;
+
+                            if(fieldType != null)
+                            {
+                                result.AddMessages(
+                                    CreateUnsupportedFeatureResult(fieldType, "dictionary entry types")
+                                );
+                            }
+
+                            dictMembers.Add(kv.Node);
+                        }
+                        else
+                        {
+                            dictMembers.Add(member);
+                        }
+                    }
+
+                    if(dictMembers.Count > 0)
+                    {
+                        ASTHelpers.Connect(ast, dictConstruction.ID, dictMembers.ToArray(), SemanticRole.Member);
+                    }
+
+                    ASTHelpers.Replace(ast, rawValue.ID, new [] { dictConstruction.Node });
+                }
+
+            }
+
+            return result;
         }
 
     }

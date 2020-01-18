@@ -51,7 +51,7 @@ namespace Sempiler
                 ts.Hours, ts.Minutes, ts.Seconds,
                 ts.Milliseconds / 10);
 
-            Console.WriteLine("⏱ " +  t.Label + " " + elapsedTime);
+            Console.WriteLine("⏱  " +  t.Label + " " + elapsedTime);
         }
 
         public static Result<List<Component>> Parse(IParser parser, Session session, RawAST ast, ISourceProvider sourceProvider, IEnumerable<string> inputPaths, CancellationToken token)
@@ -406,7 +406,6 @@ namespace Sempiler
 
             return (newArtifact, newShard, newShardIndex);
         } 
-
 
         // [dho] TODO move arbitrary transformations to user code - 25/11/19
         public static async Task<Result<RawAST>> PerformLegacyTransformations(Session session, Artifact artifact, Shard shard, List<Component> newlyAddedComponents, ISourceProvider sourceProvider, DuplexSocketServer server, CancellationToken token)

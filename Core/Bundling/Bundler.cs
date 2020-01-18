@@ -15,7 +15,7 @@ namespace Sempiler.Bundling
         // a manifest file where none has been explicitly provided - 21/05/19
         Task<Sempiler.Diagnostics.Result<OutFileCollection>> Bundle(Session session, Artifact artifact, List<Shard> shards, CancellationToken token);
 
-        IList<string> GetPreservedDebugEmissionRelPaths();
+        IList<string> GetPreservedDebugEmissionRelPaths(Session session, Artifact artifact, CancellationToken token);
     }
 
     public static class BundlerHelpers
@@ -196,6 +196,49 @@ namespace Sempiler.Bundling
                 ASTHelpers.Connect(ast, node.ID, meta, SemanticRole.Meta);
             }
 
+        }
+
+
+        public static void FilterNonEmptyComponents(RawAST ast)
+        {
+            var nodeIDsToDisable = new List<string>();
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
+            {
+                var isEmpty = ASTHelpers.QueryLiveChildEdges(ast, node.ID).Length == 0;
+
+                if(isEmpty)
+                {
+                    nodeIDsToDisable.Add(node.ID);
+                }
+            }
+
+            if(nodeIDsToDisable.Count > 0)
+            {
+                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
+            }
+        }
+        
+        public static void FilterSharedComponents(RawAST ast, Dictionary<string, bool> componentsProcessed)
+        {
+            var nodeIDsToDisable = new List<string>();
+
+            foreach(var node in ASTHelpers.QueryByKind(ast, SemanticKind.Component))
+            {
+                if(componentsProcessed.ContainsKey(node.ID))
+                {
+                    nodeIDsToDisable.Add(node.ID);
+                }
+                else
+                {
+                    componentsProcessed[node.ID] = true;
+                }
+            }
+
+            if(nodeIDsToDisable.Count > 0)
+            {
+                ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
+            }
         }
 
         // public static string GenerateCTID()

@@ -22,6 +22,8 @@ namespace Sempiler.CTExec
         private static readonly string CTInSituHandleLexeme = CompilerHelpers.NextInternalGUID();
 
         private static readonly string MaybeNullPolyfillHandleLexeme = "maybeNullPolyfill";
+        private static readonly string NotNullPolyfillHandleLexeme = "notNullPolyfill";
+
         private static readonly string NullCoalescencePolyfillHandleLexeme = "nullCoalescencePolyfill";
 
         public struct CTInSituFunctionIdentifiers
@@ -31,6 +33,7 @@ namespace Sempiler.CTExec
             public string DeleteNode;
             public string Terminate;
             public string MaybeNullPolyfill;
+            public string NotNullPolyfill;
             public string NullCoalescencePolyfill;
         }
 
@@ -41,6 +44,7 @@ namespace Sempiler.CTExec
             DeleteNode = $"global.{CTInSituHandleLexeme}.{CTAPISymbols.DeleteNode}",
             Terminate = $"global.{CTInSituHandleLexeme}.{CTAPISymbols.Terminate}",
             MaybeNullPolyfill = $"global.{CTInSituHandleLexeme}.{MaybeNullPolyfillHandleLexeme}",
+            NotNullPolyfill = $"global.{CTInSituHandleLexeme}.{NotNullPolyfillHandleLexeme}",
             NullCoalescencePolyfill = $"global.{CTInSituHandleLexeme}.{NullCoalescencePolyfillHandleLexeme}"
         };
 
@@ -327,6 +331,10 @@ module.exports = async function () {{
 
                 // console.log(`SENDING :::: ${{message}}{DuplexSocketServer.MessageSentinel}`)
 
+                const timerName = id;
+
+                console.time(timerName);
+
                 socket.write(`${{message}}{DuplexSocketServer.MessageSentinel}`);
             
                 socket.on('data', buffer => {{
@@ -337,6 +345,8 @@ module.exports = async function () {{
 
                     const {{ ok, id : respMessageID, data : respData }} = JSON.parse(serializedJSON);
 
+                    // console.log('finished \'' + message + '\'');
+                    console.timeEnd(timerName);
 
                     if(!ok)
                     {{
@@ -401,17 +411,26 @@ module.exports = async function () {{
         }}
     }}
 
-    async function {CTAPISymbols.AddDependency}(name, version)
+    async function {CTAPISymbols.AddDependency}(name, version, packageManager, url)
     {{
         const {{ {ArtifactNameSymbolLexeme}, {ShardIndexSymbolLexeme}, {NodeIDSymbolLexeme}, {MessageIDSymbolLexeme} }} = this;
 
+        {/* [dho] TODO CLEANUP - 04/01/20 */""}
         if(arguments.length === 1)
         {{
             return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}})`);
         }}
-        else
+        else if(arguments.length === 2)
         {{
             return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}})`);
+        }}
+        else if(arguments.length === 3)
+        {{
+            return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}}{CTProtocolHelpers.ArgumentDelimiter}${{packageManager}})`);
+        }}
+        else
+        {{
+            return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddDependency}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{version}}{CTProtocolHelpers.ArgumentDelimiter}${{packageManager}}{CTProtocolHelpers.ArgumentDelimiter}${{url}})`);
         }}
     }}
 
@@ -626,6 +645,15 @@ module.exports = async function () {{
         return input || new Proxy({{}}, {{ 
             get(){{ 
                 return function () {{}} 
+            }} 
+        }});
+    }}
+
+    function {NotNullPolyfillHandleLexeme}(input)
+    {{
+        return input || new Proxy({{}}, {{ 
+            get(){{ 
+                throw new Error('Unexpectedly found bad reference whilst force unwrapping') 
             }} 
         }});
     }}

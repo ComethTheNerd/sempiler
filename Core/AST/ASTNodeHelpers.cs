@@ -40,6 +40,36 @@ namespace Sempiler.AST
             return flags;
         }
 
+        public static (Association, InterimSuspension) CreateAwait(RawAST ast, Node operand)
+        {
+            var awaitExp = NodeFactory.InterimSuspension(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                ASTHelpers.Connect(ast, awaitExp.ID, new[] { operand }, SemanticRole.Operand);
+            }
+
+            var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                ASTHelpers.Connect(ast, parentheses.ID, new[] { awaitExp.Node }, SemanticRole.Subject);
+            }
+
+            return (parentheses, awaitExp);
+        }
+
+
+        ///<summary>Removes any outer parentheses around a node. Returns null if the input node is null, or the nested subject of an association is null</summary>
+        public static Node UnwrapAssociations(RawAST ast, Node node)
+        {
+            var focus = node;
+
+            // System.Console.WriteLine("UnwrapAssociations : " + focus?.Kind);
+
+            while(focus?.Kind == SemanticKind.Association)
+            {
+                focus = ASTNodeFactory.Association(ast, focus).Subject;
+            }
+
+            return focus;
+        }
 
         public static IEnumerable<(AST.Node, bool)> IterateLiveChildren(RawAST ast, AST.ASTNode nodeWrapper) => IterateLiveChildren(ast, nodeWrapper.ID);
 
@@ -134,6 +164,19 @@ namespace Sempiler.AST
             // }
         }
 
+        public static Node LHS(RawAST ast, Node node)
+        {
+            if(node.Kind == SemanticKind.QualifiedAccess)
+            {
+                var incident = ASTNodeFactory.QualifiedAccess(ast, node).Incident;
+                
+                return LHS(ast, incident);
+            }
+            else
+            {
+                return node;
+            }
+        }
         public static Node RHS(RawAST ast, Node node)
         {
             if(node.Kind == SemanticKind.QualifiedAccess)
@@ -146,6 +189,22 @@ namespace Sempiler.AST
             {
                 return node;
             }
+        }
+
+        public static bool IsQualifiedAccessOfLexemesLTR(QualifiedAccess qa, List<string> lexemes, int startIndex = 0)
+        {
+            var ast = qa.AST;
+            var index = startIndex;
+
+            foreach(var (member, hasNext) in ASTNodeHelpers.IterateQualifiedAccessLTR(qa))
+            {
+                if(!ASTNodeHelpers.IsIdentifierWithName(ast, member, lexemes[index++]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public static IEnumerable<(AST.Node, bool)> IterateQualifiedAccessLTR(AST.QualifiedAccess qualifiedAccess)
@@ -446,10 +505,22 @@ namespace Sempiler.AST
             return qa;
         }
 
+        public static Assignment CreateAssignment(RawAST ast, Node storage, Node value)
+        {
+            var assignment = NodeFactory.Assignment(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+            {
+                ASTHelpers.Connect(ast, assignment.ID, new [] { storage }, SemanticRole.Storage);
+
+                ASTHelpers.Connect(ast, assignment.ID, new [] { value }, SemanticRole.Value);
+            }
+
+            return assignment;
+        }
+
         public static (Invocation, LambdaDeclaration) CreateIIFE(RawAST ast, List<Node> content)
         {
             var iife = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            
+
             var lambdaDecl = CreateLambda(ast, content);
 
             var parentheses = NodeFactory.Association(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
@@ -518,7 +589,7 @@ namespace Sempiler.AST
                         else
                         {
                             result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Unsupported member kind '{item.Kind}' in view construction name", item)
+                                new NodeMessage(MessageKind.Error, $"Member has unsupported kind '{item.Kind}' for identifier list", item)
                                 {
                                     Hint = GetHint(item.Origin),
                                 }
@@ -529,7 +600,7 @@ namespace Sempiler.AST
                 else
                 {
                     result.AddMessages(
-                        new NodeMessage(MessageKind.Error, $"Unsupported view construction name kind '{node.Kind}'", node)
+                        new NodeMessage(MessageKind.Error, $"Node has unsupported kind '{node.Kind}' for identifier list", node)
                         {
                             Hint = GetHint(node.Origin)
                         }

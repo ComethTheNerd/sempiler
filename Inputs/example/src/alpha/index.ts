@@ -9,7 +9,7 @@ let bottomSafeAreaHeight: CGFloat = 0.0;
 
 export default function main()
 {
-    #codegen`if #available(iOS 11.0, *)
+    #emit`if #available(iOS 11.0, *)
     {
         let window = UIApplication.shared.windows[0]
         let safeFrame = window.safeAreaLayoutGuide.layoutFrame
