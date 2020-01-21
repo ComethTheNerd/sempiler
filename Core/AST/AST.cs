@@ -724,6 +724,28 @@ namespace Sempiler.AST
             );
         }
 
+        public static IEnumerable<Node> QueryLiveDescendantsByKind(RawAST ast, Node root, SemanticKind kind)
+        {
+            var queue = new Queue<Node>();
+                
+            queue.Enqueue(root);
+
+            while(queue.Count > 0)
+            {
+                var focus = queue.Dequeue();
+
+                if(focus.ID != root.ID && focus.Kind == kind)
+                {
+                    yield return focus;
+                }
+                
+                foreach(var (child, _) in ASTNodeHelpers.IterateLiveChildren(ast, focus.ID))
+                {
+                    queue.Enqueue(child);
+                }
+            }
+        }
+
         public static Node[] QueryLiveEdgeNodes(RawAST ast, NodeID id, EdgePredicate predicate)
         {
             var liveEdges = QueryEdges(ast, id, e => predicate(e) && IsLive(ast, e.NodeID));

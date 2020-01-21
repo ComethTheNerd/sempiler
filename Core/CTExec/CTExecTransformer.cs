@@ -22,42 +22,51 @@ namespace Sempiler.CTExec
             CTAPISymbols.AddShard
         };
 
-        public static Result<object> HoistDirectives(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, Node node, BaseLanguageSemantics languageSemantics, CTInSituFunctionIdentifiers serverInteropFnIDs, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
+        // public enum TransformationMode 
+        // {
+        //     Hoist,
+        //     Replace
+        // }
+
+        public static Result<object> HoistDirectives(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, BaseLanguageSemantics languageSemantics, CTInSituFunctionIdentifiers serverInteropFnIDs,/* TransformationMode mode, */List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
         {
             var result = new Result<object>();
 
-            foreach (var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, node.ID))
+            foreach(var node in ASTHelpers.QueryLiveDescendantsByKind(ast, component.Node, SemanticKind.Directive))
             {
-                // [dho] compile time exec needs to have happened on the children first in case the
-                // parent node relies on them (and this is generally what is expected in programming anyway!) - 11/07/19
-                result.AddMessages(
-                    HoistDirectives(session, artifact, shard, ast, component, child, languageSemantics, serverInteropFnIDs, hoistedDirectiveStatements, hoistedNodes, token)
-                );
-            }
+                // // [dho] right now we do not have an API to query by kind for nodes that are
+                // // descendants of another node (eg. in a particular component), but the CT exec
+                // // replacements/deletions and this check should prevent us doing unnecesary
+                // // work as new sources are added to the AST during CT exec and evaluated - 21/01/20
+                // if(!ASTHelpers.IsLive(ast, node.ID)) continue;
 
-            if (node.Kind == SemanticKind.Directive)
-            {
-                var directiveLexeme = ASTNodeHelpers.GetLexeme(node).Replace("*/", "*\\/");
-
-                var comment = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $@"/* DIRECTIVE : `{directiveLexeme}`*/").Node;
-
-                MarkAsCTExec(ast, comment);
-
-                hoistedDirectiveStatements.Add(comment);
-
+            
                 var directive = ASTNodeFactory.Directive(ast, (DataNode<string>)node);
 
                 // [dho] eg. `#compiler ...` - 11/07/19
                 if (directive.Name == CTDirective.CodeExec)
                 {
                     result.AddMessages(
-                        TransformCTCodeExecDirective(session, artifact, shard, ast, component, directive, languageSemantics, serverInteropFnIDs, hoistedDirectiveStatements, hoistedNodes, token)
+                        TransformCTCodeExecDirective(session, artifact, shard, ast, directive, languageSemantics, serverInteropFnIDs, /*mode,*/ hoistedDirectiveStatements, hoistedNodes, token)
                     );
                 }
-                else if (directive.Name == CTDirective.Emit)
+            }
+
+            foreach(var node in ASTHelpers.QueryLiveDescendantsByKind(ast, component.Node, SemanticKind.Directive))
+            {
+                // // [dho] right now we do not have an API to query by kind for nodes that are
+                // // descendants of another node (eg. in a particular component), but the CT exec
+                // // replacements/deletions and this check should prevent us doing unnecesary
+                // // work as new sources are added to the AST during CT exec and evaluated - 21/01/20
+                // if(!ASTHelpers.IsLive(ast, node.ID)) continue;
+
+            
+                var directive = ASTNodeFactory.Directive(ast, (DataNode<string>)node);
+
+                if (directive.Name == CTDirective.Emit)
                 {
                     result.AddMessages(
-                        TransformCTEmitDirective(session, artifact, shard, ast, component, directive, languageSemantics, serverInteropFnIDs, hoistedDirectiveStatements, hoistedNodes, token)
+                        TransformCTEmitDirective(session, artifact, shard, ast, directive, languageSemantics, serverInteropFnIDs, /*mode,*/ hoistedDirectiveStatements, hoistedNodes, token)
                     );
                 }
                 else if (CTDirective.IsCTDirectiveName(directive.Name))
@@ -71,130 +80,328 @@ namespace Sempiler.CTExec
                     // [dho] leave the directive as is, but just do not include it at compile time for
                     // evaluation as we do not recognize it? - 11/07/19
                 }
+
             }
 
             return result;
         }
 
+        // public static Result<object> HoistDirectives(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, Node node, BaseLanguageSemantics languageSemantics, CTInSituFunctionIdentifiers serverInteropFnIDs, TransformationMode mode, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
+        // {
+        //     var result = new Result<object>();
+
+        //     // foreach (var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, node.ID))
+        //     // {
+        //     //     // [dho] compile time exec needs to have happened on the children first in case the
+        //     //     // parent node relies on them (and this is generally what is expected in programming anyway!) - 11/07/19
+        //     //     result.AddMessages(
+        //     //         HoistDirectives(session, artifact, shard, ast, component, child, languageSemantics, serverInteropFnIDs, mode, hoistedDirectiveStatements, hoistedNodes, token)
+        //     //     );
+        //     // }
+
+        //     if (node.Kind == SemanticKind.Directive)
+        //     {
+        //         var directiveLexeme = ASTNodeHelpers.GetLexeme(node).Replace("*/", "*\\/");
+
+        //         var comment = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $@"/* DIRECTIVE : `{directiveLexeme}`*/").Node;
+
+        //         MarkAsCTExec(ast, comment);
+
+        //         hoistedDirectiveStatements.Add(comment);
+
+        //         var directive = ASTNodeFactory.Directive(ast, (DataNode<string>)node);
+
+        //         // [dho] eg. `#compiler ...` - 11/07/19
+        //         if (directive.Name == CTDirective.CodeExec)
+        //         {
+        //             result.AddMessages(
+        //                 TransformCTCodeExecDirective(session, artifact, shard, ast, component, directive, languageSemantics, serverInteropFnIDs, mode, hoistedDirectiveStatements, hoistedNodes, token)
+        //             );
+        //         }
+        //         else if (directive.Name == CTDirective.Emit)
+        //         {
+        //             result.AddMessages(
+        //                 TransformCTEmitDirective(session, artifact, shard, ast, component, directive, languageSemantics, serverInteropFnIDs, mode, hoistedDirectiveStatements, hoistedNodes, token)
+        //             );
+        //         }
+        //         else if (CTDirective.IsCTDirectiveName(directive.Name))
+        //         {
+        //             result.AddMessages(
+        //                 CreateUnsupportedFeatureResult(directive.Node, $"compile time {directive.Name} directives")
+        //             );
+        //         }
+        //         else
+        //         {
+        //             // [dho] leave the directive as is, but just do not include it at compile time for
+        //             // evaluation as we do not recognize it? - 11/07/19
+        //         }
+        //     }
+
+        //     return result;
+        // }
 
 
-        private static Result<object> TransformCTCodeExecDirective(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, Directive directive, BaseLanguageSemantics languageSemantics, CTInSituFunctionIdentifiers serverInteropFnIDs, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
+
+        private static Result<object> TransformCTCodeExecDirective(Session session, Artifact artifact, Shard shard, RawAST ast, Directive directive, 
+        BaseLanguageSemantics languageSemantics, CTInSituFunctionIdentifiers serverInteropFnIDs, 
+            /*TransformationMode mode,*/ List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
         {
             var result = new Result<object>();
 
             var subject = directive.Subject;
 
-            var content = new List<Node>();
+            // var content = new List<Node>();
+
+            // var depMode = TransformationMode.Replace;
 
             // [dho] have to hoist all dependencies recursively - 11/07/19
             result.AddMessages(
-                HoistDependencies(session, artifact, ast, subject, languageSemantics, content, hoistedNodes, token)
+                HoistDependencies(session, artifact, ast, subject, languageSemantics, /*TransformationMode.Hoist,*/ hoistedDirectiveStatements, hoistedNodes, token)
             );
 
+            /*
+            #compiler  {
+    config.mode = 'DEBUG';
+    
+    if(true){
+        addSources("./main.ts");
 
-            var inv = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
-            {
-                var invSubject = default(Node);
-                var invArguments = new List<Node>();
+    }
+    else 
+    {
+        #emit `hello`;
+        console.log("He")
+    }
+}
+            
+            hoisted_dependencies();
 
-                // [dho] NOTE we check whether the #directive is a value position, NOT the subject
-                // of the directive because we are working out whether the purpose of running this #directive
-                // was to generate a value - 11/07/19
-                if (languageSemantics.IsValueExpression(ast, directive.Node))
-                {
-                    var hoistedNameLexeme = directive.ID;
+            await (async () => {
 
-                    invSubject = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), serverInteropFnIDs.InsertImmediateSiblingFromValueAndDeleteNode).Node;
+                const result = (async () => {
 
-                    invArguments.Add(
-                        CreateInvocationArgument(ast,
-                            NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $"\"{directive.ID}\"").Node
-                        ).Node
-                    );
-
-                    var dvDecl = NodeFactory.DataValueDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                    if(true)
                     {
-                        ASTHelpers.Connect(ast, dvDecl.ID, new[] {
-                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), hoistedNameLexeme).Node
-                        }, SemanticRole.Name);
-
-                        ASTHelpers.Connect(ast, dvDecl.ID, new[] { subject }, SemanticRole.Initializer);
+                        await addSources("./main.ts");
+                    }
+                    else
+                    {
+                        insertCodeAt(..., "`hello`");
+                        console.log("He");
                     }
 
+                })
 
-                    content.Add(dvDecl.Node);
+                // if value expression
+                replace(result);
+                // or
+                delete();
+            })()
+            */
+            var replacementDVDecl = NodeFactory.DataValueDeclaration(ast, directive.Origin);
+            var replacementLexeme = replacementDVDecl.ID;
+            {
+                ASTHelpers.Connect(ast, replacementDVDecl.ID, new [] {
+                    NodeFactory.Identifier(ast, directive.Origin, replacementLexeme).Node
+                }, SemanticRole.Name);
 
-                    invArguments.Add(
-                        CreateInvocationArgument(ast,
-                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
-                        ).Node
-                    );
-
-                    invArguments.Add(
-                        CreateInvocationArgument(ast,
-                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
-                        ).Node
-                    );
-
-                    // [dho] make the original location point to the new hoisted declaration - 11/07/19
-                    // ASTHelpers.Replace(ast, directive.ID, new [] {
-                    //     NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), hoistedNameLexeme).Node
-                    // });
-                }
-                else
-                {
-                    content.Add(subject);
-
-                    invSubject = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), serverInteropFnIDs.DeleteNode).Node;
-
-                    invArguments.Add(
-                        CreateInvocationArgument(ast,
-                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
-                        ).Node
-                    );
-                }
-
-
-                ASTHelpers.Connect(ast, inv.ID, new[] { invSubject }, SemanticRole.Subject);
-                ASTHelpers.Connect(ast, inv.ID, invArguments.ToArray(), SemanticRole.Argument);
+                ASTHelpers.Connect(ast, replacementDVDecl.ID, new [] {
+                    NodeFactory.StringConstant(ast, directive.Origin, string.Empty).Node
+                }, SemanticRole.Initializer);
             }
 
-   
-            BindSubjectToPassContext(session, artifact, shard, ast, inv.Node, token);
+            // [dho] NOTE using `directive.Node` as root, NOT `subject`, incase the subject is also a directive... otherwise
+            // we would miss it - 21/01/20
+            foreach(var child in ASTHelpers.QueryLiveDescendantsByKind(ast, directive.Node, SemanticKind.Directive))
+            {
+                var childDirective = ASTNodeFactory.Directive(ast, (DataNode<string>)child);
 
-            InterimSuspension awaitInv = ASTNodeHelpers.CreateAwait(ast, inv.Node).Item2;
+                result.AddMessages(
+                    TransformCTCodeExecNestedDirective(
+                        session, artifact, shard, ast, childDirective, 
+                        replacementLexeme, token
+                    )
+                );
+            }
 
-            MarkAsCTExec(ast, awaitInv.Node);
+            var outerLambdaContent = new List<Node>();      
+            {
+                var hoistedNameLexeme = directive.ID;
 
-            // [dho] NOTE by this point, the static dependencies will have been renamed 
-            // and appear in the preceding statements - 11/07/19
-            content.Add(awaitInv.Node);
+                outerLambdaContent.Add(CreateDirectiveComment(ast, directive));
 
-            // var block = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                outerLambdaContent.Add(replacementDVDecl.Node);
 
-            // ASTHelpers.Connect(ast, block.ID, content.ToArray(), SemanticRole.Content);
+                var resultDVDecl = NodeFactory.DataValueDeclaration(ast, directive.Origin);
+                {
+                    ASTHelpers.Connect(ast, resultDVDecl.ID, new [] {
+                        NodeFactory.Identifier(ast, directive.Origin, hoistedNameLexeme).Node
+                    }, SemanticRole.Name); 
 
-            // hoistedDirectiveStatements.Add(block.Node);
-            hoistedDirectiveStatements.AddRange(content);
+            
+                    var (userCodeIIFEInv, userCodeIIFELambda) = ASTNodeHelpers.CreateIIFE(ast, new List<Node> { subject });
+                    {
+                        var asyncFlag = NodeFactory.Meta(
+                            ast,
+                            new PhaseNodeOrigin(PhaseKind.Transformation),
+                            MetaFlag.Asynchronous
+                        );
 
-            // ASTHelpers.DisableNodes(ast, new[] { directive.ID });
+                        ASTHelpers.Connect(ast, userCodeIIFELambda.ID, new [] { asyncFlag.Node }, SemanticRole.Meta);
+                    }
+
+                    ASTHelpers.Connect(ast, resultDVDecl.ID, new [] {
+                        ASTNodeHelpers.CreateAwait(ast, userCodeIIFEInv.Node).Item1.Node
+                    }, SemanticRole.Initializer);
+                }
+
+
+                outerLambdaContent.Add(resultDVDecl.Node);
+
+
+                // [dho] we will replace the `#compiler` directive by a code constant made up of
+                // concatenating all the `#emit` directives that get hit in the body. If none are hit
+                // then this will replace the directive with the empty string which is a NOP anyway - 21/01/20 
+                var inv = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                {
+                    var invSubject = default(Node);
+                    var invArguments = new List<Node>();
+
+                    invSubject = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), serverInteropFnIDs.ReplaceNodeByCodeConstant).Node;
+
+                    invArguments.Add(
+                        CreateInvocationArgument(ast,
+                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
+                        ).Node
+                    );
+
+                    invArguments.Add(
+                        CreateInvocationArgument(ast, 
+                            NodeFactory.Identifier(ast, directive.Origin, replacementLexeme).Node
+                        ).Node
+                    );
+
+                    ASTHelpers.Connect(ast, inv.ID, new[] { invSubject }, SemanticRole.Subject);
+                    ASTHelpers.Connect(ast, inv.ID, invArguments.ToArray(), SemanticRole.Argument);
+                }
+
+    
+                BindSubjectToPassContext(session, artifact, shard, ast, inv.Node, token);
+
+                InterimSuspension awaitInv = ASTNodeHelpers.CreateAwait(ast, inv.Node).Item2;
+
+                outerLambdaContent.Add(awaitInv.Node);
+
+            }
+
+
+            // List<Node> content = new List<Node>();
+            {
+                var (codeExecIIFEInv, codeExecIIFELambda) = ASTNodeHelpers.CreateIIFE(ast, outerLambdaContent);
+                var asyncFlag = NodeFactory.Meta(
+                    ast,
+                    new PhaseNodeOrigin(PhaseKind.Transformation),
+                    MetaFlag.Asynchronous
+                );
+
+                ASTHelpers.Connect(ast, codeExecIIFELambda.ID, new [] { asyncFlag.Node }, SemanticRole.Meta);
+
+                InterimSuspension awaitInv = ASTNodeHelpers.CreateAwait(ast, codeExecIIFEInv.Node).Item2;
+
+                MarkAsCTExec(ast, awaitInv.Node);
+
+                hoistedDirectiveStatements.Add(awaitInv.Node);
+            }
+
+            
+            _SuppressOriginalDirectiveNode(ast, directive, languageSemantics);
+
 
             return result;
         }
 
-        private static Result<object> TransformCTEmitDirective(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, Directive directive, BaseLanguageSemantics languageSemantics, CTInSituFunctionIdentifiers serverInteropFnIDs, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
+
+        private static Result<object> TransformCTCodeExecNestedDirective(Session session, Artifact artifact, Shard shard, RawAST ast, 
+            Directive directive, string replacementLexeme,  CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            // if(node.Kind == SemanticKind.Directive)
+            // {
+            //     var directive = ASTNodeFactory.Directive(ast, (DataNode<string>)node);
+
+                if(directive.Name == CTDirective.CodeExec)
+                {
+                    result.AddMessages(
+                        new NodeMessage(MessageKind.Error, $"compile time code execution directives cannot be nested", directive.Node)
+                        {
+                            Hint = Sempiler.AST.Diagnostics.DiagnosticsHelpers.GetHint(directive.Origin)
+                        }
+                    );
+                }
+                else if (directive.Name == CTDirective.Emit)
+                {
+                    // [dho] transform `#emit `foo`` into `result += `foo`` because then we will
+                    // replace the - 21/01/20
+                    
+                    var subject = directive.Subject;
+
+                    // if(subject.Kind == SemanticKind.InterpolatedString)
+                    // {
+                        var assignment = NodeFactory.AdditionAssignment(ast, directive.Origin);
+                        
+                        ASTHelpers.Connect(ast, assignment.ID, new [] {
+                            NodeFactory.Identifier(ast, directive.Origin, replacementLexeme).Node
+                        }, SemanticRole.Storage);
+
+                        ASTHelpers.Connect(ast, assignment.ID, new [] {
+                            directive.Subject
+                        }, SemanticRole.Value);
+                        
+                        ASTHelpers.Replace(ast, directive.ID, new [] { 
+                            CreateDirectiveComment(ast, directive),
+                            assignment.Node 
+                        });
+                    // }
+                    // else
+                    // {
+                    //     result.AddMessages(
+                    //         new NodeMessage(MessageKind.Error, "expected interpolated string", subject)
+                    //     );
+                    // }
+                }
+                else if (CTDirective.IsCTDirectiveName(directive.Name))
+                {
+                    result.AddMessages(
+                        CreateUnsupportedFeatureResult(directive.Node, $"compile time {directive.Name} directives")
+                    );
+                }
+            // }
+
+            return result;
+        }
+        
+        private static Result<object> TransformCTEmitDirective(Session session, Artifact artifact, Shard shard, RawAST ast, Directive directive, BaseLanguageSemantics languageSemantics, CTInSituFunctionIdentifiers serverInteropFnIDs, /*TransformationMode mode,*/ List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
         {
             var result = new Result<object>();
 
             var subject = directive.Subject;
 
-            System.Diagnostics.Debug.Assert(subject.Kind == SemanticKind.InterpolatedString);
+            // System.Diagnostics.Debug.Assert(subject.Kind == SemanticKind.InterpolatedString);
 
-            var content = new List<Node>();
+            // [dho] DISABLING support for symbolic dependencies in #emit because when the #emit
+            // is conditional, this will break currently. TODO FIX - 20/01/20
+            // if(ASTNodeFactory.InterpolatedString(ast, subject).Members.Length > 1)
+            // {
+            //     result.AddMessages(CreateUnsupportedFeatureResult(subject, "symbolic dependencies"));
+            //     return result;
+            // }
+
+            // var content = new List<Node>();
 
             // [dho] have to hoist all dependencies recursively - 11/07/19
             result.AddMessages(
-                HoistDependencies(session, artifact, ast, subject, languageSemantics, content, hoistedNodes, token)
+                HoistDependencies(session, artifact, ast, subject, languageSemantics, /*mode,*/ hoistedDirectiveStatements, hoistedNodes, token)
             );
 
             // foreach(var interpMember in ASTNodeFactory.InterpolatedString(ast, subject).Members)
@@ -221,41 +428,6 @@ namespace Sempiler.CTExec
                     ).Node
                 );
 
-
-                // if(subject.Kind == SemanticKind.InterpolatedString)
-                // {
-                //     var interp = ASTNodeFactory.InterpolatedString(ast, subject);
-
-                //     foreach(var member in interp.Members)
-                //     {
-                //         if(member.Kind == SemanticKind.InterpolatedStringConstant)
-                //         {
-                //             var interpString = ASTNodeFactory.InterpolatedStringConstant(ast, (DataNode<string>)member);
-
-                //             // if(interpString.Value.IndexOf("suffixes") > - 1)
-                //             // {
-                //             //     int xxxx = 0;
-                //             // }
-
-                //             // var value = interpString.Value.Replace("\\\\", "\\\\\\\\");
-
-                //             // var replacement = NodeFactory.InterpolatedStringConstant(ast, interpString.Origin, value);
-
-                //             // ASTHelpers.Replace(ast, interpString.ID, new [] { replacement.Node });
-                //         }
-                //     }
-                // }
-                // else if(subject.Kind == SemanticKind.StringConstant)
-                // {
-                //     var stringConstant = ASTNodeFactory.StringConstant(ast, (DataNode<string>)subject);
-
-                //     var value = stringConstant.Value.Replace("\\\\", "\\\\\\\\");
-
-                //     var replacement = NodeFactory.StringConstant(ast, stringConstant.Origin, value);
-
-                //     ASTHelpers.Replace(ast, stringConstant.ID, new [] { replacement.Node });
-                // }
-
                 invArguments.Add(
                     CreateInvocationArgument(ast, subject).Node
                 );
@@ -277,18 +449,46 @@ namespace Sempiler.CTExec
 
             // [dho] NOTE by this point, the static dependencies will have been renamed 
             // and appear in the preceding statements - 11/07/19
-            content.Add(awaitInv.Node);
+            // content.Add(awaitInv.Node);
 
             // var block = NodeFactory.Block(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
 
             // ASTHelpers.Connect(ast, block.ID, content.ToArray(), SemanticRole.Content);
 
             // hoistedDirectiveStatements.Add(block.Node);
-            hoistedDirectiveStatements.AddRange(content);
+            
+            // if(mode == TransformationMode.Replace)
+            // {
+            //     ASTHelpers.Replace(ast, directive.ID, new [] { awaitInv.Node });
+            // }
+            // if(mode == TransformationMode.Hoist)
+            // {
+                
+                hoistedDirectiveStatements.Add(CreateDirectiveComment(ast, directive));
+                
+                hoistedDirectiveStatements.Add(awaitInv.Node);
+         
+                _SuppressOriginalDirectiveNode(ast, directive, languageSemantics);
+            // }
 
-            // ASTHelpers.DisableNodes(ast, new[] { directive.ID });
 
             return result;
+        }
+
+        private static void _SuppressOriginalDirectiveNode(RawAST ast, Directive directive, BaseLanguageSemantics languageSemantics)
+        {
+            if(languageSemantics.IsValueExpression(ast, directive.Node) || 
+                directive.Parent?.Kind != SemanticKind.ObjectTypeDeclaration)
+            {
+                // [dho] the result of an emit directive is void - 21/01/20 
+                ASTHelpers.Replace(ast, directive.ID, new [] { 
+                    NodeFactory.CodeConstant(ast, directive.Origin, "(void 0)").Node
+                });
+            }
+            else
+            {
+                ASTHelpers.DisableNodes(ast, new [] { directive.ID });
+            }
         }
 
         public static Result<object> TransformCTAPIInvocations(Session session, Artifact artifact, Shard shard, RawAST ast, Component component, BaseLanguageSemantics languageSemantics, CancellationToken token)
@@ -313,7 +513,7 @@ namespace Sempiler.CTExec
             }
 
 
-            foreach (var symbolName in CTAPISymbols.EnumerateCTAPISymbolNames())
+            foreach (var symbolName in CTAPISymbols.EnumerateCTAPIFunctionNames())
             {
                 scope.Declarations[symbolName] = component.Node;
 
@@ -461,18 +661,20 @@ namespace Sempiler.CTExec
             }
         }
 
-        private static Result<object> HoistDependencies(Session session, Artifact artifact, RawAST ast, Node node, BaseLanguageSemantics languageSemantics, List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
+        private static Result<object> HoistDependencies(Session session, Artifact artifact, RawAST ast, Node node, BaseLanguageSemantics languageSemantics, /*TransformationMode mode, */List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
         {
             var result = new Result<object>();
 
             MarkAsCTExec(ast, node);
 
+            // [dho] first, get the symbols that the node depends on (references in its subtree) - 11/07/19
             var dependencies = languageSemantics.GetSymbolicDependencies(session, artifact, ast, node, token);
 
             foreach (var dependency in dependencies)
             {
                 var decl = dependency.Declaration;
 
+                // [dho] if we were able to find the declaration of the symbol - 11/07/19
                 if (decl != null)
                 {
                     // System.Console.WriteLine("🌈🌈 CTExec TRANSFORMER IsCTComputable", node.ID);
@@ -489,16 +691,23 @@ namespace Sempiler.CTExec
 
                     MarkAsCTExec(ast, decl);
 
+                    // [dho] we use the ID of the node as the guid for the hoisted expression/statement - 11/07/19
                     var hoistedNameLexeme = decl.ID;
 
+                    // [dho] check we haven't already hoisted this node - 11/07/19
                     if (!hoistedNodes.ContainsKey(hoistedNameLexeme))
                     {
                         // [dho] I'm intentionally not guarding against array out of bounds, because if the declaration
                         // does not have a name then this will need some refactoring - 11/07/19
                         var name = ASTHelpers.QueryLiveEdgeNodes(ast, decl.ID, SemanticRole.Name)[0];
 
+                        // [dho] we need to rename the hoisted expression to match the guid we are
+                        // giving the name of the hoisted expression - 11/07/19
                         ASTNodeHelpers.RefactorName(ast, name, hoistedNameLexeme);
 
+                        // [dho] now we need to rename all references to the original symbolic name - 11/07/19
+                        // [dho] TODO CHECK could we just create a single alias from the original symbol to 
+                        // the new name instead??? - 11/07/19
                         foreach (var lexeme in dependency.References.Keys)
                         {
                             foreach (var reference in dependency.References[lexeme])
@@ -509,6 +718,8 @@ namespace Sempiler.CTExec
                             }
                         }
 
+                        // [dho] record the work we've done so we do not duplicate any hoisting,
+                        // and have a handle to the hoisted nodes for emitting - 11/07/19 
                         hoistedDirectiveStatements.Add(decl);
                         hoistedNodes[hoistedNameLexeme] = decl;
                     }
@@ -532,5 +743,17 @@ namespace Sempiler.CTExec
 
             return arg;
         }
+
+        private static Node CreateDirectiveComment(RawAST ast, Directive directive)
+        {
+            var directiveLexeme = ASTNodeHelpers.GetLexeme(directive).Replace("*/", "*\\/");
+
+            var comment = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $@"/* DIRECTIVE : `{directiveLexeme}`*/").Node;
+
+            MarkAsCTExec(ast, comment);
+
+            return comment;
+        }
+
     }
 }

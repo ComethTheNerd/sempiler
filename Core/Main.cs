@@ -41,6 +41,7 @@ namespace Sempiler.Core
                 ),
                 FilesWritten = new Dictionary<string, OutFile>(),
                 ComponentIDsEmitted = new Dictionary<string, bool>(),
+                // ASTs = new Dictionary<string, RawAST>()
             };
 
             var session = new Session
@@ -268,6 +269,10 @@ namespace Sempiler.Core
 
                 {
                     var ofc = new OutFileCollection();
+
+                    // // [dho] NOTE we operate on a clone of the AST to avoid mutating
+                    // // the original AST when we instrument the program for CT execution - 14/07/19 (copied 21/01/20)
+                    // session.CTExecInfo.ASTs[mainAppShard.Name] = mainAppShard.AST.Clone();
 
                     var initFilePaths = result.AddMessages(
                         CTExecHelpers.AddSessionCTExecSourceFiles(session, artifact, mainAppShard, seedComponents, ofc, token)

@@ -282,7 +282,7 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
                     result.AddMessages(AppendExportedSymbolsCode(session, artifact, ast, exportedSymbols, indexContent, token));
 
 
-                    AddRawFileIfMissing(ofc, UserCodeRelDirPath + "/index.ts", indexContent.ToString());
+                    AddRawFileIfNotPresent(ofc, UserCodeRelDirPath + "/index.ts", indexContent.ToString());
 
                 }
                 // [dho] TODO JavaScript! - 01/06/19
@@ -299,7 +299,7 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
 
             // [dho] synthesize any requisite files for the target platform - 01/06/19
             {
-                AddRawFileIfMissing(ofc, "firebase.json",
+                AddRawFileIfNotPresent(ofc, "firebase.json",
 $@"{{
   ""hosting"": {{
     ""rewrites"": [
@@ -356,7 +356,7 @@ $@"{{
                     }
                 }
 
-                AddRawFileIfMissing(ofc, $"{FunctionsCodeDirName}/package.json",
+                AddRawFileIfNotPresent(ofc, $"{FunctionsCodeDirName}/package.json",
 $@"{{
   ""name"": ""{artifact.Name}"",
   ""private"": true,
@@ -378,7 +378,7 @@ $@"{{
 }}");
 
                 // [dho] adapted from https://raw.githubusercontent.com/firebase/functions-samples/master/typescript-getting-started/functions/tsconfig.json - 24/09/19
-                AddRawFileIfMissing(ofc, $"{FunctionsCodeDirName}/tsconfig.json",
+                AddRawFileIfNotPresent(ofc, $"{FunctionsCodeDirName}/tsconfig.json",
                 // [dho] https://stackoverflow.com/a/52384384/300037 - 26/12/19
                 // [dho] https://stackoverflow.com/a/57653497/300037 - 26/12/19
                 // [dho] NOTE `esModuleInterop` so we can hoist the imports to top level and bind them to a variable, because we

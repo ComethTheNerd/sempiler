@@ -1,5 +1,15 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 21/01/20
+- Heavy CT exec refactoring to support nesting `#emit` directives inside `#compiler` directive to conditionally output code
+
+# 🗓 20/01/20
+- Adding `global.config` symbol to CT exec so that user code can read and write a shared space (blackboard) during compilation
+
+# 🗓 19/01/20
+- iOS PList is now a dictionary internally up until point of serialization, to allow user code to inject values into it during compile time, rather than it be inaccessible
+- `addManifestEntry` CT API added to allow for injecting custom manifest entries for the target platform (eg. in the `Info.plist` on iOS)
+
 # 🗓 18/01/20
 - Updated definition for `ScrollView` in SwiftUI transformer
 

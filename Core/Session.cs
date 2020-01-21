@@ -60,10 +60,15 @@ namespace Sempiler
     public struct Capability
     {
         public string Name;
-        public ConfigurationPrimitive Type;
-        public string[] Values;
+        public object Value;
     }
 
+
+    public struct ManifestEntry
+    {
+        public string[] Path;
+        public object Value;
+    }
 
     public struct Dependency 
     {
@@ -91,8 +96,7 @@ namespace Sempiler
     public struct Entitlement
     {
         public string Name;
-        public ConfigurationPrimitive Type;
-        public string[] Values;
+        public object Value;
     }
 
     public struct Permission

@@ -88,8 +88,8 @@ namespace Sempiler.Bundling
         {
             return $"/{Sempiler.Core.Main.InferredConfig.SourceDirName}/{artifact.Name}/{Sempiler.Core.Main.InferredConfig.EntrypointFileName}".ToLower();
         }
-
-        public static bool AddRawFileIfMissing(OutFileCollection ofc, string relPath, string content)
+        
+        public static bool AddRawFileIfNotPresent(OutFileCollection ofc, string relPath, string content)
         {
             var location = FileSystem.ParseFileLocation(relPath);
 
@@ -103,7 +103,7 @@ namespace Sempiler.Bundling
             return false;
         }
 
-        public static bool AddCopyOfFileIfMissing(OutFileCollection ofc, string relPath, string sourcePath)
+        public static bool AddCopyOfFileIfNotPresent(OutFileCollection ofc, string relPath, string sourcePath)
         {
             var location = FileSystem.ParseFileLocation(relPath);
 

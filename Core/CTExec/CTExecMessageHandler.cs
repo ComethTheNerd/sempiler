@@ -240,20 +240,42 @@ namespace Sempiler.CTExec
                         }
 
                         var name = command.Arguments[CTProtocolAddCapabilityCommand.NameIndex];
-                        var type = (ConfigurationPrimitive)Enum.Parse(typeof(ConfigurationPrimitive), command.Arguments[CTProtocolAddEntitlementCommand.TypeIndex]);
-                        var values = new string[command.Arguments.Length - 2];
-                        Array.Copy(command.Arguments, 2, values, 0, values.Length);
+                        var type = (ConfigurationPrimitive)Enum.Parse(typeof(ConfigurationPrimitive), command.Arguments[CTProtocolAddCapabilityCommand.TypeIndex]);
+                        // var values = new string[command.Arguments.Length - 2];
+
+                        int valueStartIndex = CTProtocolAddCapabilityCommand.TypeIndex + 1;
+                        object value = result.AddMessages(DeserializeConfigurationPrimitiveValue(type, command.Arguments, valueStartIndex));
 
                         shard.Capabilities.Add(
                             new Capability
                             {
                                 Name = name,
-                                Type = type,
-                                Values = values
+                                Value = value
                             }
                         );
                     }
                     break;
+
+                case CTProtocolCommandKind.AddManifestEntry:
+                {
+                    if(artifact.Role == ArtifactRole.Compiler)
+                    {
+                        result.AddMessages(new Message(MessageKind.Error, "Cannot add config value outside of an artifact"));
+                        return result;
+                    }
+
+                    var path = command.Arguments[CTProtocolAddManifestEntryCommand.PathIndex];
+                    var type = (ConfigurationPrimitive)Enum.Parse(typeof(ConfigurationPrimitive), command.Arguments[CTProtocolAddManifestEntryCommand.TypeIndex]);
+                    
+                    int valueStartIndex = CTProtocolAddManifestEntryCommand.TypeIndex + 1;
+                    object value = result.AddMessages(DeserializeConfigurationPrimitiveValue(type, command.Arguments, valueStartIndex));
+
+                    shard.ManifestEntries.Add(new ManifestEntry { 
+                        Path = path.Split('/'), 
+                        Value = value 
+                    });
+                }
+                break;
 
                 case CTProtocolCommandKind.AddDependency:
                     {
@@ -291,15 +313,16 @@ namespace Sempiler.CTExec
 
                         var name = command.Arguments[CTProtocolAddEntitlementCommand.NameIndex];
                         var type = (ConfigurationPrimitive)Enum.Parse(typeof(ConfigurationPrimitive), command.Arguments[CTProtocolAddEntitlementCommand.TypeIndex]);
-                        var values = new string[command.Arguments.Length - 2];
-                        Array.Copy(command.Arguments, 2, values, 0, values.Length);
+                        
+                        int valueStartIndex = CTProtocolAddEntitlementCommand.TypeIndex + 1;
+                        object value = result.AddMessages(DeserializeConfigurationPrimitiveValue(type, command.Arguments, valueStartIndex));
+
 
                         shard.Entitlements.Add(
                             new Entitlement
                             {
                                 Name = name,
-                                Type = type,
-                                Values = values
+                                Value = value
                             }
                         );
                     }
@@ -1040,7 +1063,7 @@ namespace Sempiler.CTExec
                                 // [dho] insertion - 14/07/19
                                 var codeConstant = command.Arguments[CTReplaceNodeByCodeConstantCommand.CodeConstantIndex];
 
-                                // Console.WriteLine("ReplaceNodeByCodeConstant\n" + artifact.Name + " : " + shard.Name + " : " + removeeID + "\n" + codeConstant);
+                                Console.WriteLine("ReplaceNodeByCodeConstant\n" + artifact.Name + " : " + shard.Name + " : " + removeeID + "\n" + codeConstant);
 
                                 // AST, removeeID, codeConstant
 
@@ -1189,6 +1212,39 @@ namespace Sempiler.CTExec
             return result;
         }
 
+        private static Result<object> DeserializeConfigurationPrimitiveValue(ConfigurationPrimitive type, string[] commandArgs, int valueStartIndex)
+        {
+            var result = new Result<object>();
+
+            switch(type)
+            {
+                case ConfigurationPrimitive.String:
+                {
+                    result.Value = commandArgs[valueStartIndex];
+                }
+                break;
+
+                case ConfigurationPrimitive.StringArray:
+                {
+                    var arr = new string[commandArgs.Length - valueStartIndex];
+
+                    Array.Copy(commandArgs, valueStartIndex, arr, 0, arr.Length);
+
+                    result.Value = arr;
+                }
+                break;
+
+                default:{
+                    result.AddMessages(
+                        new Message(MessageKind.Error, "No handler configured to deserialize configuration primitive type '" + type + "'")
+                    );       
+                }
+                break;
+            }
+
+            return result;
+        }
+
 
         private static Result<(List<Component>, string[])> AddSources(
             Session session, Artifact artifact, Shard shard, 
@@ -1264,7 +1320,7 @@ namespace Sempiler.CTExec
             var ofc = new OutFileCollection();
 
             var newFilePaths = result.AddMessages(
-                AddSourcesCTExecSourceFiles(session, artifact, shard, parsedSources.NewComponents, ofc, token)
+                AddSources_AddCTExecSourceFiles(session, artifact, shard, parsedSources.NewComponents, ofc, token)
             );
 
             if (HasErrors(result) || token.IsCancellationRequested) return result;
@@ -1304,7 +1360,7 @@ namespace Sempiler.CTExec
             return result;
         }
 
-        public static Result<string[]> AddSourcesCTExecSourceFiles(Session session, Artifact artifact, Shard shard, List<Component> addedSources, OutFileCollection ofc, CancellationToken token)
+        public static Result<string[]> AddSources_AddCTExecSourceFiles(Session session, Artifact artifact, Shard shard, List<Component> addedSources, OutFileCollection ofc, CancellationToken token)
         {
             /*
                 (async () => {
@@ -1326,16 +1382,17 @@ namespace Sempiler.CTExec
                 languageSemantics = LanguageSemantics.TypeScript;
             }
 
-            var ast = shard.AST.Clone();
+
+            var ctExecShardAST = /*session.CTExecInfo.ASTs[shard.Name]*/shard.AST.Clone();
 
             result.AddMessages(
-                FilterAndTransformAddedSources(session, artifact, shard, ast, languageSemantics, addedSources, ofc, token)
+                FilterAndTransformAddedSources(session, artifact, shard, ctExecShardAST, languageSemantics, addedSources, ofc, token)
             );
 
             var emitter = new CTExecEmitter(languageSemantics);
 
             result.AddMessages(
-                EmitASTAndAddOutFiles(session, artifact, shard, ast, emitter, ofc, token)
+                EmitASTAndAddOutFiles(session, artifact, shard, ctExecShardAST, emitter, ofc, token)
             );
 
             var newPaths = new string[addedSources.Count];

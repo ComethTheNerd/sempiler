@@ -118,7 +118,7 @@ namespace Sempiler.Bundling
                 // do we need the gradle script as well?
 
 
-                AddRawFileIfMissing(ofc, $"{srcMainDirRelPath}AndroidManifest.xml",
+                AddRawFileIfNotPresent(ofc, $"{srcMainDirRelPath}AndroidManifest.xml",
 // [dho] NOTE ensure no whitespace at start of file or it will be considered invalid - 31/05/19
 $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <manifest xmlns:android=""http://schemas.android.com/apk/res/android""
@@ -142,7 +142,7 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
                 // AddCopyOfFileIfMissing(ofc, $"{x}/src/main/java/com/example/myapplication/MainActivity.java", 
                 //                             "../Core/Bundling/Android/app/src/main/java/com/example/myapplication/MainActivity.java");
 
-                AddRawFileIfMissing(ofc, $"{appDirRelPath}build.gradle",
+                AddRawFileIfNotPresent(ofc, $"{appDirRelPath}build.gradle",
 $@"apply plugin: 'com.android.application'
 
 android {{
@@ -187,10 +187,10 @@ dependencies {{
     testImplementation 'com.facebook.litho:litho-testing:0.25.0'
 }}");
 
-                AddRawFileIfMissing(ofc, "local.properties", "sdk.dir=/Users/QuantumCommune/Library/Android/sdk");
+                AddRawFileIfNotPresent(ofc, "local.properties", "sdk.dir=/Users/QuantumCommune/Library/Android/sdk");
 
                 // AddCopyOfFileIfMissing(ofc, ".gitignore", "../Core/Bundling/Android/.gitignore");
-                AddRawFileIfMissing(ofc, "build.gradle",
+                AddRawFileIfNotPresent(ofc, "build.gradle",
 @"// Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
@@ -216,8 +216,8 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }");
-                AddRawFileIfMissing(ofc, "gradle.properties", "org.gradle.jvmargs=-Xmx1536m");
-                AddRawFileIfMissing(ofc, "gradlew",
+                AddRawFileIfNotPresent(ofc, "gradle.properties", "org.gradle.jvmargs=-Xmx1536m");
+                AddRawFileIfNotPresent(ofc, "gradlew",
 @"
 
 #!/usr/bin/env sh
@@ -394,7 +394,7 @@ fi
 exec ""$JAVACMD"" ""$@""
 ");
 
-                AddRawFileIfMissing(ofc, "gradlew.bat",
+                AddRawFileIfNotPresent(ofc, "gradlew.bat",
 @"
 
 @if ""%DEBUG%"" == """" @echo off
@@ -485,7 +485,7 @@ if ""%OS%""==""Windows_NT"" endlocal
 
 ");
 
-                AddRawFileIfMissing(ofc, "settings.gradle", "include ':app'");
+                AddRawFileIfNotPresent(ofc, "settings.gradle", "include ':app'");
 
                 result.Value = ofc;
             }

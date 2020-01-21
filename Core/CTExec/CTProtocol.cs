@@ -20,6 +20,7 @@ namespace Sempiler.CTExec
         AddCapability,
         AddDependency,
         AddEntitlement,
+        AddManifestEntry,
         AddPermission,
         AddAsset,
         AddSources,
@@ -126,6 +127,14 @@ namespace Sempiler.CTExec
         public const int TypeIndex = 1;
 
         // [dho] anything after index 1 is a value - 29/09/19
+    }
+
+    public static class CTProtocolAddManifestEntryCommand
+    {
+        public const int PathIndex = 0;
+        public const int TypeIndex = 1;
+
+        // [dho] anything after index 1 is a value - 18/01/19
     }
 
     public static class CTProtocolAddDependencyCommand

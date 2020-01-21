@@ -101,7 +101,7 @@ namespace Sempiler.Bundling
 
 
 
-                AddRawFileIfMissing(ofc, "now.json", 
+                AddRawFileIfNotPresent(ofc, "now.json", 
 $@"{{
   ""version"": 2,
   ""builds"": [
@@ -120,7 +120,7 @@ $@"{{
 
 
 
-                AddRawFileIfMissing(ofc, "package.json", 
+                AddRawFileIfNotPresent(ofc, "package.json", 
 $@"{{
   ""name"": ""{artifact.Name}"",
   ""private"": true,
@@ -137,7 +137,7 @@ $@"{{
 }}");
 
 
-                AddRawFileIfMissing(ofc, $"tsconfig.json", 
+                AddRawFileIfNotPresent(ofc, $"tsconfig.json", 
 @"{
     ""compilerOptions"": {
        ""target"": ""es5"" /* Specify ECMAScript target version: 'ES3' (default), 'ES5', 'ES2015', 'ES2016', 'ES2017','ES2018' or 'ESNEXT'. */,
@@ -157,9 +157,9 @@ $@"{{
     }
 }");
 
-                AddRawFileIfMissing(ofc, $".nowignore", "node_modules");
+                AddRawFileIfNotPresent(ofc, $".nowignore", "node_modules");
                 
-                AddRawFileIfMissing(ofc, $"nodemon.json", @"{""ext"": ""ts"" }");
+                AddRawFileIfNotPresent(ofc, $"nodemon.json", @"{""ext"": ""ts"" }");
 
                 result.Value = ofc;
             }

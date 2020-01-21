@@ -292,7 +292,7 @@ namespace Sempiler.CTExec
             var relPath = CTInSituHandleLexeme + ".js";
 
             System.Diagnostics.Debug.Assert(
-                Sempiler.Bundling.BundlerHelpers.AddRawFileIfMissing(ofc, relPath, content)
+                Sempiler.Bundling.BundlerHelpers.AddRawFileIfNotPresent(ofc, relPath, content)
             );
 
             return result;
@@ -408,6 +408,20 @@ module.exports = async function () {{
         else 
         {{
             return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddCapability}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
+        }}
+    }}
+
+    async function {CTAPISymbols.AddManifestEntry}(name, value)
+    {{
+        const {{ {ArtifactNameSymbolLexeme}, {ShardIndexSymbolLexeme}, {NodeIDSymbolLexeme}, {MessageIDSymbolLexeme} }} = this;
+
+        if(Array.isArray(value))
+        {{
+            return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddManifestEntry}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.StringArray}{CTProtocolHelpers.ArgumentDelimiter}${{value.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
+        }}
+        else 
+        {{
+            return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddManifestEntry}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}{(int)ConfigurationPrimitive.String}{CTProtocolHelpers.ArgumentDelimiter}${{value}})`);
         }}
     }}
 
@@ -677,6 +691,7 @@ module.exports = async function () {{
         {CTAPISymbols.AddCapability},
         {CTAPISymbols.AddDependency},
         {CTAPISymbols.AddEntitlement},
+        {CTAPISymbols.AddManifestEntry},
         {CTAPISymbols.AddAsset},
         {CTAPISymbols.AddPermission},
         {CTAPISymbols.AddRawSources},
@@ -699,10 +714,12 @@ module.exports = async function () {{
     }};
 
     // [dho] make the public compiler API symbols available in scope as unqualified names - 12/07/19
+    global.{CTAPISymbols.Config} = {{}};
     global.{CTAPISymbols.AddArtifact} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddArtifact};
     global.{CTAPISymbols.AddCapability} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddCapability};
     global.{CTAPISymbols.AddDependency} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddDependency};
     global.{CTAPISymbols.AddEntitlement} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddEntitlement};
+    global.{CTAPISymbols.AddManifestEntry} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddManifestEntry};
     global.{CTAPISymbols.AddAsset} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddAsset};
     global.{CTAPISymbols.AddPermission} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddPermission};
     global.{CTAPISymbols.AddRes} = global.{CTInSituHandleLexeme}.{CTAPISymbols.AddRes};
@@ -748,9 +765,9 @@ module.exports = async function () {{
 
             // [dho] NOTE we operate on a clone of the AST to avoid mutating
             // the original AST when we instrument the program for CT execution - 14/07/19
-            var ast = shard.AST.Clone();
+            var ctExecShardAST = /*session.CTExecInfo.ASTs[shard.Name]*/shard.AST.Clone();
 
-            var domain = ASTHelpers.GetRoot(ast);
+            var domain = ASTHelpers.GetRoot(ctExecShardAST);
 
             System.Diagnostics.Debug.Assert(domain?.Kind == SemanticKind.Domain);
 
@@ -786,10 +803,10 @@ module.exports = async function () {{
             }
 
             result.AddMessages(
-                FilterAndTransformAddedSources(session, artifact, shard, ast, languageSemantics, seedComponents, ofc, token)
+                FilterAndTransformAddedSources(session, artifact, shard, ctExecShardAST, languageSemantics, seedComponents, ofc, token)
             );
 
-            var shardRootComponent = NodeFactory.Component(ast, new PhaseNodeOrigin(PhaseKind.Transformation), CompilerHelpers.NextInternalGUID());
+            var shardRootComponent = NodeFactory.Component(ctExecShardAST, new PhaseNodeOrigin(PhaseKind.Transformation), CompilerHelpers.NextInternalGUID());
 
             var componentPaths = new List<string>();
 
@@ -810,7 +827,7 @@ module.exports = async function () {{
             var libIncludes = CTExecEmitter.CreateAwaitIncludes(session.CTExecInfo.AbsoluteLibPaths, LibIncludeArgs);
             var componentIncludes = CTExecEmitter.CreateAwaitIncludes(componentPaths, ComponentIncludeArgs);        
 
-            var shardScript = NodeFactory.CodeConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), $@"
+            var shardScript = NodeFactory.CodeConstant(ctExecShardAST, new PhaseNodeOrigin(PhaseKind.Transformation), $@"
     const {ArtifactNameSymbolLexeme} = '{artifact.Name}';
     const {ShardIndexSymbolLexeme} = '{shardIndex}';
 
@@ -834,18 +851,18 @@ try {{
 
         
 
-            MarkAsCTExec(ast, shardScript);
+            MarkAsCTExec(ctExecShardAST, shardScript);
 
 
-            ASTHelpers.Connect(ast, shardRootComponent.ID, new [] { shardScript }, SemanticRole.None);
+            ASTHelpers.Connect(ctExecShardAST, shardRootComponent.ID, new [] { shardScript }, SemanticRole.None);
 
             
             // [dho] add the component containing the inlined app code to the tree - 01/06/19
-            ASTHelpers.Connect(ast, domain.ID, new [] { shardRootComponent.Node }, SemanticRole.Component);
+            ASTHelpers.Connect(ctExecShardAST, domain.ID, new [] { shardRootComponent.Node }, SemanticRole.Component);
             
             
             result.AddMessages(
-                EmitASTAndAddOutFiles(session, artifact, shard, ast, emitter, ofc, token)
+                EmitASTAndAddOutFiles(session, artifact, shard, ctExecShardAST, emitter, ofc, token)
             );
 
             result.Value = new [] { 
@@ -900,10 +917,11 @@ try {{
                                 TransformCTAPIInvocations(session, artifact, shard, ast, component, languageSemantics, token)
                             );
 
+                            // var mode = TransformationMode.Hoist;
                             // [dho] NOTE do this first to ensure we still compute directives inside nodes that we do not actually emit
                             // in the CT exec program, eg. types, view declarations etc. - 12/07/19
                             result.AddMessages(
-                                HoistDirectives(session, artifact, shard, ast, component, component.Node, languageSemantics, CTInSituFnIDs, hoistedDirectiveStatements, hoistedNodes, token)
+                                HoistDirectives(session, artifact, shard, ast, component, languageSemantics, CTInSituFnIDs, /*mode,*/ hoistedDirectiveStatements, hoistedNodes, token)
                             );
 
                             ASTHelpers.Connect(ast, component.ID, hoistedDirectiveStatements.ToArray(), SemanticRole.None, 0);

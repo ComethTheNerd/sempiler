@@ -225,40 +225,87 @@ namespace Sempiler.Bundling
             return result;
         }
 
-        private static void PListSerialize(ConfigurationPrimitive type, string[] values, ref System.Text.StringBuilder pListContent)
+        private static string PListSerialize(Dictionary<string, object> infoPList)
         {
-            switch (type)
-            {
-                case ConfigurationPrimitive.String:
-                    {
-                        System.Diagnostics.Debug.Assert(values.Length == 1);
-                        pListContent.Append($"<string>{values[0]}</string>");
-                        pListContent.AppendLine();
-                    }
-                    break;
+            var pListContent = new System.Text.StringBuilder();
+            PListSerialize(infoPList, ref pListContent);
 
-                case ConfigurationPrimitive.StringArray:
+            return (
+$@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
+<plist version=""1.0"">
+    {pListContent.ToString()}
+</plist>"
+            );
+                
+        }
+        private static void PListSerialize(object obj, ref System.Text.StringBuilder pListContent)
+        {
+            switch (obj)
+            {
+                case Dictionary<string, object> dict:
+                {
+                    pListContent.Append($"<dict>");
+                    pListContent.AppendLine();
+
+                    foreach(var kv in dict)
                     {
-                        pListContent.Append($"<array>");
+                        var key = kv.Key;
+                        var value = kv.Value;
+
+                        pListContent.Append($"<key>{key}</key>");
                         pListContent.AppendLine();
-                        foreach (var value in values)
-                        {
-                            pListContent.Append($"<string>{value}</string>");
-                            pListContent.AppendLine();
-                        }
-                        pListContent.Append($"</array>");
-                        pListContent.AppendLine();
+
+                        PListSerialize(value, ref pListContent);
                     }
-                    break;
+
+                    pListContent.Append($"</dict>");
+                    pListContent.AppendLine();
+                }
+                break;
+
+                case bool b:
+                {
+                    pListContent.Append($"<{b.ToString().ToLower()}/>");
+                    pListContent.AppendLine();
+                }
+                break;
+
+                case int i:
+                {
+                    pListContent.Append($"<integer>{i}</integer>");
+                    pListContent.AppendLine();
+                }
+                break;
+
+                case string s:
+                {
+                    pListContent.Append($"<string>{s}</string>");
+                    pListContent.AppendLine();
+                }
+                break;
+
+                case object[] a:
+                {
+                    pListContent.Append($"<array>");
+                    pListContent.AppendLine();
+                    foreach (var value in a)
+                    {
+                        PListSerialize(value, ref pListContent);
+                    }
+                    pListContent.Append($"</array>");
+                    pListContent.AppendLine();
+                }
+                break;
 
                 default:
-                    {
-                        System.Diagnostics.Debug.Assert(
-                            false,
-                            $"Unhandled Entitlement Type for '{((ConfigurationPrimitive)type).ToString()}' in IOS Bundler"
-                        );
-                    }
-                    break;
+                {
+                    System.Diagnostics.Debug.Assert(
+                        false,
+                        $"Unhandled PListSerialize value for '{obj.ToString()}' in IOS Bundler"
+                    );
+                }
+                break;
             }
         }
 
@@ -486,14 +533,14 @@ project.save()
 
 
             // [dho] entitlements adapted from : https://stackoverflow.com/questions/40673116/ionic-cordova-how-to-add-push-capability-with-fastlane-or-xcodebuild - 15/09/19
-            AddRawFileIfMissing(ofc, $"init.rb", initRBContent.ToString());
+            AddRawFileIfNotPresent(ofc, $"init.rb", initRBContent.ToString());
 
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             {
-                AddRawFileIfMissing(ofc, $"Podfile",
+                AddRawFileIfNotPresent(ofc, $"Podfile",
 $@"source 'https://cdn.cocoapods.org/'
 
   {podfileContent.ToString()}
@@ -643,175 +690,205 @@ $@"source 'https://cdn.cocoapods.org/'
 
             // [dho] manifest files - 17/10/19
             {
-                var permissionPListContent = new System.Text.StringBuilder();
-                {
-                    foreach (var permission in shard.Permissions)
-                    {
-                        permissionPListContent.Append($"<key>{permission.Name}</key>");
-                        permissionPListContent.AppendLine();
+                var infoPList = BaseInfoPList(shard, targetInfo);
 
-                        permissionPListContent.Append($"<string>{permission.Description}</string>");
-                        permissionPListContent.AppendLine();
-                    }
-                }
+                var additionalConfig = new Dictionary<string, object> {
+                    { "LSRequiresIPhoneOS", true },
+                    { "UIApplicationSceneManifest", new Dictionary<string, object> {
+                        { "UIApplicationSupportsMultipleScenes", false },
+                        { "UISceneConfigurations", new Dictionary<string, object> { 
+                            { "UIWindowSceneSessionRoleApplication", new [] { 
+                                new Dictionary<string, object> { 
+                                    { "UILaunchStoryboardName", "LaunchScreen" },
+                                    { "UISceneConfigurationName", "Default Configuration" },
+                                    { "UISceneDelegateClassName", $"$(PRODUCT_MODULE_NAME).{SceneDelegateClassSymbolName}" }
+                                }
+                            }}
+                        }}
+                    }},
+                    { "UILaunchStoryboardName", "LaunchScreen" },
+                    { "UIRequiredDeviceCapabilities", new [] {
+                        "armv7"
+                    }}
+                };
 
-                var capabilitiesPListContent = new System.Text.StringBuilder();
-                {
-                    foreach (var capability in shard.Capabilities)
-                    {
-                        capabilitiesPListContent.Append($"<key>{capability.Name}</key>");
-                        capabilitiesPListContent.AppendLine();
+                ShardHelpers.DeepMerge(additionalConfig, infoPList);
 
-                        PListSerialize(capability.Type, capability.Values, ref capabilitiesPListContent);
-                    }
-                }
-
-                var fontsPListContent = new System.Text.StringBuilder();
-                {
-                    fontsPListContent.AppendLine("<key>UIAppFonts</key>");
-                    fontsPListContent.AppendLine("<array>");
-
-                    foreach (var asset in shard.Assets)
-                    {
-                        if (asset.Role == AssetRole.Font)
-                        {
-                            var fontSrcPath = ((FontAsset)asset).Source.GetPathString();
-                            var fontFileName = System.IO.Path.GetFileName(fontSrcPath);
-
-                            fontsPListContent.AppendLine($"<string>{fontFileName}</string>");
-                        }
-                    }
-
-                    fontsPListContent.AppendLine("</array>");
-                }
-
-                var orientationsPListContent = new System.Text.StringBuilder();
-                {
-                    orientationsPListContent.AppendLine("<array>");
-
-                    if (shard.Orientation == Orientation.Unspecified)
-                    {
-                        // [dho] default orientation - 16/11/19
-                        orientationsPListContent.AppendLine("<string>UIInterfaceOrientationPortrait</string>");
-                    }
-                    else
-                    {
-                        if ((shard.Orientation & Orientation.Portrait) == Orientation.Portrait)
-                        {
-                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationPortrait</string>");
-                        }
-
-                        if ((shard.Orientation & Orientation.PortraitUpsideDown) == Orientation.PortraitUpsideDown)
-                        {
-                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationPortraitUpsideDown</string>");
-                        }
-
-                        if ((shard.Orientation & Orientation.LandscapeLeft) == Orientation.LandscapeLeft)
-                        {
-                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationLandscapeLeft</string>");
-                        }
-
-                        if ((shard.Orientation & Orientation.LandscapeRight) == Orientation.LandscapeRight)
-                        {
-                            orientationsPListContent.AppendLine("<string>UIInterfaceOrientationLandscapeRight</string>");
-                        }
-                    }
-
-                    orientationsPListContent.AppendLine("</array>");
-
-                    var supportedOrientationsArray = orientationsPListContent.ToString();
-
-                    orientationsPListContent.Clear();
-
-                    // [dho] NOTE using same orientations for iPhone and iPad - 16/11/19
-                    orientationsPListContent.AppendLine("<key>UISupportedInterfaceOrientations</key>");
-                    orientationsPListContent.AppendLine(supportedOrientationsArray);
-                    orientationsPListContent.AppendLine("<key>UISupportedInterfaceOrientations~ipad</key>");
-                    orientationsPListContent.AppendLine(supportedOrientationsArray);
-                }
-
+                result.AddMessages(AddPermissions(shard, infoPList));
+                result.AddMessages(AddCapabilities(shard, infoPList));
+                result.AddMessages(AddFonts(shard, infoPList));
+                result.AddMessages(AddOrientations(shard, infoPList));
+                result.AddMessages(AddManifestEntries(shard, infoPList));
                 // targetInfo.FilesNotReferencedInScheme = new OutFileCollection();
+                
+                AddRawFileIfNotPresent(
+                    targetInfo.FilesNotReferencedInScheme, 
+                    targetInfo.InfoPListFileName = $"Info.plist",
+                    PListSerialize(infoPList)
+                );
+   
+                var entitlementsPList = new Dictionary<string, object>();
+                result.AddMessages(AddEntitlements(shard, entitlementsPList));
 
-                AddRawFileIfMissing(targetInfo.FilesNotReferencedInScheme, targetInfo.InfoPListFileName = $"Info.plist",
-$@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
-<plist version=""1.0"">
-<dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-    <key>CFBundleDisplayName</key>
-	<string>{targetInfo.Name}</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundlePackageType</key>
-	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
-    {/*[dho] NOTE explanation of bundle version vs build number : https://stackoverflow.com/a/6965086/300037 - 16/11/19*/""}
-	<key>CFBundleShortVersionString</key>
-	<string>{shard.Version}</string>
-	<key>CFBundleVersion</key>
-	<string>{GenerateBuildNumber()}</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UIApplicationSceneManifest</key>
-	<dict>
-		<key>UIApplicationSupportsMultipleScenes</key>
-		<false/>
-		<key>UISceneConfigurations</key>
-		<dict>
-			<key>UIWindowSceneSessionRoleApplication</key>
-			<array>
-				<dict>
-					<key>UILaunchStoryboardName</key>
-					<string>LaunchScreen</string>
-					<key>UISceneConfigurationName</key>
-					<string>Default Configuration</string>
-					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).{SceneDelegateClassSymbolName}</string>
-				</dict>
-			</array>
-		</dict>
-	</dict>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>armv7</string>
-	</array>
-    <key>NSAppTransportSecurity</key>    
-    <dict>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-    </dict>
-    {orientationsPListContent.ToString()}
-    {permissionPListContent.ToString()}
-    {capabilitiesPListContent.ToString()}
-    {fontsPListContent.ToString()}
-</dict>
-</plist>");
-
-
-
-                AddRawFileIfMissing(
+                AddRawFileIfNotPresent(
                     targetInfo.FilesNotReferencedInScheme,
                     targetInfo.EntitlementsPListFileName = $"Entitlements.plist",
-                    SerializeEntitlements(shard.Entitlements)
+                    PListSerialize(entitlementsPList)
                 );
 
-
                 targetInfo.FilesReferencedInScheme = new OutFileCollection();
-
             }
 
 
 
 
             result.Value = targetInfo;
+            return result;
+        }
+
+        private static Dictionary<string, object> BaseInfoPList(Shard shard, TargetInfo targetInfo)
+        {
+            return (
+                new Dictionary<string, object>
+                {
+                    { "CFBundleDevelopmentRegion", "$(DEVELOPMENT_LANGUAGE)" },
+                    { "CFBundleDisplayName", targetInfo.Name },
+                    { "CFBundleExecutable", "$(EXECUTABLE_NAME)" },
+                    { "CFBundleIdentifier", "$(PRODUCT_BUNDLE_IDENTIFIER)" },
+                    { "CFBundleInfoDictionaryVersion", "6.0" },
+                    { "CFBundleName", "$(PRODUCT_NAME)" },
+                    { "CFBundlePackageType", "$(PRODUCT_BUNDLE_PACKAGE_TYPE)" },
+                    /*[dho] NOTE explanation of bundle version vs build number : https://stackoverflow.com/a/6965086/300037 - 16/11/19*/
+                    { "CFBundleShortVersionString", shard.Version },
+                    { "CFBundleVersion", GenerateBuildNumber().ToString() },
+                    { "NSAppTransportSecurity", new Dictionary<string, object> { 
+                        { "NSAllowsLocalNetworking", true }
+                    }}
+                }
+            );
+        }
+
+        private static Result<object> AddPermissions(Shard shard, Dictionary<string, object> pList)
+        {
+            var result = new Result<object>();
+
+            foreach (var permission in shard.Permissions)
+            {
+                result.AddMessages(
+                    ShardHelpers.AddConfigValue(pList, new [] { permission.Name }, permission.Description/*, false /* merge */)
+                );
+            }
+
+            return result;
+        }
+
+        private static Result<object> AddCapabilities(Shard shard, Dictionary<string, object> pList)
+        {
+            var result = new Result<object>();
+
+            foreach (var capability in shard.Capabilities)
+            {
+                result.AddMessages(
+                    ShardHelpers.AddConfigValue(pList, new [] { capability.Name }, capability.Value/*, false /* merge */)
+                );
+            }
+
+            return result;
+        }
+
+        private static Result<object> AddManifestEntries(Shard shard, Dictionary<string, object> pList)
+        {
+            var result = new Result<object>();
+
+            foreach (var manifestEntry in shard.ManifestEntries)
+            {
+                result.AddMessages(
+                    ShardHelpers.AddConfigValue(pList, manifestEntry.Path, manifestEntry.Value/*, false /* merge */)
+                );
+            }
+
+            return result;
+        }
+
+        private static Result<object> AddEntitlements(Shard shard, Dictionary<string, object> pList)
+        {
+            var result = new Result<object>();
+
+            foreach (var entitlement in shard.Entitlements)
+            {
+                result.AddMessages(
+                    ShardHelpers.AddConfigValue(pList, new [] { entitlement.Name }, entitlement.Value/*, false /* merge */)
+                );
+            }
+
+            return result;
+        }
+
+        private static Result<object> AddFonts(Shard shard, Dictionary<string, object> pList)
+        {     
+            var result = new Result<object>();
+            var fonts = new List<string>();
+
+            foreach (var asset in shard.Assets)
+            {
+                if (asset.Role == AssetRole.Font)
+                {
+                    var fontSrcPath = ((FontAsset)asset).Source.GetPathString();
+                    var fontFileName = System.IO.Path.GetFileName(fontSrcPath);
+
+                    fonts.Add(fontFileName);
+                }
+            }
+
+            result.AddMessages(
+                ShardHelpers.AddConfigValue(pList, new [] { "UIAppFonts" }, fonts.ToArray()/*, false /* don't merge, just overwrite */)
+            );
+
+            return result;
+        }
+
+         private static Result<object> AddOrientations(Shard shard, Dictionary<string, object> pList)
+        {
+            var result = new Result<object>();
+            var orientations = new List<string>();
+
+            if (shard.Orientation == Orientation.Unspecified)
+            {
+                // [dho] default orientation - 16/11/19
+                orientations.Add("UIInterfaceOrientationPortrait");
+            }
+            else
+            {
+                if ((shard.Orientation & Orientation.Portrait) == Orientation.Portrait)
+                {
+                    orientations.Add("UIInterfaceOrientationPortrait");
+                }
+
+                if ((shard.Orientation & Orientation.PortraitUpsideDown) == Orientation.PortraitUpsideDown)
+                {
+                    orientations.Add("UIInterfaceOrientationPortraitUpsideDown");
+                }
+
+                if ((shard.Orientation & Orientation.LandscapeLeft) == Orientation.LandscapeLeft)
+                {
+                    orientations.Add("UIInterfaceOrientationLandscapeLeft");
+                }
+
+                if ((shard.Orientation & Orientation.LandscapeRight) == Orientation.LandscapeRight)
+                {
+                    orientations.Add("UIInterfaceOrientationLandscapeRight");
+                }
+            }
+            
+            // [dho] NOTE using same orientations for iPhone and iPad - 16/11/19
+            result.AddMessages(
+                ShardHelpers.AddConfigValue(pList, new [] { "UISupportedInterfaceOrientations" }, orientations.ToArray()/*, false /* don't merge, just overwrite */)
+            );
+
+            result.AddMessages(
+                ShardHelpers.AddConfigValue(pList, new [] { "UISupportedInterfaceOrientations~ipad" }, orientations.ToArray()/*, false /* don't merge, just overwrite */)
+            );
+
             return result;
         }
 
@@ -1303,7 +1380,7 @@ $@"
                     }
                 }
 
-                AddCopyOfFileIfMissing(ofc, imgRelPath, imgSrcPath);
+                AddCopyOfFileIfNotPresent(ofc, imgRelPath, imgSrcPath);
 
                 if (i < imgs.Count - 1)
                 {
@@ -1313,7 +1390,7 @@ $@"
 
             contentsJSONContent.Append("],\"info\" : {\"version\" : 1,\"author\" : \"sempiler\"}}");
 
-            AddRawFileIfMissing(ofc, contentsJSONRelPath, contentsJSONContent.ToString());
+            AddRawFileIfNotPresent(ofc, contentsJSONRelPath, contentsJSONContent.ToString());
         }
 
         private static string[] InferImageAssetMemberIdioms(ImageAssetMember img)
@@ -1346,7 +1423,7 @@ $@"
             var fontFileName = System.IO.Path.GetFileName(fontSrcPath);
             var fontRelPath = $"fonts/{fontFileName}";
 
-            AddCopyOfFileIfMissing(ofc, fontRelPath, fontSrcPath);
+            AddCopyOfFileIfNotPresent(ofc, fontRelPath, fontSrcPath);
         }
 
         private static Result<TargetInfo> EmitShareExtensionTargetInfo(Session session, Artifact artifact, Shard shard, string artifactRelPath, CancellationToken token)
@@ -1375,91 +1452,42 @@ $@"
 
             // [dho] manifest files - 17/10/19
             {
-                var permissionPListContent = new System.Text.StringBuilder();
-                {
-                    foreach (var permission in shard.Permissions)
-                    {
-                        permissionPListContent.Append($"<key>{permission.Name}</key>");
-                        permissionPListContent.AppendLine();
+                var infoPList = BaseInfoPList(shard, targetInfo);
+/*
+<!-- <key>NSExtensionJavaScriptPreprocessingFile</key>
+			<string>GetURL</string> -->
+*/
+                result.AddMessages(ShardHelpers.AddConfigValue(infoPList, new [] { "NSExtension" }, new Dictionary<string, object> {
+                    { "NSExtensionAttributes", new Dictionary<string, object> {
+                        { "NSExtensionActivationRule", new Dictionary<string, object> {
+                            { "NSExtensionActivationSupportsWebURLWithMaxCount", 1 }
+                        } },
+                    }},
+                    { "NSExtensionMainStoryboard", "MainInterface" },
+                    { "NSExtensionPointIdentifier", "com.apple.share-services" }
+                }/*, true /* merge */));
 
-                        permissionPListContent.Append($"<string>{permission.Description}</string>");
-                        permissionPListContent.AppendLine();
-                    }
-                }
-
-                var capabilitiesPListContent = new System.Text.StringBuilder();
-                {
-                    foreach (var capability in shard.Capabilities)
-                    {
-                        capabilitiesPListContent.Append($"<key>{capability.Name}</key>");
-                        capabilitiesPListContent.AppendLine();
-
-                        PListSerialize(capability.Type, capability.Values, ref capabilitiesPListContent);
-                    }
-                }
+                result.AddMessages(AddPermissions(shard, infoPList));
+                result.AddMessages(AddCapabilities(shard, infoPList));
+                result.AddMessages(AddManifestEntries(shard, infoPList));
+                
+                // targetInfo.FilesNotReferencedInScheme = new OutFileCollection();
+                
+                AddRawFileIfNotPresent(
+                    targetInfo.FilesNotReferencedInScheme, 
+                    targetInfo.InfoPListFileName = $"Info.plist",
+                    PListSerialize(infoPList)
+                );
 
                 // targetInfo.FilesNotReferencedInScheme = new OutFileCollection();
 
-                AddRawFileIfMissing(targetInfo.FilesNotReferencedInScheme, targetInfo.InfoPListFileName = $"Info.plist",
-$@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
-<plist version=""1.0"">
-<dict>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
-	<string>{targetInfo.Name}</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundlePackageType</key>
-	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
-	<key>CFBundleShortVersionString</key>
-	<string>{shard.Version}</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>NSExtension</key>
-	<dict>
-		<key>NSExtensionAttributes</key>
-		<dict>
-			<key>NSExtensionActivationRule</key>
-			<dict>
-				<key>NSExtensionActivationSupportsText</key>
-				<integer>1</integer>
-				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-				<integer>1</integer>
-			</dict>
-			<!-- <key>NSExtensionJavaScriptPreprocessingFile</key>
-			<string>GetURL</string> -->
-		</dict>
-		<key>NSExtensionMainStoryboard</key>
-		<string>MainInterface</string>
-		<key>NSExtensionPointIdentifier</key>
-		<string>com.apple.share-services</string>
-	</dict>
-    <key>NSAppTransportSecurity</key>    
-    <dict>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-    </dict>
-    {permissionPListContent.ToString()}
-    {capabilitiesPListContent.ToString()}
-</dict>
-</plist>
-");
+                var entitlementsPList = new Dictionary<string, object>();
+                result.AddMessages(AddEntitlements(shard, entitlementsPList));
 
-
-
-
-                AddRawFileIfMissing(
+                AddRawFileIfNotPresent(
                     targetInfo.FilesNotReferencedInScheme,
                     targetInfo.EntitlementsPListFileName = $"{targetInfo.Name}.entitlements",
-                    SerializeEntitlements(shard.Entitlements)
+                    PListSerialize(entitlementsPList)
                 );
 
 
@@ -1469,7 +1497,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
                 var shareViewController = "ShareViewController";
 
 
-                AddRawFileIfMissing(targetInfo.FilesReferencedInScheme, $"MainInterface.storyboard",
+                AddRawFileIfNotPresent(targetInfo.FilesReferencedInScheme, $"MainInterface.storyboard",
 $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <document type=""com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB"" version=""3.0"" toolsVersion=""13122.16"" targetRuntime=""iOS.CocoaTouch"" propertyAccessControl=""none"" useAutolayout=""YES"" useTraitCollections=""YES"" useSafeAreas=""YES"" colorMatched=""YES"" initialViewController=""j1y-V4-xli"">
     <dependencies>
@@ -1645,7 +1673,7 @@ embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).s
                             ).ToPathString();
 
                             /* if(*/
-                            AddCopyOfFileIfMissing(ofc, relPath, srcPath);//)
+                            AddCopyOfFileIfNotPresent(ofc, relPath, srcPath);//)
                                                                           // {
                             relResourcePaths.Add(relPath);
                             // }
@@ -1674,7 +1702,7 @@ embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).s
                             ).ToPathString();
 
 
-                            AddRawFileIfMissing(ofc, relPath, sourceLiteral.Text);
+                            AddRawFileIfNotPresent(ofc, relPath, sourceLiteral.Text);
                             // if(AddRawFileIfMissing(ofc, relPath, ((ISourceLiteral)resource).Text))
                             // {
                             relResourcePaths.Add(relPath);
@@ -1704,33 +1732,6 @@ embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).s
         }
 
 
-        private static string SerializeEntitlements(IEnumerable<Entitlement> entitlements)
-        {
-            var entitlementsRBContent = new System.Text.StringBuilder();
-            var entitlementsPListContent = new System.Text.StringBuilder();
-            {
-                foreach (var entitlement in entitlements)
-                {
-                    entitlementsRBContent.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
-
-                    entitlementsPListContent.Append($"<key>{entitlement.Name}</key>");
-                    entitlementsPListContent.AppendLine();
-
-                    PListSerialize(entitlement.Type, entitlement.Values, ref entitlementsPListContent);
-                }
-            }
-
-
-            return (
-$@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<!DOCTYPE plist PUBLIC ""-//Apple//DTD PLIST 1.0//EN"" ""http://www.apple.com/DTDs/PropertyList-1.0.dtd"">
-<plist version=""1.0"">
-<dict>
-    {entitlementsPListContent.ToString()}
-</dict>
-</plist>"
-            );
-        }
 
         // /** [dho] `componentNamesProcessed` indicates whether the component will be emitted, and if so what the filename wil be - 18/10/19 */
         // private static Result<object> MoveComponentsToCombinedAST(Session session, Artifact artifact, Shard shard, RawAST combinedAST, Dictionary<string, (bool, string)> componentNamesProcessed, CancellationToken token)

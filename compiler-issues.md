@@ -1,3 +1,5 @@
+# 🗓 20/01/19
+- 🐛 Nesting/mixing `#emit` with `#compiler` produces invalid CT exec code. We need to support the case where the emission is conditional and unconditional *[dho]*
 
 # 🗓 16/01/19
 - 🐛 If the last argument to a call is a lambda the SwiftUI emitter will emit it in braces form outside the argument list. However this seems to cause an issue, possibly this is because the signature for the function has optional arguments after the lambda argument in the declaration signature? *[dho]*

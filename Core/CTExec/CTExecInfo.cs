@@ -1,3 +1,4 @@
+using Sempiler.AST;
 using Sempiler.Core;
 using System.Collections.Generic;
 
@@ -14,6 +15,8 @@ namespace Sempiler.CTExec
         public IDirectoryLocation OutDirectory;
         public DuplexSocketServer.OnMessageDelegate MessageHandler;
         public System.Diagnostics.Process Process;
+
+        // public Dictionary<string, RawAST> ASTs;
 
         public Dictionary<string, Emission.OutFile> FilesWritten;
 

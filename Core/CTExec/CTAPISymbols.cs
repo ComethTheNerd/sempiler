@@ -4,10 +4,12 @@ namespace Sempiler.CTExec
 {
     public static class CTAPISymbols
     {
+        public const string Config = "config";
         public const string AddArtifact = "addArtifact";
         public const string AddCapability = "addCapability";
         public const string AddDependency = "addDependency";
         public const string AddEntitlement = "addEntitlement";
+        public const string AddManifestEntry = "addManifestEntry";
         public const string AddAsset = "addAsset";
         public const string AddPermission = "addPermission";
         public const string AddRes = "addRes";
@@ -25,10 +27,11 @@ namespace Sempiler.CTExec
         // public const string InsertImmediateSiblingFromValueAndDeleteNode = "insertImmediateSiblingFromValueAndDeleteNode";
         public const string Terminate = "terminate";
 
-        public static IEnumerable<string> EnumerateCTAPISymbolNames()
+        public static IEnumerable<string> EnumerateCTAPIFunctionNames()
         {
             yield return AddArtifact;
             yield return AddCapability;
+            yield return AddManifestEntry;
             yield return AddDependency;
             yield return AddEntitlement;
             yield return AddAsset;
@@ -51,7 +54,7 @@ namespace Sempiler.CTExec
 
         public static bool IsCTAPISymbolName(string input)
         {
-            foreach(var symbol in EnumerateCTAPISymbolNames())
+            foreach(var symbol in EnumerateCTAPIFunctionNames())
             {
                 if(symbol == input)
                 {

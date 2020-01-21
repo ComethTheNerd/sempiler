@@ -177,6 +177,7 @@ The compiler API is barebones at present, but allows for the following:
 - `addCapability(name : string, value : string | string[])` declares a capability that the artifact provides (eg. `addCapability("UIBackgroundModes", ["audio"])`)
 - `addDependency(name : string, version? : string)` declares a dependency that the artifact requires (eg. Stripe)
 - `addEntitlement(name : string, value : string | string[])` declares a target platform entitlement that the artifact requires (eg. Apple Pay) 
+- `addManifestEntry(path : string, value : string | string[])` declares a target platform manifest entry (eg. an entry in the iOS .plist file) (hint : use '/' separator to qualify the path)
 - `addPermission(name : string, description : string)` declares a target platform permission that the artifact requires (eg. camera access)
 - `addRawSources(...relativePaths : string[])` adds verbatim files to the artifact (ie. they will *not* be parsed/transformed)
 - `addSources(...relativePaths : string[])` add files that will be parsed/transformed and added to the artifact
