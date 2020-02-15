@@ -181,6 +181,7 @@ The compiler API is barebones at present, but allows for the following:
 - `addPermission(name : string, description : string)` declares a target platform permission that the artifact requires (eg. camera access)
 - `addRawSources(...relativePaths : string[])` adds verbatim files to the artifact (ie. they will *not* be parsed/transformed)
 - `addSources(...relativePaths : string[])` add files that will be parsed/transformed and added to the artifact
+- `addRes(path : string, targetFileName? : string)` adds verbatim resource files to the artifact (ie. they will *not* be parsed/transformed). Optionally set the target file name when the `path` resolves to a single file
 - `addShard(role : ShardRole, entrypointSourcePath : string)` add shard (eg share extension) to the Artifact
 - `addAsset(role : AssetRole, sourcePath : string)` add asset (eg image) to the Shard
 - `setDisplayName(name : string) : void` to set the display name of the generated artifact

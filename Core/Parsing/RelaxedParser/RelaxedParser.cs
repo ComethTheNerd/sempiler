@@ -2039,6 +2039,8 @@ namespace Sempiler.Parsing
 
         private Result<Node> ParseParenthesizedExpression(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
+            var startPos = token.StartPos;
+            
             if (token.Kind == SyntaxKind.OpenParenToken)
             {
                 var result = new Result<Node>();
@@ -2067,7 +2069,9 @@ namespace Sempiler.Parsing
                 {
                     lexer.Pos = lookAhead.Pos;
 
-                    var assoc = NodeFactory.Association(context.AST, CreateOrigin(token, lexer, context));
+                    var range = new Range(startPos, lexer.Pos);
+
+                    var assoc = NodeFactory.Association(context.AST, CreateOrigin(range, lexer, context));
 
                     result.AddMessages(AddOutgoingEdges(assoc, incident, SemanticRole.Subject));
 
@@ -2687,7 +2691,7 @@ namespace Sempiler.Parsing
 
                 if (!HasErrors(result))
                 {
-                    var range = new Range(startPos, token.StartPos + Lexeme(token, lexer).Length);
+                    var range = new Range(startPos, lexer.Pos);
 
                     var array = NodeFactory.ArrayConstruction(context.AST, CreateOrigin(range, lexer, context));
 
@@ -4918,8 +4922,10 @@ namespace Sempiler.Parsing
 
             // [dho] `foo` 
             //        ^^^  - 12/02/19
+            // [dho] we cannot just use `ParseIdentifier` in case the property
+            // name is also a keyword, like `set` - 28/02/20
             var name = result.AddMessages(
-                ParseIdentifier(token, lexer, context, ct)
+                ParseKnownSymbolRoleAsIdentifier(token, lexer, context, ct)
             );
 
             if (HasErrors(result))

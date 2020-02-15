@@ -192,6 +192,7 @@ namespace Sempiler.CTExec
     {
         public const int BaseDirPathIndex = 0;
         public const int SourcePathIndex = 1;
+        public const int TargetFileNameIndex = 2;
     }
 
     public static class CTProtocolAddRawSourcesCommand

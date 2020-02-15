@@ -388,7 +388,7 @@ namespace Sempiler
         //     }
         // }
 
-        public static (Artifact, Shard, int) CreateArtifact(Session session, ArtifactRole role, string name, string targetLanguage, string targetPlatform)
+        public static (Artifact, Shard, int) CreateArtifact(Session session, ArtifactRole role, string name, string targetLanguage, string targetPlatform, string absoluteEntryPointPath)
         {
             var newArtifact = new Artifact(role, name, targetLanguage, targetPlatform);
 
@@ -399,7 +399,7 @@ namespace Sempiler
             
             var shards = session.Shards[name] = new List<Shard>();
 
-            var newShard = new Shard(ShardRole.MainApp, newAST);
+            var newShard = new Shard(ShardRole.MainApp, absoluteEntryPointPath, newAST);
             var newShardIndex = shards.Count;
             
             shards.Add(newShard); 

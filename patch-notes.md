@@ -1,5 +1,45 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 15/02/20
+- `FirebaseFunctionsBundler` now puts any dependencies with a name starting `@types/` into `package.json` `devDependencies` map, and other dependencies go in the standard `dependencies` map
+- `FirebaseFunctionsBundler` uses `cleanHosting` by default
+
+# 🗓 11/02/20
+- Added basic `JSONEmitter` and JSON as a target _language_
+- Fixed nasty bug in CTExec when hoisting dependencies on ambient symbols (eg. `config`) that clashed with symbols of the same name in scope (defined by user code)
+- Can now optionally specify a target file name when using `addRes(...)` during CTExec
+
+# 🗓 10/02/20
+- Added support for `static-site` shard role in `FirebaseFunctionsBundler` that produces a static site as part of the output
+- CT Exec now removes a `#compiler` directive enitrely if it does not execute any `#emit` directives (empty replacement string). Previously this would result in replacing the `#compiler` directive with an empty string code constant
+- Fixed bug where empty files were being emitted 
+- Added `AbsoluteEntryPointPath` to `Shard`, that contains the absolute file path of the entrypoint file for the shard instance
+
+# 🗓 09/02/20
+- Fix for bug emitting while loops in `SwiftEmitter`
+
+# 🗓 08/02/20
+- Fix for issue where child files were not being preserved inside a preserved directory path
+
+# 🗓 06/02/20
+- Removed default `NSExtensionActivationRule` manifest values in `IOSBundler` for share extension
+- Added support for emitting shard resources to `res/` file in `FirebaseFunctionsBundler`
+- Added hack for creating `public/` directory to avoid error thrown by Firebase when deploying if that path does not exist
+- Made Node 10 the engine in `package.json` emitted by `FirebaseFunctionsBundler`
+
+# 🗓 04/02/20
+- Fixed indentation and formatting issues in `SwiftEmitter` for multiline strings, instead concatenating groups of individual strings and replacing newlines with equivalent escape sequence
+
+# 🗓 03/02/20
+- Fixed missing cases for adding subset destructuring symbols to scope, specifically when the destructurings are nested within each other
+- Created standalone `JavaScriptEmitter` from existing parts of `CTExecEmitter`
+- Added `JavaScript` as a target language for Artifacts
+- Fixed bug in `CTExecEmitter` where `NullCoalescence` nodes were not being emitted correctly
+
+# 🗓 28/01/20
+- Fixed parsing out of range exception that occurred when creating the origin range for an `ArrayConstruction` expression
+- Fixed parsing bug when using a keyword symbol as a shorthand property assignment in a `DynamicConstruction` expression
+
 # 🗓 21/01/20
 - Heavy CT exec refactoring to support nesting `#emit` directives inside `#compiler` directive to conditionally output code
 

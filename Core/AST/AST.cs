@@ -593,6 +593,12 @@ namespace Sempiler.AST
         
         private static int AddEdge(RawAST ast, NodeID from, NodeID to, SemanticRole role, EdgePredicate shouldReplace)
         {
+            if(GetNode(ast,from).Kind == SemanticKind.ReferenceAliasDeclaration &&
+                GetNode(ast, to).Kind == SemanticKind.Component)
+                {
+                    int i = 0;
+                }
+
             System.Diagnostics.Debug.Assert(from != to);
 
             int resultIndex = -1;

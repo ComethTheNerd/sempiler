@@ -109,9 +109,18 @@ namespace Sempiler.Core
             // BACKEND
             if (!HasErrors(result) && !token.IsCancellationRequested)
             {
-                result.AddMessages(
-                    __BackEnd(session, server, token)
-                );
+                var task = __BackEnd(session, server, token);
+
+                try
+                {
+                    task.Wait();
+
+                    result.AddMessages(task.Result);
+                }
+                catch(Exception e)
+                {
+                    result.AddMessages(CreateErrorFromException(e));
+                }
             }
 
 
@@ -141,8 +150,14 @@ namespace Sempiler.Core
 
             if (!HasErrors(result) && !token.IsCancellationRequested)
             {
+                var enumerator = inputPaths.GetEnumerator();
+                enumerator.MoveNext();
+                var absoluteEntryPointPath = enumerator.Current;
+
                 var (compilerArtifact, compilerShard, _) = CompilerHelpers.CreateArtifact(
-                    session, ArtifactRole.Compiler, string.Empty, ArtifactTargetLang.TypeScript, string.Empty
+                    session, ArtifactRole.Compiler, string.Empty, 
+                    ArtifactTargetLang.TypeScript, string.Empty, 
+                    absoluteEntryPointPath
                 );
 
                 var parser = new Sempiler.Parsing.PolyParser();
@@ -372,7 +387,7 @@ namespace Sempiler.Core
             return result;
         }
 
-        private static Result<object> __BackEnd(Session session, DuplexSocketServer server, CancellationToken token)
+        private static async Task<Result<object>> __BackEnd(Session session, DuplexSocketServer server, CancellationToken token)
         {
             var result = new Result<object>();
 
@@ -412,70 +427,20 @@ namespace Sempiler.Core
                     return result;
                 }
 
-                // var l = new object();
-
                 foreach (var kv in session.Artifacts)
                 {
                     var artifact = kv.Value;
 
                     if(artifact.Role == ArtifactRole.Compiler) continue;
 
-                    try
-                    {
-                        var task = BundleAndWriteArtifact(session, artifact, token);
+                    var filesWritten = result.AddMessages(
+                        await BundleAndWriteArtifact(session, artifact, token)
+                    );
 
-                        task.Wait();
-
-                        // lock (session.FilesWritten)
-                        // {
-                        //     lock(result)
-                        //     {
-                        session.FilesWritten[artifact.Name] = result.AddMessages(task.Result);
-                        //      }
-                        // }
-
-                        if (HasErrors(result) || token.IsCancellationRequested) break;
-                    }
-                    catch (Exception e)
-                    {
-                        // lock (result)
-                        // {
-                        result.AddMessages(CreateErrorFromException(e));
-                        // }
-                        break;
-                    }
+                    session.FilesWritten[artifact.Name] = filesWritten;
+               
+                    if (HasErrors(result) || token.IsCancellationRequested) break;
                 }
-
-
-                // Parallel.ForEach(session.Artifacts, (kv, state) =>
-                // {
-
-                //     var artifact = kv.Value;
-
-                //     try
-                //     {
-                //         var task = BundleAndWriteArtifact(session, artifact, token);
-
-                //         task.Wait();
-
-                //         lock (session.FilesWritten)
-                //         {
-                //             lock(result)
-                //             {
-                //                 session.FilesWritten[artifact.Name] = result.AddMessages(task.Result);
-                //             }
-                //         }
-
-                //         if (HasErrors(result) || token.IsCancellationRequested) return;
-                //     }
-                //     catch (Exception e)
-                //     {
-                //         lock (result)
-                //         {
-                //             result.AddMessages(CreateErrorFromException(e));
-                //         }
-                //     }
-                // });
             }
 
             CompilerHelpers.StopTimer(backEndTimer);
@@ -963,6 +928,9 @@ namespace Sempiler.Core
                             // we need to preserve file paths unnecessarily below - 31/12/19
                             if(absPathsToDelete.Count > 0)
                             {
+                                Console.WriteLine("DELETING PATHS");
+                                Console.WriteLine(string.Join("\n", absPathsToDelete));
+
                                 result.AddMessages(
                                     await FileSystem.Delete(absPathsToDelete)
                                 );
@@ -985,6 +953,9 @@ namespace Sempiler.Core
 
                             if(absPathsToDelete.Count > 0)
                             {
+                                Console.WriteLine("DELETING PATHS");
+                                Console.WriteLine(string.Join("\n", absPathsToDelete));
+
                                 result.AddMessages(
                                     await FileSystem.Delete(absPathsToDelete)
                                 );
@@ -1035,11 +1006,11 @@ namespace Sempiler.Core
                     
                     break;
                 }
-                // [dho] the relative item path is a child of a reserved path - 04/11/19
-                else if (preservedRelPath.IndexOf(relDirPath) == 0)
+                else if (preservedRelPath.IndexOf(relDirPath) == 0 ||
+                        relDirPath.IndexOf(preservedRelPath) == 0)
                 {
                     result.Value = false;
-
+                    
                     break;
                 }
             }
@@ -1055,13 +1026,19 @@ namespace Sempiler.Core
             };
 
             var relFilePath = absFilePath.Substring(absBaseDirPath.Length + 1);
-
+           
             foreach (var preservedRelPath in preservedRelPaths)
             {
                 if (relFilePath == preservedRelPath)
                 {
                     result.AddMessages(new Message(MessageKind.Info, $"Compiler is preserving '{artifact.Name}' file '{absFilePath}' from previous build"));
                     
+                    result.Value = false;
+                    
+                    break;
+                }
+                else if (relFilePath.IndexOf(preservedRelPath) == 0)
+                {
                     result.Value = false;
                     
                     break;

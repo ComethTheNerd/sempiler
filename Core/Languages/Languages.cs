@@ -6,6 +6,7 @@ namespace Sempiler.Languages
         public static readonly BaseLanguageSemantics Java = new JavaLanguageSemantics();
         public static readonly BaseLanguageSemantics Swift = new SwiftLanguageSemantics();
         public static readonly BaseLanguageSemantics TypeScript = new TypeScriptLanguageSemantics();
+        public static readonly BaseLanguageSemantics JavaScript = TypeScript;
 
         public static BaseLanguageSemantics Of(string langName)
         {
@@ -19,6 +20,9 @@ namespace Sempiler.Languages
                     
                 case ArtifactTargetLang.TypeScript:
                     return TypeScript;
+
+                case ArtifactTargetLang.JavaScript:
+                    return JavaScript;
 
                 default:
                     return null;

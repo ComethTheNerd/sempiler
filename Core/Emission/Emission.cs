@@ -60,6 +60,15 @@ namespace Sempiler.Emission
             DiagnosticTags = diagnosticTags;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected Result<object> IgnoreNode(AST.Node node)
+        {
+            return new Result<object>();
+        }
+
+        protected delegate Result<object> EmitDelegate<T>(T node, Context context, CancellationToken token);
+
+
         public virtual Task<Result<OutFileCollection>> Emit(Session session, Artifact artifact, Shard shard, RawAST ast, Node node, CancellationToken token)
         {
             var result = new Result<OutFileCollection>();

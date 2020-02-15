@@ -590,12 +590,14 @@ namespace Sempiler.CTExec
 
                         if(HasErrors(result) || token.IsCancellationRequested) return result;
 
-                        
-                        var (newArtifact, newShard, newShardIndex) = CompilerHelpers.CreateArtifact(session, role, name, targetLanguage, targetPlatform);
-                        
                         var baseDirPath = command.Arguments[CTProtocolAddArtifactCommand.BaseDirPathIndex];
 
                         var sourcePath = command.Arguments[CTProtocolAddArtifactCommand.SourcePathIndex];
+                        
+                        var absoluteEntryPointPath = FileSystem.Resolve(baseDirPath, sourcePath);
+
+                        var (newArtifact, newShard, newShardIndex) = CompilerHelpers.CreateArtifact(session, role, name, targetLanguage, targetPlatform, absoluteEntryPointPath);
+                        
 
                         var patterns = new string[] { sourcePath };
 
@@ -632,37 +634,54 @@ namespace Sempiler.CTExec
                             return result;
                         }
 
-                        var role = command.Arguments[CTProtocolAddShardCommand.RoleIndex];
-
                         var newShard = default(Shard);
                         var newShardIndex = -1;
 
-                        if (role == "share-extension")
+                        ShardRole? shardRole = null;
+
+                        var rawShardRole = command.Arguments[CTProtocolAddShardCommand.RoleIndex];
+
+                        switch(rawShardRole)
                         {
-                            var newAST = new RawAST();
-                            var newDomain = NodeFactory.Domain(newAST, new PhaseNodeOrigin(PhaseKind.Transformation));
+                            case "share-extension":
+                                shardRole = ShardRole.ShareExtension;
+                            break;
 
-                            // [dho] TODO CHECK do we want to clone `shard.AST` here, or use a fresh AST? - 16/10/19
-                            newShard = new Shard(ShardRole.ShareExtension, newAST);
+                            case "static-site":
+                                shardRole = ShardRole.StaticSite;
+                            break;
 
-                            var artifactShards = session.Shards[artifact.Name];
-                            newShardIndex = artifactShards.Count;
-
-                            artifactShards.Add(newShard);
+                            default:
+                                result.AddMessages(
+                                    new Message(MessageKind.Error, $"Unsupported shard role '{rawShardRole}'")
+                                );
+                            break;
                         }
-                        else
-                        {
-                            result.AddMessages(
-                                new Message(MessageKind.Error, $"Unsupported shard role '{role}'")
-                            );
-                        }
+
+                        if(HasErrors(result) || token.IsCancellationRequested) return result;
+                      
+                        System.Diagnostics.Debug.Assert(shardRole.HasValue, "Expected shard role to have been parsed");
+
+                        var baseDirPath = command.Arguments[CTProtocolAddShardCommand.BaseDirPathIndex];
+                        var sourcePath = command.Arguments[CTProtocolAddShardCommand.SourcePathIndex];
+
+                        var absoluteEntryPointPath = FileSystem.Resolve(baseDirPath, sourcePath);
+                        
+                        var newAST = new RawAST();
+                        var newDomain = NodeFactory.Domain(newAST, new PhaseNodeOrigin(PhaseKind.Transformation));
+
+
+                        // [dho] TODO CHECK do we want to clone `shard.AST` here, or use a fresh AST? - 16/10/19
+                        newShard = new Shard(shardRole.Value, absoluteEntryPointPath, newAST);
+
+                        var artifactShards = session.Shards[artifact.Name];
+                        newShardIndex = artifactShards.Count;
+
+                        artifactShards.Add(newShard);
+                    
 
                         if (!HasErrors(result) && !token.IsCancellationRequested)
                         {
-                            var baseDirPath = command.Arguments[CTProtocolAddShardCommand.BaseDirPathIndex];
-
-                            var sourcePath = command.Arguments[CTProtocolAddShardCommand.SourcePathIndex];
-
                             var patterns = new string[] { sourcePath };
 
                             // AddCTExecSourceFilesDelegate addFilesDelegate = AddSourcesCTExecSourceFiles;
@@ -879,9 +898,35 @@ namespace Sempiler.CTExec
 
                         if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-                        var sourceFiles = parsedPaths.NewSourceFiles;
+                        var newResources = new List<Resource>();
 
-                        shard.Resources.AddRange(sourceFiles);
+                        var newSourceFiles = parsedPaths.NewSourceFiles;
+
+                        // [dho] user can opt to specify the target file name of the resource - 11/02/20
+                        var hasTargetFileName = command.Arguments.Length > CTProtocolAddResCommand.TargetFileNameIndex;
+
+                        var targetFileName = hasTargetFileName ? command.Arguments[CTProtocolAddResCommand.TargetFileNameIndex] : null;
+
+                        if(hasTargetFileName && newSourceFiles.Count > 1)
+                        {
+                            result.AddMessages(
+                                new Message(MessageKind.Error, 
+                                    $"Cannot set resource target file name of '{targetFileName}' when adding multiple resources at once"
+                                )
+                            );
+
+                            return result;
+                        }
+
+                        foreach(var source in newSourceFiles)
+                        {
+                            newResources.Add(new Resource {
+                                Source = source,
+                                TargetFileName = targetFileName
+                            });
+                        }
+
+                        shard.Resources.AddRange(newResources);
                     }
                     break;
 

@@ -13,7 +13,7 @@ namespace Sempiler.Emission
 
     public class SwiftEmitter : BaseEmitter
     {
-        public SwiftEmitter() : base(new string[]{ "swift", PhaseKind.Emission.ToString("g").ToLower() })
+        public SwiftEmitter() : base(new string[]{ ArtifactTargetLang.Swift, PhaseKind.Emission.ToString("g").ToLower() })
         {
             FileExtension = ".swift";
         }
@@ -1401,26 +1401,29 @@ namespace Sempiler.Emission
                 );
             }   
 
-            if(ASTNodeHelpers.IsMultilineString(node))
-            {
-                context.Emission.Append(node, "\"\"\"");
+            // if(ASTNodeHelpers.IsMultilineString(node))
+            // {
+            //     // [dho] NOTE swiftc insists multi-line string literal 
+            //     // opening/closing delimiter must begin on a new line - 04/02/20
+            //     context.Emission.AppendBelow(node, "\"\"\"");
+            //     context.Emission.AppendBelow(node, "");
+
+            //     result.AddMessages(
+            //         EmitInterpolatedStringMembers(members, childContext, token)
+            //     );
+
+            //     context.Emission.AppendBelow(node, "\"\"\"");
+            // }
+            // else
+            // {
+            //     context.Emission.Append(node, "\"");
 
                 result.AddMessages(
                     EmitInterpolatedStringMembers(members, childContext, token)
                 );
 
-                context.Emission.Append(node, "\"\"\"");
-            }
-            else
-            {
-                context.Emission.Append(node, "\"");
-
-                result.AddMessages(
-                    EmitInterpolatedStringMembers(members, childContext, token)
-                );
-
-                context.Emission.Append(node, "\"");
-            }
+                // context.Emission.Append(node, "\"");
+            // }
 
             return result;
         }
@@ -1430,24 +1433,38 @@ namespace Sempiler.Emission
         {
             var result = new Result<object>();
 
+            // [dho] swiftc is very particular about any multiline strings, such that we have to use a """ 
+            // delimiter, and the indentation on each line must match... instead of worrying about that, we
+            // will just concat a group of individual strings, and replace any newlines with the escape 
+            // sequence for it within each - 04/02/20
             foreach(var (member, hasNext) in ASTNodeHelpers.IterateMembers(members))
             {
                 if(member.Kind == SemanticKind.InterpolatedStringConstant)
                 {
+                    context.Emission.Append(member, "\"");
+
                     result.AddMessages(
                         EmitInterpolatedStringConstant(ASTNodeFactory.InterpolatedStringConstant(context.AST, (DataNode<string>)member), context, token)
                     );
+
+                    context.Emission.Append(member, "\"");
                 }
                 else
                 {
-                    context.Emission.Append(member, "\\(");
+                    context.Emission.Append(member, "\"\\(");
 
                     result.AddMessages(
                         EmitNode(member, context, token)
                     );
 
-                    context.Emission.Append(member, ")");
+                    context.Emission.Append(member, ")\"");
                 }
+
+                if(hasNext)
+                {
+                    context.Emission.Append(member, "+");
+                }
+
             }
 
             return result;
@@ -1457,9 +1474,14 @@ namespace Sempiler.Emission
         {
             var result = new Result<object>();
 
+            // [dho] swiftc is very particular about any multiline strings, such that we have to use a """ 
+            // delimiter, and the indentation on each line must match... instead of worrying about that, we
+            // will just replace any newlines with the escape sequence for it - 04/02/20
+            var value = node.Value.Replace(System.Environment.NewLine, "\\n");
+
             // [dho] NOTE no delimiters because the interpolated string that this node sits inside
             // will have the delimiters on it - 28/10/18
-            context.Emission.Append(node, node.Value);
+            context.Emission.Append(node, value);
 
             return result;
         }
@@ -2787,14 +2809,31 @@ namespace Sempiler.Emission
         {
             var result = new Result<object>();
 
-            if(ASTNodeHelpers.IsMultilineString(node))
-            {
-                context.Emission.Append(node, $"\"\"\"{node.Value}\"\"\"");
-            }
-            else
-            {
-                context.Emission.Append(node, $"\"{node.Value}\"");
-            }
+            // if(ASTNodeHelpers.IsMultilineString(node))
+            // {
+            //     // [dho] NOTE swiftc insists multi-line string literal 
+            //     // opening/closing delimiter must begin on a new line - 04/02/20
+            //     context.Emission.AppendBelow(node, "\"\"\"");
+
+            //     // [dho] NOTE swiftc insists lines all have same indentation - 04/02/20
+            //     foreach(var line in node.Value.Split(new[] { System.Environment.NewLine }, StringSplitOptions.None))
+            //     {
+            //         context.Emission.AppendBelow(node, line.Trim());
+            //     }
+
+            //     context.Emission.AppendBelow(node, "\"\"\"");
+            // }
+            // else
+            // {
+            //     context.Emission.Append(node, $"\"{node.Value}\"");
+            // }
+
+            // [dho] swiftc is very particular about any multiline strings, such that we have to use a """ 
+            // delimiter, and the indentation on each line must match... instead of worrying about that, we
+            // will just replace any newlines with the escape sequence for it - 04/02/20
+            var value = node.Value.Replace(System.Environment.NewLine, "\\n");
+
+            context.Emission.Append(node, $"\"{value}\"");
 
             return result;
         }
@@ -3030,15 +3069,15 @@ namespace Sempiler.Emission
 
             result.AddMessages(EmitNode(node.Condition, childContext, token));
 
-            context.Emission.AppendBelow(node, "{");
+            // context.Emission.AppendBelow(node, "{");
 
-            context.Emission.Indent();
+            // context.Emission.Indent();
 
             result.AddMessages(EmitBlockLike(node.Body, node.Node, childContext, token));
 
-            context.Emission.Outdent();
+            // context.Emission.Outdent();
 
-            context.Emission.AppendBelow(node, "}");
+            // context.Emission.AppendBelow(node, "}");
 
             return result;
         }

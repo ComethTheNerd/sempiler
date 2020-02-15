@@ -425,6 +425,26 @@ module.exports = async function () {{
         }}
     }}
 
+    function getConfigurationPrimitive(data)
+    {{
+        const typeName = typeof data;
+
+        switch(typeName)
+        {{
+            case ""boolean"":
+                return {(int)ConfigurationPrimitive.Boolean};
+
+            case ""number"":
+                return Number.isInteger(data) ? {(int)ConfigurationPrimitive.Integer} : {(int)ConfigurationPrimitive.Float};
+
+            case ""string"":
+                return {(int)ConfigurationPrimitive.String};
+
+            default:
+                throw new Error(""Expected primitive but found "" + typeName);
+        }}
+    }}
+
     async function {CTAPISymbols.AddDependency}(name, version, packageManager, url)
     {{
         const {{ {ArtifactNameSymbolLexeme}, {ShardIndexSymbolLexeme}, {NodeIDSymbolLexeme}, {MessageIDSymbolLexeme} }} = this;
@@ -469,11 +489,18 @@ module.exports = async function () {{
         return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddPermission}(${{name}}{CTProtocolHelpers.ArgumentDelimiter}${{description || ''}})`);
     }}
 
-    async function {CTAPISymbols.AddRes}(parentDirPath, sourcePath)
+    async function {CTAPISymbols.AddRes}(parentDirPath, sourcePath, targetFileName)
     {{
         const {{ {ArtifactNameSymbolLexeme}, {ShardIndexSymbolLexeme}, {NodeIDSymbolLexeme}, {MessageIDSymbolLexeme} }} = this;
 
-        return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddRes}(${{parentDirPath}}{CTProtocolHelpers.ArgumentDelimiter}${{sourcePath}})`);
+        const args = [
+            parentDirPath,
+            sourcePath
+        ]
+
+        if(targetFileName) args.push(targetFileName);
+
+        return {sendMessagePreamble}`{CTCommandPreamble}{(int)CTProtocolCommandKind.AddRes}(${{args.join('{CTProtocolHelpers.ArgumentDelimiter}')}})`);
     }}
 
     async function {CTAPISymbols.AddRawSources}(parentDirPath, ...includedPaths)

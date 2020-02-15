@@ -17,7 +17,7 @@ namespace Sempiler.Bundling
 
     public class FirebaseFunctionsBundler : IBundler
     {
-        private class FirebaseFunctionsBundler_TypeScriptEmitter : TypeScriptEmitter
+        private class FirebaseFunctionsBundler_FunctionsTypeScriptEmitter : TypeScriptEmitter
         {
             public override string RelativeComponentOutFilePath(Session session, Artifact artifact, Shard shard, Component node)
             {
@@ -25,12 +25,53 @@ namespace Sempiler.Bundling
             }
         }
 
-        private readonly FirebaseFunctionsBundler_TypeScriptEmitter Emitter = new FirebaseFunctionsBundler_TypeScriptEmitter();
+        private class FirebaseFunctionsBundler_StaticSiteEmitter : BaseEmitter
+        {
+            string Name;
+            public FirebaseFunctionsBundler_StaticSiteEmitter(string name)
+            {
+                Name = name;
+            }
 
+            public override string RelativeComponentOutFilePath(Session session, Artifact artifact, Shard shard, Component node)
+            {
+                // xxx;
+                /*
+                TODO : 
+                    - shard entrypoint file
+                    - make all components relative to shard entrypoint file
+                    - filter empty components should remove component if just contains empty code constants...
+                        but really, why are directives being replaced with empty code constants in first place
+                
+                
+                */
+
+                var relPath = node.Name;
+                var index = relPath.LastIndexOf(Name + System.IO.Path.DirectorySeparatorChar);
+          
+                if(index > -1)
+                {
+                    relPath = relPath.Substring(index + (Name + System.IO.Path.DirectorySeparatorChar).Length);
+                }
+
+                return StaticSiteDirName + '/' + relPath;
+            }
+        }
+
+        // private class FirebaseFunctionsBundler_TypeScriptEmitter : TypeScriptEmitter
+        // {
+        //     public override string RelativeComponentOutFilePath(Session session, Artifact artifact, Shard shard, Component node)
+        //     {
+        //         return UserCodeRelDirPath + '/' + node.ID + FileExtension;
+        //     }
+        // }
+
+  
 
 
         static readonly string[] DiagnosticTags = new string[] { "bundler", "firebase/functions" };
 
+        const string StaticSiteDirName = "public";
         const string FunctionsCodeDirName = "functions";
         const string UserCodeDirName = "src";
         const string IsProductionSymbolicLexeme = "isProduction";
@@ -112,189 +153,62 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
                 );
             }
 
-            Shard shard = default(Shard);
-
-            if(shards.Count == 1)
-            {
-                shard = shards[0];
-
-                if(shard.Role != ShardRole.MainApp)
-                {
-                    result.AddMessages(
-                        new Message(MessageKind.Error,
-                            $"Firebase functions bundler expected 1 shard to be '{ShardRole.MainApp}' but found '{shard.Role}'")
-                    );
-                }
-            }
-            else
+            if (artifact.TargetLang != ArtifactTargetLang.TypeScript)
             {
                 result.AddMessages(
                     new Message(MessageKind.Error,
-                        $"Firebase functions bundler expected 1 shard but found {shards.Count}")
+                        $"No bundler exists for target role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
                 );
             }
-            
 
             if(HasErrors(result) || token.IsCancellationRequested) return result;
 
 
-            // var inlined = default(Component);
-            var ofc = default(OutFileCollection);//new OutFileCollection();
+            var ofc = new OutFileCollection();
 
-            // [dho] emit source files - 21/05/19
+
+            var hasHosting = false;
+
+            foreach (var shard in shards)
             {
-                // var emitter = default(IEmitter);
-
-                if (artifact.TargetLang == ArtifactTargetLang.TypeScript)
+                if (shard.Role == ShardRole.MainApp)
                 {
-                    // inlined = result.AddMessages(TypeScriptInlining(session, artifact, shard.AST, token));
+                    var functionsOFC = result.AddMessages(
+                        EmitFunctionsShard(session, artifact, shard, token)
+                    );
 
-                    // if (HasErrors(result) || token.IsCancellationRequested) return result;
-
-                    // emitter = new TypeScriptEmitter();
-
-                    var ast = shard.AST;
-
-                    FilterNonEmptyComponents(ast);
-
-                    var entrypointComponent = default(Component);
-                    var routeInfos = default(List<ServerInlining.ServerRouteInfo>);
-                    var exportedSymbols = default(List<ServerInlining.ServerExportedSymbolInfo>);
-
-                    var nodeIDsToRemove = new List<string>();
-
-
-                    foreach(var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, ASTHelpers.GetRoot(ast).ID))
+                    if(functionsOFC != null)
                     {
-                        System.Diagnostics.Debug.Assert(child.Kind == SemanticKind.Component);
-
-                        var component = ASTNodeFactory.Component(ast, (DataNode<string>)child);
-
-                        var r = ServerInlining.GetInlinerInfo(
-                            session, ast, component, LanguageSemantics.TypeScript, new string[] {}, new string[] {}, token
-                        );
-
-                        var inlinerInfo = result.AddMessages(r);
-
-                        if(HasErrors(r)) continue;
-                        else if(token.IsCancellationRequested) return result;
-
-
-                        if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
-                        {
-                            entrypointComponent = component;
-                            routeInfos = inlinerInfo.RouteInfos;
-                            exportedSymbols = inlinerInfo.ExportedSymbols;
-                        }
-
-
-
-
-                        foreach(var im in inlinerInfo.Imports)
-                        {
-                            var imDecl = ASTNodeFactory.ImportDeclaration(ast, im);
-
-                            var r2 = ImportHelpers.ParseImportDescriptor(imDecl, token);
-
-                            var imDescriptor = result.AddMessages(r2);
-
-                            if(HasErrors(r)) continue;
-                            else if(token.IsCancellationRequested) return result;
-
-                            switch(imDescriptor.Type)
-                            {
-                                case ImportHelpers.ImportType.Component:
-                                {
-                                    var importedComponent = result.AddMessages(
-                                        ImportHelpers.ResolveComponentImport(session, artifact, ast, imDescriptor, component, token)
-                                    );
-
-                                    if(importedComponent != null)
-                                    {
-                                        var newSpecifierLexeme = "./" + importedComponent.ID;
-
-                                        ASTHelpers.Replace(ast, imDecl.Specifier.ID, new [] { 
-                                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), newSpecifierLexeme).Node
-                                        });
-                                    }
-                                    else
-                                    {
-                                        result.AddMessages(
-                                            new NodeMessage(MessageKind.Error,
-                                                $"Could not resolve Component import '{imDescriptor.SpecifierLexeme}'", im)
-                                        );
-                                    }
-                                }
-                                break;
-
-                                case ImportHelpers.ImportType.Compiler:{
-                                    nodeIDsToRemove.Add(im.ID);
-                                }
-                                break;
-
-
-                                case ImportHelpers.ImportType.Platform:
-                                case ImportHelpers.ImportType.Unknown:
-                                break;
-
-                                default:{
-                                    System.Diagnostics.Debug.Fail(
-                                        $"Unhandled import type in Firebase Functions Bundler '{imDescriptor.Type}'"
-                                    );
-                                }
-                                break;
-                            }                
-                        } 
-
-
+                        ofc.AddAll(functionsOFC);
                     }
-
-
-                    System.Diagnostics.Debug.Assert(entrypointComponent != null);
-
-
-
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
-
-
-                    if(nodeIDsToRemove.Count > 0)
-                    {
-                        ASTHelpers.DisableNodes(ast, nodeIDsToRemove.ToArray());
-                    }
-
-
-                    ofc = result.AddMessages(CompilerHelpers.Emit(Emitter, session, artifact, shard, shard.AST, token));
-
-
-                    if (HasErrors(result) || token.IsCancellationRequested) return result;
-
-
-
-                    var indexContent = new System.Text.StringBuilder();
-
-                
-                    indexContent.AppendLine("import * as " + UserCodeSymbolicLexeme + " from './" + entrypointComponent.ID + "';");
-
-                    indexContent.AppendLine($"const {IsProductionSymbolicLexeme} = process.env.ENV === 'production';");
-
-                    result.AddMessages(AppendRouterCode(session, artifact, ast, routeInfos, indexContent, token));
-
-                    result.AddMessages(AppendExportedSymbolsCode(session, artifact, ast, exportedSymbols, indexContent, token));
-
-
-                    AddRawFileIfNotPresent(ofc, UserCodeRelDirPath + "/index.ts", indexContent.ToString());
-
                 }
-                // [dho] TODO JavaScript! - 01/06/19
+                else if (shard.Role == ShardRole.StaticSite)
+                {
+                    var staticSiteOFC = result.AddMessages(
+                        EmitStaticSiteShard(session, artifact, shard, token)
+                    );
+
+                    if(staticSiteOFC != null)
+                    {
+                        hasHosting = !hasHosting && staticSiteOFC.Count > 0;
+
+                        ofc.AddAll(staticSiteOFC);
+                    }
+                }
                 else
                 {
                     result.AddMessages(
                         new Message(MessageKind.Error,
-                            $"No bundler exists for target role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
+                            $"Unsupported shard role '{shard.Role.ToString()}' in bundler for artifact role '{artifact.Role.ToString()}' and target platform '{artifact.TargetPlatform}' (specified in artifact '{artifact.Name}')")
                     );
                 }
+            }
 
-                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+            if(!hasHosting)
+            {
+                /* [dho] TODO investigate! deploying without a public folder causes an error - 06/02/20 */
+                AddRawFileIfNotPresent(ofc, StaticSiteDirName + "/a.txt", "");
             }
 
             // [dho] synthesize any requisite files for the target platform - 01/06/19
@@ -302,87 +216,238 @@ async function {UserParserFunctionNameLexeme}(req : any) : Promise<{{ uid : stri
                 AddRawFileIfNotPresent(ofc, "firebase.json",
 $@"{{
   ""hosting"": {{
+    {/* [dho] deploying without a public folder causes an error - 06/02/20 */""}
+    ""public"": ""{StaticSiteDirName}"",
     ""rewrites"": [
       {{
         ""source"": ""**"",
         ""function"": ""{APISymbolicLexeme}""
       }}
-    ]
+    ],
+    {/* [dho] means you do not have to append `.html` in the URL for it to find the page - 15/02/20 */""}
+    ""cleanUrls"": true
   }},
   ""functions"": {{
     ""predeploy"": ""npm --prefix functions run build""
   }}
 }}");
-                var dependenciesContent = new System.Text.StringBuilder();
-                var dependencies = shard.Dependencies;
 
-                if (dependencies.Count > 0)
+                result.Value = ofc;
+            }
+
+
+            return result;
+        }
+
+        private Result<OutFileCollection> EmitFunctionsShard(Session session, Artifact artifact, Shard shard, CancellationToken token)
+        {
+            var result = new Result<OutFileCollection>();
+
+            var ast = shard.AST;
+
+            FilterNonEmptyComponents(ast);
+
+            var entrypointComponent = default(Component);
+            var routeInfos = default(List<ServerInlining.ServerRouteInfo>);
+            var exportedSymbols = default(List<ServerInlining.ServerExportedSymbolInfo>);
+
+            var nodeIDsToRemove = new List<string>();
+
+
+            foreach(var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(ast, ASTHelpers.GetRoot(ast).ID))
+            {
+                System.Diagnostics.Debug.Assert(child.Kind == SemanticKind.Component);
+
+                var component = ASTNodeFactory.Component(ast, (DataNode<string>)child);
+
+                var r = ServerInlining.GetInlinerInfo(
+                    session, ast, component, LanguageSemantics.TypeScript, new string[] {}, new string[] {}, token
+                );
+
+                var inlinerInfo = result.AddMessages(r);
+
+                if(HasErrors(r)) continue;
+                else if(token.IsCancellationRequested) return result;
+
+
+                if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
                 {
-                    dependenciesContent.Append(",");
-                    dependenciesContent.AppendLine();
-
-                    for (int i = 0; i < dependencies.Count; ++i)
-                    {
-                        var dependency = dependencies[i];
-                        var name = dependency.Name;
-                        var version = dependency.Version ?? "*";
-                        var packageManager = dependency.PackageManager;
-                        var url = dependency.URL;
-
-                        if(packageManager != PackageManager.NPM && packageManager != null)
-                        {
-                            result.AddMessages(
-                                new Message(MessageKind.Error,
-                                    $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' references unsupported package manager '{packageManager}'")
-                            );
-                        }
-
-                        if(url != null)
-                        {
-                            result.AddMessages(
-                                new Message(MessageKind.Error,
-                                    $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' does not support specifying a URL for {packageManager} dependency '{dependency.Name}'")
-                            );
-                        }
-
-                        dependenciesContent.Append($@"""{name}"": ""{version}""");
-
-                        if (i < dependencies.Count - 1)
-                        {
-                            dependenciesContent.Append(",");
-                        }
-
-                        dependenciesContent.AppendLine();
-                    }
+                    entrypointComponent = component;
+                    routeInfos = inlinerInfo.RouteInfos;
+                    exportedSymbols = inlinerInfo.ExportedSymbols;
                 }
 
-                AddRawFileIfNotPresent(ofc, $"{FunctionsCodeDirName}/package.json",
+
+
+
+                foreach(var im in inlinerInfo.Imports)
+                {
+                    var imDecl = ASTNodeFactory.ImportDeclaration(ast, im);
+
+                    var r2 = ImportHelpers.ParseImportDescriptor(imDecl, token);
+
+                    var imDescriptor = result.AddMessages(r2);
+
+                    if(HasErrors(r)) continue;
+                    else if(token.IsCancellationRequested) return result;
+
+                    switch(imDescriptor.Type)
+                    {
+                        case ImportHelpers.ImportType.Component:
+                        {
+                            var importedComponent = result.AddMessages(
+                                ImportHelpers.ResolveComponentImport(session, artifact, ast, imDescriptor, component, token)
+                            );
+
+                            if(importedComponent != null)
+                            {
+                                var newSpecifierLexeme = "./" + importedComponent.ID;
+
+                                ASTHelpers.Replace(ast, imDecl.Specifier.ID, new [] { 
+                                    NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Bundling), newSpecifierLexeme).Node
+                                });
+                            }
+                            else
+                            {
+                                result.AddMessages(
+                                    new NodeMessage(MessageKind.Error,
+                                        $"Could not resolve Component import '{imDescriptor.SpecifierLexeme}'", im)
+                                );
+                            }
+                        }
+                        break;
+
+                        case ImportHelpers.ImportType.Compiler:{
+                            nodeIDsToRemove.Add(im.ID);
+                        }
+                        break;
+
+
+                        case ImportHelpers.ImportType.Platform:
+                        case ImportHelpers.ImportType.Unknown:
+                        break;
+
+                        default:{
+                            System.Diagnostics.Debug.Fail(
+                                $"Unhandled import type in Firebase Functions Bundler '{imDescriptor.Type}'"
+                            );
+                        }
+                        break;
+                    }                
+                } 
+
+
+            }
+
+
+            System.Diagnostics.Debug.Assert(entrypointComponent != null);
+
+
+
+            if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+
+            if(nodeIDsToRemove.Count > 0)
+            {
+                ASTHelpers.DisableNodes(ast, nodeIDsToRemove.ToArray());
+            }
+
+            var emitter = new FirebaseFunctionsBundler_FunctionsTypeScriptEmitter();
+
+            var ofc = result.Value = result.AddMessages(CompilerHelpers.Emit(emitter, session, artifact, shard, shard.AST, token));
+
+
+            if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+
+
+            var indexContent = new System.Text.StringBuilder();
+
+        
+            indexContent.AppendLine("import * as " + UserCodeSymbolicLexeme + " from './" + entrypointComponent.ID + "';");
+
+            indexContent.AppendLine($"const {IsProductionSymbolicLexeme} = process.env.ENV === 'production';");
+
+            result.AddMessages(AppendRouterCode(session, artifact, ast, routeInfos, indexContent, token));
+
+            result.AddMessages(AppendExportedSymbolsCode(session, artifact, ast, exportedSymbols, indexContent, token));
+
+            AddRawFileIfNotPresent(ofc, UserCodeRelDirPath + "/index.ts", indexContent.ToString());
+
+            var relResourcePaths = result.AddMessages(
+                AddResourceFiles(session, artifact, shard, ofc, $"{FunctionsCodeDirName}/res/")
+            );
+
+
+            var devDependenciesContent = new List<string>
+            {
+                @"""typescript"": ""^3.2.4""",
+                @"""@types/node"": ""*"""
+            };
+
+            var dependenciesContent = new List<string>
+            {
+                @"""firebase-functions"": ""*"""
+            };
+
+            var dependencies = shard.Dependencies;
+
+            for (int i = 0; i < dependencies.Count; ++i)
+            {
+                var dependency = dependencies[i];
+                var name = dependency.Name;
+                var version = dependency.Version ?? "*";
+                var packageManager = dependency.PackageManager;
+                var url = dependency.URL;
+
+                if(packageManager != PackageManager.NPM && packageManager != null)
+                {
+                    result.AddMessages(
+                        new Message(MessageKind.Error,
+                            $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' references unsupported package manager '{packageManager}'")
+                    );
+                }
+
+                if(url != null)
+                {
+                    result.AddMessages(
+                        new Message(MessageKind.Error,
+                            $"'{shard.Role.ToString()}' in artifact '{artifact.Role.ToString()}' does not support specifying a URL for {packageManager} dependency '{dependency.Name}'")
+                    );
+                }
+
+                (name.StartsWith("@types/") ? 
+                    devDependenciesContent : 
+                    dependenciesContent
+                ).Add($@"""{name}"": ""{version}""");
+            }
+        
+            AddRawFileIfNotPresent(ofc, $"{FunctionsCodeDirName}/package.json",
 $@"{{
   ""name"": ""{artifact.Name}"",
   ""private"": true,
   ""version"": ""1.0.0"",
   ""engines"": {{
-    ""node"": ""8""
+    ""node"": ""10""
   }},
   ""scripts"": {{
     ""build"": ""./node_modules/.bin/tsc""
   }},
   ""devDependencies"": {{
-    ""typescript"": ""^3.2.4"",
-    ""@types/node"": ""*""
+    {string.Join(",\n", devDependenciesContent)}
   }},
   ""dependencies"": {{
-    ""firebase-functions"": ""*""{dependenciesContent.ToString()}
+    {string.Join(",\n", dependenciesContent)}
   }},
   ""main"": ""lib/index.js""
 }}");
 
-                // [dho] adapted from https://raw.githubusercontent.com/firebase/functions-samples/master/typescript-getting-started/functions/tsconfig.json - 24/09/19
-                AddRawFileIfNotPresent(ofc, $"{FunctionsCodeDirName}/tsconfig.json",
-                // [dho] https://stackoverflow.com/a/52384384/300037 - 26/12/19
-                // [dho] https://stackoverflow.com/a/57653497/300037 - 26/12/19
-                // [dho] NOTE `esModuleInterop` so we can hoist the imports to top level and bind them to a variable, because we
-                // cannot do the imports asynchronously inside an IIFE in the `module.exports` because Firebase doesn't like this - 26/12/19
+            // [dho] adapted from https://raw.githubusercontent.com/firebase/functions-samples/master/typescript-getting-started/functions/tsconfig.json - 24/09/19
+            AddRawFileIfNotPresent(ofc, $"{FunctionsCodeDirName}/tsconfig.json",
+            // [dho] https://stackoverflow.com/a/52384384/300037 - 26/12/19
+            // [dho] https://stackoverflow.com/a/57653497/300037 - 26/12/19
+            // [dho] NOTE `esModuleInterop` so we can hoist the imports to top level and bind them to a variable, because we
+            // cannot do the imports asynchronously inside an IIFE in the `module.exports` because Firebase doesn't like this - 26/12/19
 $@"{{
   ""compilerOptions"": {{
     ""lib"": [""es2017""],
@@ -399,11 +464,23 @@ $@"{{
   ]
 }}");
 
-                result.Value = ofc;
-            }
-
 
             return result;
+        }
+
+        private Result<OutFileCollection> EmitStaticSiteShard(Session session, Artifact artifact, Shard shard, CancellationToken token)
+        {
+            var ast = shard.AST;
+
+            FilterNonEmptyComponents(ast);
+
+            // [dho] by convention we take the name of the entrypoint file to be the name of the 
+            // directory that contains the static site source files - 10/02/20
+            var inferredSrcDirName = System.IO.Path.GetFileNameWithoutExtension(shard.AbsoluteEntryPointPath);
+            
+            var emitter = new FirebaseFunctionsBundler_StaticSiteEmitter(inferredSrcDirName);
+
+            return CompilerHelpers.Emit(emitter, session, artifact, shard, shard.AST, token);
         }
 
         // private static Result<Component> TypeScriptInlining(Session session, Artifact artifact, RawAST ast, CancellationToken token)

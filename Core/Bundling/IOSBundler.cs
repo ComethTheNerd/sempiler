@@ -1459,9 +1459,9 @@ $@"
 */
                 result.AddMessages(ShardHelpers.AddConfigValue(infoPList, new [] { "NSExtension" }, new Dictionary<string, object> {
                     { "NSExtensionAttributes", new Dictionary<string, object> {
-                        { "NSExtensionActivationRule", new Dictionary<string, object> {
-                            { "NSExtensionActivationSupportsWebURLWithMaxCount", 1 }
-                        } },
+                        // { "NSExtensionActivationRule", new Dictionary<string, object> {
+                        //     { "NSExtensionActivationSupportsWebURLWithMaxCount", 1 }
+                        // } },
                     }},
                     { "NSExtensionMainStoryboard", "MainInterface" },
                     { "NSExtensionPointIdentifier", "com.apple.share-services" }
@@ -1642,96 +1642,6 @@ embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).s
 
             return result;
         }
-
-
-
-        public static Result<List<string>> AddResourceFiles(Session session, Artifact artifact, Shard shard, OutFileCollection ofc, string relResourcesOutputPath)
-        {
-            var result = new Result<List<string>>();
-
-            var relResourcePaths = new List<string>();
-
-            foreach (var resource in shard.Resources)
-            {
-                switch (resource.Kind)
-                {
-                    case SourceKind.File:
-                        {
-
-                            var sourceFile = (ISourceFile)resource;
-
-                            var srcPath = sourceFile.Location.ToPathString();
-
-                            // var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
-                            //     srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
-                            // }").ToPathString();
-
-                            // [dho] for now we just strip off the 
-                            // parent path components and just use the filename - 20/10/19 
-                            var relPath = FileSystem.ParseFileLocation(
-                                $@"{relResourcesOutputPath}{sourceFile.Location.Name}.{sourceFile.Location.Extension}"
-                            ).ToPathString();
-
-                            /* if(*/
-                            AddCopyOfFileIfNotPresent(ofc, relPath, srcPath);//)
-                                                                          // {
-                            relResourcePaths.Add(relPath);
-                            // }
-                            // else
-                            // {
-                            //     result.AddMessages(
-                            //         new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
-                            //     );
-                            // }
-                        }
-                        break;
-
-                    case SourceKind.Literal:
-                        {
-                            var sourceLiteral = (ISourceLiteral)resource;
-                            var srcPath = sourceLiteral.Location.ToPathString();
-
-                            // var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
-                            //     srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
-                            // }").ToPathString();
-
-                            // [dho] for now we just strip off the 
-                            // parent path components and just use the filename - 20/10/19 
-                            var relPath = FileSystem.ParseFileLocation(
-                                $@"{relResourcesOutputPath}{sourceLiteral.Location.Name}.{sourceLiteral.Location.Extension}"
-                            ).ToPathString();
-
-
-                            AddRawFileIfNotPresent(ofc, relPath, sourceLiteral.Text);
-                            // if(AddRawFileIfMissing(ofc, relPath, ((ISourceLiteral)resource).Text))
-                            // {
-                            relResourcePaths.Add(relPath);
-                            // }
-                            // else
-                            // {
-                            //     result.AddMessages(
-                            //         new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
-                            //     );
-                            // }
-                        }
-                        break;
-
-                    default:
-                        {
-                            result.AddMessages(
-                                new Message(MessageKind.Error, $"'{artifact.Name}' resource has unsupported kind '{resource.Kind}'")
-                            );
-                        }
-                        break;
-                }
-            }
-
-            result.Value = relResourcePaths;
-
-            return result;
-        }
-
-
 
         // /** [dho] `componentNamesProcessed` indicates whether the component will be emitted, and if so what the filename wil be - 18/10/19 */
         // private static Result<object> MoveComponentsToCombinedAST(Session session, Artifact artifact, Shard shard, RawAST combinedAST, Dictionary<string, (bool, string)> componentNamesProcessed, CancellationToken token)

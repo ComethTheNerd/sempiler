@@ -11,6 +11,8 @@
     {
         bool Contains(ILocation location);
 
+        int Count { get; }
+
         IOutFileContent this[ILocation location] { get; set; }
     }
 
@@ -22,6 +24,8 @@
         {
             outFiles = new Dictionary<string, IOutFileContent>();
         }
+
+        public int Count { get => outFiles.Count; }
 
         public bool Contains(ILocation location)
         {

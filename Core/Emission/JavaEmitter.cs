@@ -13,7 +13,7 @@ namespace Sempiler.Emission
 
     public class JavaEmitter : BaseEmitter
     {
-        public JavaEmitter() : base(new string[]{ "java", PhaseKind.Emission.ToString("g").ToLower() })
+        public JavaEmitter() : base(new string[]{ ArtifactTargetLang.Java, PhaseKind.Emission.ToString("g").ToLower() })
         {
             FileExtension = ".java";
         }

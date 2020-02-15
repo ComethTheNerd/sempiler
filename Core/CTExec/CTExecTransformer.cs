@@ -150,10 +150,6 @@ namespace Sempiler.CTExec
 
             var subject = directive.Subject;
 
-            // var content = new List<Node>();
-
-            // var depMode = TransformationMode.Replace;
-
             // [dho] have to hoist all dependencies recursively - 11/07/19
             result.AddMessages(
                 HoistDependencies(session, artifact, ast, subject, languageSemantics, /*TransformationMode.Hoist,*/ hoistedDirectiveStatements, hoistedNodes, token)
@@ -258,40 +254,75 @@ namespace Sempiler.CTExec
 
                 outerLambdaContent.Add(resultDVDecl.Node);
 
-
                 // [dho] we will replace the `#compiler` directive by a code constant made up of
                 // concatenating all the `#emit` directives that get hit in the body. If none are hit
-                // then this will replace the directive with the empty string which is a NOP anyway - 21/01/20 
-                var inv = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                // then this will delete the directive instead - 09/02/20 
+                var replaceDirective = NodeFactory.PredicateJunction(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
                 {
-                    var invSubject = default(Node);
-                    var invArguments = new List<Node>();
+                    // [dho] checks whether the replacement code string is populated or not - 10/02/20
+                    ASTHelpers.Connect(ast, replaceDirective.ID, new [] { 
+                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), replacementLexeme).Node
+                    }, SemanticRole.Predicate);
 
-                    invSubject = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), serverInteropFnIDs.ReplaceNodeByCodeConstant).Node;
+                    // [dho] if populated, this will replace the directive with a code constant containing that replacement string - 10/02/20
+                    var replaceDirectiveWithEmits = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                    {
+                        var invSubject = default(Node);
+                        var invArguments = new List<Node>();
 
-                    invArguments.Add(
-                        CreateInvocationArgument(ast,
-                            NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
-                        ).Node
-                    );
+                        invSubject = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), serverInteropFnIDs.ReplaceNodeByCodeConstant).Node;
 
-                    invArguments.Add(
-                        CreateInvocationArgument(ast, 
-                            NodeFactory.Identifier(ast, directive.Origin, replacementLexeme).Node
-                        ).Node
-                    );
+                        invArguments.Add(
+                            CreateInvocationArgument(ast,
+                                // [dho] NOTE this is a string constant containing the directive ID to remove,
+                                // NOT an identifier that is defined in scope - 10/02/20
+                                NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
+                            ).Node
+                        );
 
-                    ASTHelpers.Connect(ast, inv.ID, new[] { invSubject }, SemanticRole.Subject);
-                    ASTHelpers.Connect(ast, inv.ID, invArguments.ToArray(), SemanticRole.Argument);
+                        invArguments.Add(
+                            CreateInvocationArgument(ast, 
+                                NodeFactory.Identifier(ast, directive.Origin, replacementLexeme).Node
+                            ).Node
+                        );
+
+                        ASTHelpers.Connect(ast, replaceDirectiveWithEmits.ID, new[] { invSubject }, SemanticRole.Subject);
+                        ASTHelpers.Connect(ast, replaceDirectiveWithEmits.ID, invArguments.ToArray(), SemanticRole.Argument);
+
+                        BindSubjectToPassContext(session, artifact, shard, ast, replaceDirectiveWithEmits.Node, token);
+                    }
+
+                    InterimSuspension trueBranch = ASTNodeHelpers.CreateAwait(ast, replaceDirectiveWithEmits.Node).Item2;
+                    ASTHelpers.Connect(ast, replaceDirective.ID, new [] { trueBranch.Node }, SemanticRole.TrueBranch);
+
+
+                    // [dho] if the replacement string is empty then this will just delete the directive node instead - 10/02/20
+                    var deleteDirective = NodeFactory.Invocation(ast, new PhaseNodeOrigin(PhaseKind.Transformation));
+                    {
+                        var invSubject = default(Node);
+                        var invArguments = new List<Node>();
+
+                        invSubject = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), serverInteropFnIDs.DeleteNode).Node;
+
+                        invArguments.Add(
+                            CreateInvocationArgument(ast,
+                                // [dho] NOTE this is a string constant containing the directive ID to remove,
+                                // NOT an identifier that is defined in scope - 10/02/20
+                                NodeFactory.StringConstant(ast, new PhaseNodeOrigin(PhaseKind.Transformation), directive.ID).Node
+                            ).Node
+                        );
+
+                        ASTHelpers.Connect(ast, deleteDirective.ID, new[] { invSubject }, SemanticRole.Subject);
+                        ASTHelpers.Connect(ast, deleteDirective.ID, invArguments.ToArray(), SemanticRole.Argument);
+
+                        BindSubjectToPassContext(session, artifact, shard, ast, deleteDirective.Node, token);
+                    }
+
+                    InterimSuspension falseBranch = ASTNodeHelpers.CreateAwait(ast, deleteDirective.Node).Item2;
+                    ASTHelpers.Connect(ast, replaceDirective.ID, new [] { falseBranch.Node }, SemanticRole.FalseBranch);
                 }
 
-    
-                BindSubjectToPassContext(session, artifact, shard, ast, inv.Node, token);
-
-                InterimSuspension awaitInv = ASTNodeHelpers.CreateAwait(ast, inv.Node).Item2;
-
-                outerLambdaContent.Add(awaitInv.Node);
-
+                outerLambdaContent.Add(replaceDirective.Node);
             }
 
 
@@ -660,7 +691,7 @@ namespace Sempiler.CTExec
                 ASTHelpers.Connect(ast, inv.ID, new[] { parentDirPathArg.Node }, SemanticRole.Argument);
             }
         }
-
+    
         private static Result<object> HoistDependencies(Session session, Artifact artifact, RawAST ast, Node node, BaseLanguageSemantics languageSemantics, /*TransformationMode mode, */List<Node> hoistedDirectiveStatements, Dictionary<string, Node> hoistedNodes, CancellationToken token)
         {
             var result = new Result<object>();
@@ -672,7 +703,11 @@ namespace Sempiler.CTExec
 
             foreach (var dependency in dependencies)
             {
-                var decl = dependency.Declaration;
+                // [dho] IMPORTANT! the lexeme for the symbol could match both the name of a user defined symbol in 
+                // scope, as well as a CT ambient object (eg. `config`). So we need to be absolutely sure that the symbol
+                // 'most closely matched' to the reference site, is actually a symbol that is eligible for hoisting during 
+                // CTExec.. otherwise we will find a 'wider' (back up) match that is eligible instead, or none - 11/02/20 
+                var decl = _RecheckDeclEligibleForHoisting(session, ast, dependency, languageSemantics, token);
 
                 // [dho] if we were able to find the declaration of the symbol - 11/07/19
                 if (decl != null)
@@ -687,7 +722,6 @@ namespace Sempiler.CTExec
 
                     //     continue;
                     // }
-
 
                     MarkAsCTExec(ast, decl);
 
@@ -732,6 +766,40 @@ namespace Sempiler.CTExec
             }
 
             return result;
+        }
+
+        private static Node _RecheckDeclEligibleForHoisting(Session session, RawAST ast,
+            BaseLanguageSemantics.SymbolicDependency dependency, BaseLanguageSemantics languageSemantics, CancellationToken token)
+        {
+            var lexeme = dependency.Lexeme;
+            var decl = dependency.Declaration;
+            
+            // [dho] NOTE this condition is basically 
+            // "while the decl is NOT eligible for hoisting..." - 11/02/20 
+            while(decl?.Kind == SemanticKind.ReferenceAliasDeclaration)
+            {
+                // [dho] match the lexeme in the scope of the ineligible decl,
+                // ie. get the 'wider' symbolic match - 11/02/20
+                var recheckFrom = languageSemantics.GetParentScopeBoundary(ast, decl);
+
+                if(recheckFrom is null) break;
+
+
+                var startScope = new Scope(recheckFrom);
+                var encScope = languageSemantics.GetEnclosingScope(session, ast, recheckFrom, startScope, token);
+
+
+                if(encScope.Declarations.ContainsKey(lexeme))
+                {
+                    decl = encScope.Declarations[lexeme];                    
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            return null;
         }
 
         private static InvocationArgument CreateInvocationArgument(RawAST ast, Node value)

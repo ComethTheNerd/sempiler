@@ -11,7 +11,8 @@ namespace Sempiler
     public enum ShardRole 
     {
         MainApp,
-        ShareExtension
+        ShareExtension,
+        StaticSite
     }
 
 
@@ -20,9 +21,10 @@ namespace Sempiler
     {
         public readonly ShardRole Role;
        
-        public Shard(ShardRole role, RawAST ast)
+        public Shard(ShardRole role, string absoluteEntryPointPath, RawAST ast)
         {
             Role = role;
+            AbsoluteEntryPointPath = absoluteEntryPointPath;
             AST = ast;
             Name = role.ToString().ToLower();
             Version = "0.0.1";
@@ -33,7 +35,7 @@ namespace Sempiler
             Entitlements = new List<Entitlement>();
             Assets = new List<Asset>();
             Permissions = new List<Permission>();
-            Resources = new List<ISource>();
+            Resources = new List<Resource>();
             BridgeIntents = new List<Directive>();
         }
 
@@ -41,6 +43,8 @@ namespace Sempiler
         public string Name;
 
         public string Version;
+
+        public string AbsoluteEntryPointPath;
 
         public Orientation Orientation;
 
@@ -55,7 +59,7 @@ namespace Sempiler
 
         public List<Permission> Permissions;
 
-        public List<ISource> Resources;
+        public List<Resource> Resources;
 
         public List<Directive> BridgeIntents;
     }

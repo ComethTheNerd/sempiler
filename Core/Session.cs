@@ -89,6 +89,9 @@ namespace Sempiler
 
     public enum ConfigurationPrimitive
     {
+        Boolean,
+        Integer,
+        Float,
         String,
         StringArray
     }
@@ -97,6 +100,13 @@ namespace Sempiler
     {
         public string Name;
         public object Value;
+    }
+
+    public struct Resource
+    {
+        public ISource Source;
+        /** [dho] optional rewriting of the file name in the target output - 11/02/20 */
+        public string TargetFileName;
     }
 
     public struct Permission

@@ -125,6 +125,18 @@ namespace Sempiler.Languages
             return scope;
         }
 
+        public Node GetParentScopeBoundary(RawAST ast, Node node)
+        {
+            var parent = ASTHelpers.GetParent(ast, node.ID);
+
+            while(parent != null && !ScopeBoundaries.ContainsKey(parent.Kind))
+            {
+                parent = ASTHelpers.GetParent(ast, parent.ID);
+            }
+
+            return parent;
+        }
+
         private void AddSymbolToScope(RawAST ast, Scope scope, Node symbol, Node decl)
         {
             var lexeme = ASTNodeFactory.Identifier(ast, (DataNode<string>)symbol).Lexeme;
@@ -174,8 +186,19 @@ namespace Sempiler.Languages
                                 $"Unhandled reference alias declaration name kind '{refAliasDeclName.Kind}' found whilst adding symbols to scope from subset destructuring");
                         }
                     }
-                    else
+                    else if(name.Kind == SemanticKind.EntityDestructuring)
                     {
+                        var entityDestructuring = ASTNodeFactory.EntityDestructuring(ast, name);
+
+                        AddSubsetDestructuringSymbolsToScope(ast, scope, entityDestructuring, token);
+                    }
+                    else if(name.Kind == SemanticKind.CollectionDestructuring)
+                    {
+                        var collectionDestructuring = ASTNodeFactory.EntityDestructuring(ast, name);
+
+                        AddSubsetDestructuringSymbolsToScope(ast, scope, collectionDestructuring, token);
+                    }
+                    else {
                         System.Diagnostics.Debug.Assert(false, 
                                 $"Unhandled destructured member name kind '{name.Kind}' found whilst adding symbols to scope from subset destructuring");
                     }
@@ -349,7 +372,7 @@ namespace Sempiler.Languages
             return (isReferenceMatch, shouldExploreChildren);
         }
 
-        private bool IsEligibleForReferenceMatch(RawAST ast, Node node)
+        public bool IsEligibleForReferenceMatch(RawAST ast, Node node)
         {
             var pos = ASTHelpers.GetPosition(ast, node.ID);
 
@@ -386,6 +409,7 @@ namespace Sempiler.Languages
 
         public class SymbolicDependency 
         {
+            public string Lexeme;
             ///<summary>The declaration of the symbol, or null if the declaration for the symbol was not found in the AST - 23/09/19</summary>
             public Node Declaration;
             public Dictionary<string, List<Node>> References = new Dictionary<string, List<Node>>();
@@ -466,6 +490,7 @@ namespace Sempiler.Languages
                                 {
                                     symbolicDependency = new SymbolicDependency()
                                     {
+                                        Lexeme = lexeme,
                                         Declaration = decl
                                     };
 
@@ -480,6 +505,7 @@ namespace Sempiler.Languages
                             // was not found, instead of `null`? - 23/09/19
                             symbolicDependency = new SymbolicDependency()
                             {
+                                Lexeme = lexeme,
                                 // [dho] symbol declaration not found in AST - 23/09/19
                                 Declaration = null
                             };

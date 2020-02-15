@@ -13,9 +13,13 @@ namespace Sempiler.Emission
 
     public class TypeScriptEmitter : BaseEmitter
     {
-        public TypeScriptEmitter() : base(new string[]{ "typescript", PhaseKind.Emission.ToString("g").ToLower() })
+        public TypeScriptEmitter() : base(new string[]{ ArtifactTargetLang.TypeScript, PhaseKind.Emission.ToString("g").ToLower() })
         {
             FileExtension = ".ts";
+        }
+
+        protected TypeScriptEmitter(string[] diagnosticTags = null) : base(diagnosticTags)
+        {
         }
 
         const MetaFlag AccessorDeclarationFlags = TypeDeclarationMemberFlags | /* MetaFlag.Generator | MetaFlag.Asynchronous |*/ MetaFlag.Optional;
@@ -72,7 +76,7 @@ namespace Sempiler.Emission
             );
 
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " : ", childContext, token)
             );
 
             result.AddMessages(
@@ -121,7 +125,7 @@ namespace Sempiler.Emission
             );
 
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " : ", childContext, token)
             );
 
             return result;
@@ -1411,7 +1415,7 @@ namespace Sempiler.Emission
             );
 
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " : ", childContext, token)
             );
 
             result.AddMessages(
@@ -1459,10 +1463,8 @@ namespace Sempiler.Emission
                 EmitFunctionParameters(node, childContext, token)
             );
 
-            context.Emission.Append(node, " => ");
-
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " => ", childContext, token)
             );
 
             return result;
@@ -1989,12 +1991,11 @@ namespace Sempiler.Emission
                 EmitFunctionParameters(node, childContext, token)
             );
 
-            if(node.Type != null)
-            {
-                result.AddMessages(
-                    EmitFunctionType(node.Type, childContext, token)
-                );
-            }
+            
+            result.AddMessages(
+                EmitFunctionType(node.Type, " : ", childContext, token)
+            );
+        
 
             context.Emission.Append(node, "=>");
 
@@ -2302,7 +2303,7 @@ namespace Sempiler.Emission
             );
 
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " : ", childContext, token)
             );
 
             result.AddMessages(
@@ -2355,7 +2356,7 @@ namespace Sempiler.Emission
             );
 
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " : ", childContext, token)
             );
 
             return result;
@@ -2434,7 +2435,7 @@ namespace Sempiler.Emission
             );
 
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " : ", childContext, token)
             );
 
             result.AddMessages(
@@ -2483,7 +2484,7 @@ namespace Sempiler.Emission
             );
 
             result.AddMessages(
-                EmitFunctionType(node.Type, childContext, token)
+                EmitFunctionType(node.Type, " : ", childContext, token)
             );
 
             return result;
@@ -3746,13 +3747,13 @@ namespace Sempiler.Emission
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Result<object> EmitFunctionType(Node type, Context context, CancellationToken token)
+        private Result<object> EmitFunctionType(Node type, string prefix, Context context, CancellationToken token)
         {
             var result = new Result<object>();
 
             if (type != null)
             {
-                context.Emission.Append(type, " : ");
+                context.Emission.Append(type, prefix);
 
                 result.AddMessages(
                     EmitNode(type, context, token)

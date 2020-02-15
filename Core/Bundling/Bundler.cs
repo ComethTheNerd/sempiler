@@ -89,6 +89,98 @@ namespace Sempiler.Bundling
             return $"/{Sempiler.Core.Main.InferredConfig.SourceDirName}/{artifact.Name}/{Sempiler.Core.Main.InferredConfig.EntrypointFileName}".ToLower();
         }
         
+
+        public static Result<List<string>> AddResourceFiles(Session session, Artifact artifact, Shard shard, OutFileCollection ofc, string relResourcesOutputPath)
+        {
+            var result = new Result<List<string>>();
+
+            var relResourcePaths = new List<string>();
+
+            foreach (var resource in shard.Resources)
+            {
+                switch (resource.Source.Kind)
+                {
+                    case SourceKind.File:
+                        {
+
+                            var sourceFile = (ISourceFile)resource.Source;
+
+                            var srcPath = sourceFile.Location.ToPathString();
+
+                            // var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
+                            //     srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
+                            // }").ToPathString();
+
+                            // [dho] for now we just strip off the 
+                            // parent path components and just use the filename - 20/10/19 
+                            var relPath = FileSystem.ParseFileLocation(
+                                $@"{relResourcesOutputPath}{
+                                    resource.TargetFileName ?? 
+                                    (sourceFile.Location.Name + '.' + sourceFile.Location.Extension)
+                                }"
+                            ).ToPathString();
+
+                            /* if(*/
+                            AddCopyOfFileIfNotPresent(ofc, relPath, srcPath);//)
+                                                                          // {
+                            relResourcePaths.Add(relPath);
+                            // }
+                            // else
+                            // {
+                            //     result.AddMessages(
+                            //         new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
+                            //     );
+                            // }
+                        }
+                        break;
+
+                    case SourceKind.Literal:
+                        {
+                            var sourceLiteral = (ISourceLiteral)resource.Source;
+                            var srcPath = sourceLiteral.Location.ToPathString();
+
+                            // var relPath = FileSystem.ParseFileLocation($@"./{artifact.Name}/{relResourcesOutputPath}{
+                            //     srcPath.Replace($"{session.BaseDirectory.ToPathString()}/{Sempiler.Core.Main.InferredConfig.ResDirName}/{artifact.Name}/", "")
+                            // }").ToPathString();
+
+                            // [dho] for now we just strip off the 
+                            // parent path components and just use the filename - 20/10/19 
+                            var relPath = FileSystem.ParseFileLocation(
+                                $@"{relResourcesOutputPath}{resource.TargetFileName ?? 
+                                    (sourceLiteral.Location.Name + '.' + sourceLiteral.Location.Extension)
+                                }"
+                            ).ToPathString();
+
+
+                            AddRawFileIfNotPresent(ofc, relPath, sourceLiteral.Text);
+                            // if(AddRawFileIfMissing(ofc, relPath, ((ISourceLiteral)resource).Text))
+                            // {
+                            relResourcePaths.Add(relPath);
+                            // }
+                            // else
+                            // {
+                            //     result.AddMessages(
+                            //         new Message(MessageKind.Warning, $"'{artifact.Name}' resource '{relPath}' could not be added because a file at the location already exists in the output file collection")
+                            //     );
+                            // }
+                        }
+                        break;
+
+                    default:
+                        {
+                            result.AddMessages(
+                                new Message(MessageKind.Error, $"'{artifact.Name}' resource has unsupported kind '{resource.Source.Kind}'")
+                            );
+                        }
+                        break;
+                }
+            }
+
+            result.Value = relResourcePaths;
+
+            return result;
+        }
+        
         public static bool AddRawFileIfNotPresent(OutFileCollection ofc, string relPath, string content)
         {
             var location = FileSystem.ParseFileLocation(relPath);

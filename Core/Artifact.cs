@@ -49,7 +49,9 @@ namespace Sempiler
     {
         // public const string Compiler = "compiler";
         
+        public const string JavaScript = "javascript";
         public const string Java = "java";
+        public const string JSON = "json";
         public const string SQL = "sql";
         public const string Swift = "swift";
         public const string TypeScript = "typescript";
