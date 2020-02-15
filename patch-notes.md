@@ -2,7 +2,7 @@
 
 # 🗓 15/02/20
 - `FirebaseFunctionsBundler` now puts any dependencies with a name starting `@types/` into `package.json` `devDependencies` map, and other dependencies go in the standard `dependencies` map
-- `FirebaseFunctionsBundler` uses `cleanHosting` by default
+- `FirebaseFunctionsBundler` uses `cleanUrls` by default
 
 # 🗓 11/02/20
 - Added basic `JSONEmitter` and JSON as a target _language_
