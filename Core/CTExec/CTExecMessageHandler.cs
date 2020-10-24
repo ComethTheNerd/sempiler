@@ -11,6 +11,7 @@ using static Sempiler.Diagnostics.DiagnosticsHelpers;
 using System.Collections.Generic;
 using System.Threading;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Sempiler.CTExec
 {
@@ -110,12 +111,18 @@ namespace Sempiler.CTExec
                             {
                                 diagnostics.Add(error);
                             }
-
-                            // proc.Kill();
                         }
 
                         server.Send(socket, $"{{ \"ok\": true, \"id\": \"{command.MessageID}\", \"data\": null }}");
 
+                        // [dho] TODO FIX HACK where the Node process does not exit for some reason - 28/02/20
+                        System.Threading.Tasks.Task.Delay(3000).ContinueWith(task => { 
+                            if(!proc.HasExited)
+                            {
+                                Console.WriteLine("Force killing CT Exec Process after waiting for it to exit itself");
+                                proc.Kill();
+                            }
+                        });
                     }
                     else
                     {
@@ -559,16 +566,19 @@ namespace Sempiler.CTExec
                         {
                             switch (targetPlatform)
                             {
-                                case ArtifactTargetPlatform.Node:
+                                case ArtifactTargetPlatform.NodeJSExpress:
                                 case ArtifactTargetPlatform.FirebaseFunctions:
                                 case ArtifactTargetPlatform.AWSLambda:
+                                // case ArtifactTargetPlatform.AWSLambdaExpress:
                                 case ArtifactTargetPlatform.ZeitNow:
                                     role = ArtifactRole.Server;
                                     break;
 
                                 case ArtifactTargetPlatform.Android:
                                 case ArtifactTargetPlatform.IOS:
-                                case ArtifactTargetPlatform.SwiftUI:
+                                case ArtifactTargetPlatform.IPhone:
+                                case ArtifactTargetPlatform.IPad:
+                                // case ArtifactTargetPlatform.SwiftUI:
                                 case ArtifactTargetPlatform.WebBrowser:
                                     role = ArtifactRole.Client;
                                     break;
@@ -747,6 +757,16 @@ namespace Sempiler.CTExec
 
                         switch(rawRole)
                         {
+                            case "splash":{
+                                role = AssetRole.Splash;
+                            }
+                            break;
+
+                            case "none":{
+                                role = AssetRole.None;
+                            }
+                            break;
+
                             case "app-icon":{
                                 role = AssetRole.AppIcon;
                             }
@@ -775,98 +795,174 @@ namespace Sempiler.CTExec
                         {
                             var sourcePath = command.Arguments[CTProtocolAddAssetCommand.SourcePathIndex];
 
-                            List<SourceFilePatternMatchInput> inputs = new List<SourceFilePatternMatchInput>()
+                            if(role == AssetRole.Splash)
                             {
-                                new SourceFilePatternMatchInput(baseDirPath, sourcePath)
-                            };
+                                var parts = sourcePath.Split('?');
+                                sourcePath = parts[0];
 
-                            // [dho] TODO filter - 08/11/19
-                            SourceFileFilterDelegate filter = path => true;
-                          
-                            var parsedPaths = result.AddMessages(
-                                FilterNewSourceFilePaths(session, shard.AST, inputs, filter, token)
-                            );
-
-                            if (HasErrors(result) || token.IsCancellationRequested) return result;
-
-                            if(role == AssetRole.AppIcon || role == AssetRole.Image)
-                            {
-                                foreach (var sf in parsedPaths.NewSourceFiles)
+                                List<SourceFilePatternMatchInput> inputs = new List<SourceFilePatternMatchInput>()
                                 {
-                                    // Console.WriteLine("🔥🔥🔥🔥");
+                                    new SourceFilePatternMatchInput(baseDirPath, sourcePath)
+                                };
 
-                                    string name = Path.GetFileNameWithoutExtension(sf.GetPathString());
-                                    string size = null;
-                                    string scale = null;
+                                // [dho] TODO filter - 08/11/19
+                                SourceFileFilterDelegate filter = path => true;
+                            
+                                var parsedPaths = result.AddMessages(
+                                    FilterNewSourceFilePaths(session, shard.AST, inputs, filter, token)
+                                );
 
-                                    // [dho] NOTE does not support subpixels - 09/11/19
-                                    var rx = new System.Text.RegularExpressions.Regex(@"(-[0-9]+x[0-9]+)?(@[0-9]+x)?$", System.Text.RegularExpressions.RegexOptions.Compiled);
-
-                                    var matches = rx.Matches(name);
-
-                                    if (matches.Count > 0)
-                                    {
-                                        var match = matches[0];
-                                        var groups = match.Groups;
-
-                                        var suffix = groups[0].Value;
-                                        name = name.Substring(0, name.Length - suffix.Length);
-                                        size = String.IsNullOrEmpty(groups[1].Value) ? null : groups[1].Value.Substring(1); // [dho] remove trailing '-' - 09/11/19
-                                        scale = String.IsNullOrEmpty(groups[2].Value) ? null : groups[2].Value.Substring(1); // [dho] remove trailing '@' - 09/11/19
-                                    }
-
-                                    var existingImgIndex = IndexOfImageAsset(shard.Assets, role, name);
-
-                                    if (existingImgIndex > -1)
-                                    {
-                                        var imgAssetSet = (ImageAssetSet)shard.Assets[existingImgIndex];
-
-                                        imgAssetSet.Images.Add(new ImageAssetMember
-                                        {
-                                            Size = size,
-                                            Scale = scale,
-                                            Source = sf
-                                        });
-                                    }
-                                    else
-                                    {
-                                        var imgAssetSet = new ImageAssetSet
-                                        {
-                                            Name = name,
-                                            Role = role,
-                                            Images = new List<ImageAssetMember>()
-                                        };
-
-                                        imgAssetSet.Images.Add(new ImageAssetMember
-                                        {
-                                            Size = size,
-                                            Scale = scale,
-                                            Source = sf
-                                        });
-
-                                        shard.Assets.Add(imgAssetSet);
-                                    }
+                                if(parsedPaths.NewSourceFiles.Count == 0)
+                                {
+                                    result.AddMessages(new Message(MessageKind.Error, "No files found at splash asset path"));
                                 }
-                            }
-                            else if(role == AssetRole.Font)
-                            {
-                                foreach (var sf in parsedPaths.NewSourceFiles)
+
+                                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+                                ImageAssetMember? image = null, imageX2 = null, imageX3 = null;
+
+                                foreach(var sf in parsedPaths.NewSourceFiles)
                                 {
-                                    string name = Path.GetFileNameWithoutExtension(sf.GetPathString());
-                                  
-                                    var fontAsset = new FontAsset
-                                    {
-                                        Name = name,
-                                        Source = sf
+                                    var meta = ParseImageAssetMemberMeta(sf);
+                                    var img = new ImageAssetMember {
+                                        Source = sf,
+                                        Size = meta.Size,
+                                        Scale = meta.Scale
                                     };
 
-                                    shard.Assets.Add(fontAsset);                                
+                                    switch(meta.Scale)
+                                    {
+                                        case "3x":
+                                            imageX3 = img;
+                                        break;
+
+                                        case "2x":
+                                            imageX2 = img;
+                                        break;
+
+                                        default:
+                                        case "1x":
+                                            image = img;
+                                        break;
+                                    }
                                 }
+
+
+                                var backgroundRGB = new int[] { 0, 0, 0 };
+                                int? width = null;
+                                int? height = null;
+
+                                // [dho] background color after 'anchor', 
+                                // eg. `some/file/here.png?bg=#222324` - 03/03/20
+                                if(parts.Length == 2)
+                                {
+                                    foreach(var kv in parts[1].Split('&'))
+                                    {
+                                        var keyAndValue = kv.Split('=');
+
+                                        switch(keyAndValue[0])
+                                        {
+                                            case "bg":
+                                            {
+                                                var hex = keyAndValue[1];
+                                                var hexR = hex.Substring(1, 2);
+                                                var hexG = hex.Substring(3, 2);
+                                                var hexB = hex.Substring(5, 2);
+
+                                                backgroundRGB[0] = int.Parse(hexR, System.Globalization.NumberStyles.HexNumber);
+                                                backgroundRGB[1] = int.Parse(hexG, System.Globalization.NumberStyles.HexNumber);
+                                                backgroundRGB[2] = int.Parse(hexB, System.Globalization.NumberStyles.HexNumber);
+                                            }
+                                            break;
+
+                                            case "width":
+                                            {
+                                                width = int.Parse(keyAndValue[1]);
+                                            }
+                                            break;
+
+                                            case "height":
+                                            {
+                                                height = int.Parse(keyAndValue[1]);
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+
+
+                                imageX2 = imageX2 ?? image;
+                                imageX3 = imageX3 ?? imageX2;
+
+                                var splashAsset = new SplashAsset 
+                                {
+                                    BackgroundRGB = backgroundRGB,
+                                    Image = image.Value,
+                                    ImageX2 = imageX2.Value,
+                                    ImageX3 = imageX3.Value,
+                                    Width = width,
+                                    Height = height,
+                                    Role = role,
+                                };
+
+                                shard.Assets.Add(splashAsset);
+                            
                             }
                             else
                             {
-                                System.Diagnostics.Debug.Assert(false, $"Unhandled asset role '{role}'");
+                                List<SourceFilePatternMatchInput> inputs = new List<SourceFilePatternMatchInput>()
+                                {
+                                    new SourceFilePatternMatchInput(baseDirPath, sourcePath)
+                                };
+
+                                // [dho] TODO filter - 08/11/19
+                                SourceFileFilterDelegate filter = path => true;
+                            
+                                var parsedPaths = result.AddMessages(
+                                    FilterNewSourceFilePaths(session, shard.AST, inputs, filter, token)
+                                );
+
+                                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+                                
+                                if(role == AssetRole.AppIcon || role == AssetRole.Image)
+                                {
+                                    AddImageAssets(shard, role, parsedPaths.NewSourceFiles);
+                                }
+                                else if(role == AssetRole.Font)
+                                {
+                                    foreach (var sf in parsedPaths.NewSourceFiles)
+                                    {
+                                        string name = Path.GetFileNameWithoutExtension(sf.GetPathString());
+                                    
+                                        var fontAsset = new FontAsset
+                                        {
+                                            Name = name,
+                                            Source = sf,
+                                            Role = role
+                                        };
+
+                                        shard.Assets.Add(fontAsset);                                
+                                    }
+                                }
+                                else if(role == AssetRole.None)
+                                {
+                                    var rawAsset = new RawAsset
+                                    {
+                                        SourcePath = sourcePath,
+                                        Files = parsedPaths.NewSourceFiles,
+                                        Role = role
+                                    };
+
+                                    shard.Assets.Add(rawAsset);
+                                }
+                                else
+                                {
+                                    System.Diagnostics.Debug.Assert(false, $"Unhandled asset role '{role}'");
+                                }
                             }
+
+
 
                         }
                     }
@@ -1290,6 +1386,83 @@ namespace Sempiler.CTExec
             return result;
         }
 
+        struct ImageAssetMemberMeta 
+        {
+            public string Name;
+            public string Size;
+            public string Scale;
+        }
+
+        private static ImageAssetMemberMeta ParseImageAssetMemberMeta(ISourceFile sourceFile)
+        {
+            string name = Path.GetFileNameWithoutExtension(sourceFile.GetPathString());
+            string size = null;
+            string scale = null;
+
+            // [dho] NOTE does not support subpixels - 09/11/19
+            var rx = new Regex(@"(-[0-9]+x[0-9]+)?(@[0-9]+x)?$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+            var matches = rx.Matches(name);
+
+            if (matches.Count > 0)
+            {
+                var match = matches[0];
+                var groups = match.Groups;
+
+                var suffix = groups[0].Value;
+                name = name.Substring(0, name.Length - suffix.Length);
+                size = String.IsNullOrEmpty(groups[1].Value) ? null : groups[1].Value.Substring(1); // [dho] remove trailing '-' - 09/11/19
+                scale = String.IsNullOrEmpty(groups[2].Value) ? null : groups[2].Value.Substring(1); // [dho] remove trailing '@' - 09/11/19
+            }
+
+            return new ImageAssetMemberMeta {
+                Name = name,
+                Size = size,
+                Scale = scale
+            };
+        }
+
+        private static void AddImageAssets(Shard shard, AssetRole role, List<ISourceFile> sourceFiles)
+        {
+            foreach (var sf in sourceFiles)
+            {
+                // Console.WriteLine("🔥🔥🔥🔥");
+
+                var meta = ParseImageAssetMemberMeta(sf);
+
+                var existingImgIndex = IndexOfImageAsset(shard.Assets, role, meta.Name);
+
+                if (existingImgIndex > -1)
+                {
+                    var imgAssetSet = (ImageAssetSet)shard.Assets[existingImgIndex];
+                    
+                    imgAssetSet.Images.Add(new ImageAssetMember
+                    {
+                        Size = meta.Size,
+                        Scale = meta.Scale,
+                        Source = sf
+                    });
+                }
+                else
+                {
+                    var imgAssetSet = new ImageAssetSet
+                    {
+                        Name = meta.Name,
+                        Role = role,
+                        Images = new List<ImageAssetMember>()
+                    };
+
+                    imgAssetSet.Images.Add(new ImageAssetMember
+                    {
+                        Size = meta.Size,
+                        Scale = meta.Scale,
+                        Source = sf
+                    });
+
+                    shard.Assets.Add(imgAssetSet);
+                }
+            }
+        }
 
         private static Result<(List<Component>, string[])> AddSources(
             Session session, Artifact artifact, Shard shard, 
@@ -1313,6 +1486,7 @@ namespace Sempiler.CTExec
 
             if (HasErrors(result) || token.IsCancellationRequested) return result;
             
+
             var parsedSources = result.AddMessages(
                 ParseNewSources(inputs, session, artifact, shard.AST, sourceProvider, server, token)
             );

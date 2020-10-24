@@ -63,10 +63,18 @@ namespace Sempiler
 
         public const string Android = "android";
         public const string AWSLambda = "aws/lambda";
+        // public const string AWSLambdaExpress = "aws/lambda/express";
         public const string FirebaseFunctions = "firebase/functions";
+
         public const string IOS = "ios";
-        public const string Node = "node";
-        public const string SwiftUI = "ios/swiftui";
+        public const string IPad = "ios/ipad";
+        public const string IPhone = "ios/iphone";
+
+        // [dho] making SwiftUI for iOS targets the default for now - 27/02/20
+        // public const string SwiftUI = "ios/swiftui";
+
+
+        public const string NodeJSExpress = "nodejs/express";
         public const string WebBrowser = "webbrowser";
         public const string ZeitNow = "zeit/now";
     }

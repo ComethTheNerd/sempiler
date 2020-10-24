@@ -53,7 +53,7 @@ namespace Sempiler.Emission
     {
         protected readonly string[] DiagnosticTags;
 
-        protected string FileExtension = string.Empty;
+        public string FileExtension = string.Empty;
 
         protected BaseEmitter(string[] diagnosticTags = null)
         {

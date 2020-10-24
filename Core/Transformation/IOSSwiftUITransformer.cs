@@ -41,6 +41,7 @@ namespace Sempiler.Transformation
             { "PasteButton", new [] { ("supportedTypes", true), ("onTrigger", true) } },
             { "Path", new [] { ("string", true), ("ellipseIn", true), ("roundedRect", true), ("cornerRadius", true), ("cornerSize", true), ("style", true), ("path", false) }},
             { "PresentationLink", new [] { ( "destination", true ), ( "label", true ), } },
+            { "RoundedRectangle", new [] { ("cornerRadius", true), ("cornerSize", true), ("style", true) } },
             // { "ScrollView", new [] { ("isScrollEnabled", true), ("alwaysBounceHorizontal", true), ("alwaysBounceVertical", true), ("showsHorizontalIndicator", true), ("showsVerticalIndicator", true), ("content", true) }},
             { "ScrollView", new [] { ("axes", false), ("showsIndicators", true), ("content", true) }},
             { "Section", new [] { ("header", true), ("footer", true), ("content", true) } },

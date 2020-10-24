@@ -150,6 +150,8 @@ namespace Sempiler.CTExec
 
             var subject = directive.Subject;
 
+            Console.WriteLine(subject.Origin.Lexeme);
+
             // [dho] have to hoist all dependencies recursively - 11/07/19
             result.AddMessages(
                 HoistDependencies(session, artifact, ast, subject, languageSemantics, /*TransformationMode.Hoist,*/ hoistedDirectiveStatements, hoistedNodes, token)

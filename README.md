@@ -94,6 +94,7 @@ Currently supported target platforms:
 - Android 🤖
 - [Zeit Now](https://www.youtube.com/watch?v=dzjQUAYNL60&feature=youtu.be) ◼️
 - Firebase Functions 🔥
+- Express
 
 #### Firebase Functions
 

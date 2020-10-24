@@ -44,7 +44,9 @@
         {
             foreach(var kv in other.outFiles)
             {
-                System.Diagnostics.Debug.Assert(!this.outFiles.ContainsKey(kv.Key));
+                // [dho] DISABLING assertion because now the iOSBundler is 
+                // emitting raw sources with their original filename - 25/02/20
+                // System.Diagnostics.Debug.Assert(!this.outFiles.ContainsKey(kv.Key));
 
                 this.outFiles[kv.Key] = kv.Value;
             }

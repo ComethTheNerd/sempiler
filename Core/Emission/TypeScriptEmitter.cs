@@ -1431,7 +1431,9 @@ namespace Sempiler.Emission
 
             if (node.Value != null)
             {
-                context.Emission.Append(node, "return ");
+                // [dho] FIX for issue where value is written on new line...
+                // because in TS/JS the value has to be on the same line as the `return` keyword - 28/02/20
+                context.Emission.Append(node, "return (");
 
                 var childContext = ContextHelpers.Clone(context);
                 // // childContext.Parent = node;
@@ -1439,6 +1441,8 @@ namespace Sempiler.Emission
                 result.AddMessages(
                     EmitNode(node.Value, childContext, token)
                 );
+
+                context.Emission.Append(node, ")");
             }
             else
             {
@@ -1558,9 +1562,13 @@ namespace Sempiler.Emission
             var childContext = ContextHelpers.Clone(context);
             // // childContext.Parent = node;
 
-            context.Emission.Append(node, "keyof ");
+            context.Emission.Append(node, "(keyof ");
 
-            return EmitNode(node.Type, context, token);
+            var result = EmitNode(node.Type, context, token);
+
+            context.Emission.Append(node, ")");
+
+            return result;
         }
 
         public override Result<object> EmitInferredTypeQuery(InferredTypeQuery node, Context context, CancellationToken token)
@@ -1580,9 +1588,19 @@ namespace Sempiler.Emission
             var childContext = ContextHelpers.Clone(context);
             // // childContext.Parent = node;
 
+            var incident = node.Incident;
+
             result.AddMessages(
-                EmitNode(node.Incident, childContext, token)
+                EmitNode(incident, childContext, token)
             );
+
+            var rhs = ASTNodeHelpers.RHS(context.AST, incident);
+
+            // [dho] eg. `foo?.[bar]`, `foo!.[bar]` - 29/02/20
+            if(rhs.Kind == SemanticKind.MaybeNull || rhs.Kind == SemanticKind.NotNull)
+            {
+                context.Emission.Append(node, ".");
+            }
 
             context.Emission.Append(node, "[");
 
@@ -1777,10 +1795,20 @@ namespace Sempiler.Emission
 
         public override Result<object> EmitIntersectionTypeReference(IntersectionTypeReference node, Context context, CancellationToken token)
         {
+            var result = new Result<object>();
+
             var childContext = ContextHelpers.Clone(context);
             // // childContext.Parent = node;
 
-            return EmitDelimited(node.Types, "&", context, token);
+            context.Emission.AppendBelow(node, "(");
+
+            result.AddMessages(
+                EmitDelimited(node.Types, "&", context, token)
+            );
+
+            context.Emission.AppendBelow(node, ")");
+
+            return result;
         }
 
         public override Result<object> EmitIntrinsicTypeReference(IntrinsicTypeReference node, Context context, CancellationToken token)
@@ -1839,6 +1867,14 @@ namespace Sempiler.Emission
             result.AddMessages(
                 EmitNode(subject, childContext, token)
             );
+
+            var rhs = ASTNodeHelpers.RHS(context.AST, subject);
+
+            // [dho] eg. `foo?.(bar)`, `foo!.(bar)`, `foo?.<Bar>(bar)`, `foo!.<Bar>(bar)` - 29/02/20
+            if(rhs.Kind == SemanticKind.MaybeNull || rhs.Kind == SemanticKind.NotNull)
+            {
+                context.Emission.Append(node, ".");
+            }
 
             if (template.Length > 0)
             {
@@ -2081,9 +2117,11 @@ namespace Sempiler.Emission
 
             result.AddMessages(EmitNode(node.TypeParameter, childContext, token));
 
-            context.Emission.Append(node, " in keyof ");
+            context.Emission.Append(node, " in (keyof ");
 
             result.AddMessages(EmitNode(node.Type, childContext, token));
+
+            context.Emission.Append(node, ")");
 
             // [dho] putting this here because at the moment we call emit twice on the `Type``
             // and `TypeParameter`.. so in an effort to avoid duplicated error messages, we will bail
@@ -2200,9 +2238,13 @@ namespace Sempiler.Emission
             var childContext = ContextHelpers.Clone(context);
             // // childContext.Parent = node;
 
-            context.Emission.Append(node, "in keyof ");
+            context.Emission.Append(node, "in (keyof ");
 
-            return EmitNode(node.Type, context, token);
+            var result = EmitNode(node.Type, context, token);
+
+            context.Emission.Append(node, ")");
+
+            return result;
         }
 
         public override Result<object> EmitMembershipTest(MembershipTest node, Context context, CancellationToken token)
@@ -2789,6 +2831,11 @@ namespace Sempiler.Emission
                 EmitNode(node.Name, childContext, token)
             );
 
+            if(MetaHelpers.HasFlags(node, MetaFlag.Optional))
+            {
+                context.Emission.Append(node, "?");
+            }
+
             if(node.Type != null)
             {
                 context.Emission.Append(node, ":");
@@ -3347,10 +3394,20 @@ namespace Sempiler.Emission
 
         public override Result<object> EmitUnionTypeReference(UnionTypeReference node, Context context, CancellationToken token)
         {
+            var result = new Result<object>();
+
             var childContext = ContextHelpers.Clone(context);
             // // childContext.Parent = node;
 
-            return EmitDelimited(node.Types, "|", context, token);
+            context.Emission.AppendBelow(node, "(");
+
+            result.AddMessages(
+                EmitDelimited(node.Types, "|", context, token)
+            );
+
+            context.Emission.AppendBelow(node, ")");
+
+            return result;
         }
 
         public override Result<object> EmitViewConstruction(ViewConstruction node, Context context, CancellationToken token)
@@ -3711,6 +3768,15 @@ namespace Sempiler.Emission
 
             if (members?.Length > 0)
             {
+                if(members.Length == 1 && members[0].Kind == SemanticKind.Block)
+                {
+                    result.AddMessages(
+                        EmitNode(members[0], context, token)
+                    );
+
+                    return result;
+                }
+
                 context.Emission.Append(parent, "{");
                 context.Emission.Indent();
 
@@ -3854,6 +3920,7 @@ namespace Sempiler.Emission
                 case SemanticKind.ForPredicateLoop:
                 case SemanticKind.FunctionDeclaration:
                 case SemanticKind.InterfaceDeclaration:
+                case SemanticKind.Label:
                 case SemanticKind.MatchJunction:
                 case SemanticKind.MatchClause:
                 case SemanticKind.MethodDeclaration:
@@ -3904,6 +3971,11 @@ namespace Sempiler.Emission
                             if(hasPreviousClause)
                             {
                                 context.Emission.Append(m, ",");
+                            }
+
+                            if(node.Kind == SemanticKind.ExportDeclaration && from.Kind == SemanticKind.DefaultExportReference)
+                            {
+                                context.Emission.Append(m, "default ");
                             }
 
                             result.AddMessages(
@@ -4054,7 +4126,7 @@ namespace Sempiler.Emission
             return result;
         }
 
-        private Result<object> EmitCSV(Node[] nodes, Context context, CancellationToken token)
+        protected Result<object> EmitCSV(Node[] nodes, Context context, CancellationToken token)
         {
             return EmitDelimited(nodes, ",", context, token);
         }

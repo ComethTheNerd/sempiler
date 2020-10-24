@@ -183,34 +183,37 @@ namespace Sempiler.CTExec
             {
                 var pathsToParse = new List<string>();
 
-                foreach(var path in pathsNotInAST)
+                lock(session.ComponentCache)
                 {
-                    if(session.ComponentCache.ContainsKey(path))
+                    foreach(var path in pathsNotInAST)
                     {
-                        var cachedComponent = session.ComponentCache[path];
+                        if(session.ComponentCache.ContainsKey(path))
+                        {
+                            var cachedComponent = session.ComponentCache[path];
 
-                        ASTHelpers.DeepRegister(cachedComponent.AST, ast, domain.ID, new[] { cachedComponent.Node }, token);
+                            ASTHelpers.DeepRegister(cachedComponent.AST, ast, domain.ID, new[] { cachedComponent.Node }, token);
 
-                        newComponents.Add(cachedComponent);
+                            newComponents.Add(cachedComponent);
+                        }
+                        else
+                        {
+                            pathsToParse.Add(path);
+                        }
                     }
-                    else
+                
+                    if(pathsToParse.Count > 0)
                     {
-                        pathsToParse.Add(path);
-                    }
-                }
+                        var parser = new Sempiler.Parsing.PolyParser();
 
-                if(pathsToParse.Count > 0)
-                {
-                    var parser = new Sempiler.Parsing.PolyParser();
+                        var parsedComponents = result.AddMessages(
+                            Sempiler.CompilerHelpers.Parse(parser, session, ast, sourceProvider, pathsToParse, token)
+                        );
 
-                    var parsedComponents = result.AddMessages(
-                        Sempiler.CompilerHelpers.Parse(parser, session, ast, sourceProvider, pathsNotInAST, token)
-                    );
-
-                    if(parsedComponents != null)
-                    {
-                        SessionHelpers.CacheComponents(session, parsedComponents, token);
-                        newComponents.AddRange(parsedComponents);
+                        if(parsedComponents != null)
+                        {
+                            SessionHelpers.CacheComponents(session, parsedComponents, token);
+                            newComponents.AddRange(parsedComponents);
+                        }
                     }
                 }
             }
@@ -926,6 +929,7 @@ try {{
                 System.Diagnostics.Debug.Assert(child.Kind == SemanticKind.Component);
 
                 var component = ASTNodeFactory.Component(ast, (DataNode<string>)child);
+                
                 var isFocus = false;
                 var hasEmittedAlready = session.CTExecInfo.ComponentIDsEmitted.ContainsKey(component.ID);
 
@@ -957,11 +961,6 @@ try {{
                         }
                     }
                 }
-                else
-                {
-                    int i = 0;
-                }
-
 
                 if(!isFocus)
                 {

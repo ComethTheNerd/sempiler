@@ -22,12 +22,12 @@ namespace Sempiler.Bundling
     {
         public static string ProductIdentifier(Artifact artifact, Shard shard)
         {
-            return PackageIdentifier(artifact) + "." + shard.Name;  
+            return (PackageIdentifier(artifact) + "." + shard.Name).ToLower();  
         }
 
         public static string PackageIdentifier(Artifact artifact)
         {
-            return "com." + artifact.TeamName;  
+            return ("com." + artifact.TeamName).ToLower();  
         }
 
         public static Shard GetMainAppOrThrow(Session session, Artifact artifact)
@@ -331,6 +331,16 @@ namespace Sempiler.Bundling
             {
                 ASTHelpers.DisableNodes(ast, nodeIDsToDisable.ToArray());
             }
+        }
+
+        public static bool IsRawSource(Component node)
+        {
+            foreach(var (child, hasNext) in ASTNodeHelpers.IterateLiveChildren(node.AST, node))
+            {
+                return child.Kind == SemanticKind.CodeConstant && !hasNext;
+            }
+
+            return false;
         }
 
         // public static string GenerateCTID()

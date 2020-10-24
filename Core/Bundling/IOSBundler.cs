@@ -28,6 +28,9 @@ namespace Sempiler.Bundling
         const string AppDelegateClassSymbolName = "AppDelegate";
         const string SceneDelegateClassSymbolName = "SceneDelegate";
 
+        const int IOSDeviceFamilyID_IPhone = 1;
+        const int IOSDeviceFamilyID_IPad = 2;
+
         private readonly IOSBundler_SwiftEmitter Emitter = new IOSBundler_SwiftEmitter();
 
 
@@ -356,18 +359,26 @@ embed_extensions_phase.symbol_dst_subfolder_spec = :plug_ins
 
             var componentsProcessed = new Dictionary<string, bool>();
 
+            var mainAppShard = GetMainAppOrThrow(session, artifact);
+
+            FilterNonEmptyComponents(mainAppShard.AST);
+
+            var bundleVersion = GenerateBuildNumber().ToString();
+
+            var mainAppTargetInfo = result.AddMessages(
+                EmitMainAppTarget(session, artifact, mainAppShard, artifactRelPath, bundleVersion, token)
+            );
+
             foreach (var shard in shards)
             {
-                FilterNonEmptyComponents(shard.AST);
-
                 var targetInfo = default(TargetInfo);
 
                 // emittedFiles
                 if (shard.Role == ShardRole.MainApp)
                 {
-                    targetInfo = result.AddMessages(
+                    targetInfo = mainAppTargetInfo;/*result.AddMessages(
                         EmitMainAppTarget(session, artifact, shard, artifactRelPath, token)
-                    );
+                    );*/
 
                     initRBContent.Append(
                         result.AddMessages(
@@ -378,14 +389,16 @@ embed_extensions_phase.symbol_dst_subfolder_spec = :plug_ins
                 }
                 else if (shard.Role == ShardRole.ShareExtension)
                 {
+                    FilterNonEmptyComponents(shard.AST);
+
                     targetInfo = result.AddMessages(
-                        EmitShareExtensionTargetInfo(session, artifact, shard, artifactRelPath, token)
+                        EmitShareExtensionTargetInfo(session, artifact, shard, artifactRelPath, bundleVersion, token)
                     );
 
                     initRBContent.Append(
                         result.AddMessages(
                             EmitShareExtensionInitRBContent(session, artifact, shard, shard.AST, targetInfo,
-                            /*componentNamesProcessed, shard.AST,*/ ofc, artifactRelPath, token)
+                            /*componentNamesProcessed, shard.AST,*/ ofc, artifactRelPath, mainAppTargetInfo, token)
                         ) ?? System.String.Empty
                     );
                 }
@@ -399,13 +412,11 @@ embed_extensions_phase.symbol_dst_subfolder_spec = :plug_ins
                 }
 
 
-
-
-
+                var targetNameLowercase = targetInfo.Name.ToLower();
 
 
                 podfileContent.Append(
-$@"target '{targetInfo.Name}' do
+$@"target '{shard.Name}' do
   {useFrameworks}
   platform :ios, '13.0'");
 
@@ -421,8 +432,8 @@ $@"target '{targetInfo.Name}' do
                     if(packageManager == PackageManager.SwiftPackageManager)
                     {
                         var depSeed = dependencyIDSeed++;
-                        var pkgProdDepLexeme = targetInfo.Name + "_swift_pkg_prod_dep" + depSeed;
-                        var pkgRefLexeme = targetInfo.Name + "_swift_pkg_ref" + depSeed;
+                        var pkgProdDepLexeme = targetNameLowercase + "_swift_pkg_prod_dep" + depSeed;
+                        var pkgRefLexeme = targetNameLowercase + "_swift_pkg_ref" + depSeed;
 
                         initRBContent.AppendLine($"{pkgProdDepLexeme} = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)");
                         
@@ -462,7 +473,7 @@ $@"target '{targetInfo.Name}' do
                         
                         initRBContent.AppendLine($"project.root_object.package_references << {pkgRefLexeme}");
 
-                        initRBContent.AppendLine($"{targetInfo.Name}.package_product_dependencies << {pkgProdDepLexeme}");
+                        initRBContent.AppendLine($"{targetNameLowercase}.package_product_dependencies << {pkgProdDepLexeme}");
 
                     }
                     // [dho] CocoaPods dependency (default) - 04/01/20
@@ -611,6 +622,21 @@ $@"source 'https://cdn.cocoapods.org/'
                 }
             }
 
+            {
+                var task = new Sempiler.Transformation.SwiftNullabilityTransformer().Transform(session, artifact, ast, token);
+
+                task.Wait();
+
+                var newAST = result.AddMessages(task.Result);
+
+                if (HasErrors(result) || token.IsCancellationRequested) return result;
+
+                if (newAST != ast)
+                {
+                    result.AddMessages(new Message(MessageKind.Error, "Swift Nullability Transformer unexpectedly returned a different AST that was discarded"));
+                }
+            }
+
             return result;
         }
 
@@ -620,6 +646,7 @@ $@"source 'https://cdn.cocoapods.org/'
             {
                 Name = name;
                 Artifact = artifact;
+                TargetedDeviceFamilyIDs = GetTargetDeviceFamilyIDs(artifact);
                 FilesNotReferencedInScheme = new OutFileCollection();
                 FilesReferencedInScheme = new OutFileCollection();
                 ComponentNamesReferenced = null;
@@ -629,18 +656,20 @@ $@"source 'https://cdn.cocoapods.org/'
             public readonly string Name;
             public readonly Artifact Artifact;
 
+            public readonly int[] TargetedDeviceFamilyIDs;
+
             // public string ShardName {
             //     get => Name + "_target";
             // }
 
             public string SrcName
             {
-                get => Name + "_src";
+                get => Name.ToLower() + "_src";
             }
 
             public string ResName
             {
-                get => Name + "_res";
+                get => Name.ToLower() + "_res";
             }
 
             public string RelPath
@@ -660,7 +689,7 @@ $@"source 'https://cdn.cocoapods.org/'
             public string EntitlementsPListFileName { get; set; }
         }
 
-        private Result<TargetInfo> EmitMainAppTarget(Session session, Artifact artifact, Shard shard, string artifactRelPath, CancellationToken token)
+        private Result<TargetInfo> EmitMainAppTarget(Session session, Artifact artifact, Shard shard, string artifactRelPath, string bundleVersion, CancellationToken token)
         {
             var result = new Result<TargetInfo>();
 
@@ -690,7 +719,7 @@ $@"source 'https://cdn.cocoapods.org/'
 
             // [dho] manifest files - 17/10/19
             {
-                var infoPList = BaseInfoPList(shard, targetInfo);
+                var infoPList = BaseInfoPList(shard, targetInfo, bundleVersion);
 
                 var additionalConfig = new Dictionary<string, object> {
                     { "LSRequiresIPhoneOS", true },
@@ -717,7 +746,7 @@ $@"source 'https://cdn.cocoapods.org/'
                 result.AddMessages(AddPermissions(shard, infoPList));
                 result.AddMessages(AddCapabilities(shard, infoPList));
                 result.AddMessages(AddFonts(shard, infoPList));
-                result.AddMessages(AddOrientations(shard, infoPList));
+                result.AddMessages(AddOrientations(artifact, shard, infoPList));
                 result.AddMessages(AddManifestEntries(shard, infoPList));
                 // targetInfo.FilesNotReferencedInScheme = new OutFileCollection();
                 
@@ -746,13 +775,13 @@ $@"source 'https://cdn.cocoapods.org/'
             return result;
         }
 
-        private static Dictionary<string, object> BaseInfoPList(Shard shard, TargetInfo targetInfo)
+        private static Dictionary<string, object> BaseInfoPList(Shard shard, TargetInfo targetInfo, string bundleVersion)
         {
             return (
                 new Dictionary<string, object>
                 {
                     { "CFBundleDevelopmentRegion", "$(DEVELOPMENT_LANGUAGE)" },
-                    { "CFBundleDisplayName", targetInfo.Name },
+                    { "CFBundleDisplayName", shard.Name },
                     { "CFBundleExecutable", "$(EXECUTABLE_NAME)" },
                     { "CFBundleIdentifier", "$(PRODUCT_BUNDLE_IDENTIFIER)" },
                     { "CFBundleInfoDictionaryVersion", "6.0" },
@@ -760,7 +789,7 @@ $@"source 'https://cdn.cocoapods.org/'
                     { "CFBundlePackageType", "$(PRODUCT_BUNDLE_PACKAGE_TYPE)" },
                     /*[dho] NOTE explanation of bundle version vs build number : https://stackoverflow.com/a/6965086/300037 - 16/11/19*/
                     { "CFBundleShortVersionString", shard.Version },
-                    { "CFBundleVersion", GenerateBuildNumber().ToString() },
+                    { "CFBundleVersion", bundleVersion },
                     { "NSAppTransportSecurity", new Dictionary<string, object> { 
                         { "NSAllowsLocalNetworking", true }
                     }}
@@ -847,7 +876,7 @@ $@"source 'https://cdn.cocoapods.org/'
             return result;
         }
 
-         private static Result<object> AddOrientations(Shard shard, Dictionary<string, object> pList)
+         private static Result<object> AddOrientations(Artifact artifact, Shard shard, Dictionary<string, object> pList)
         {
             var result = new Result<object>();
             var orientations = new List<string>();
@@ -880,14 +909,19 @@ $@"source 'https://cdn.cocoapods.org/'
                 }
             }
             
-            // [dho] NOTE using same orientations for iPhone and iPad - 16/11/19
-            result.AddMessages(
-                ShardHelpers.AddConfigValue(pList, new [] { "UISupportedInterfaceOrientations" }, orientations.ToArray()/*, false /* don't merge, just overwrite */)
-            );
+            if(artifact.TargetPlatform == ArtifactTargetPlatform.IOS || artifact.TargetPlatform == ArtifactTargetPlatform.IPhone)
+            {
+                result.AddMessages(
+                    ShardHelpers.AddConfigValue(pList, new [] { "UISupportedInterfaceOrientations" }, orientations.ToArray()/*, false /* don't merge, just overwrite */)
+                );
+            }
 
-            result.AddMessages(
-                ShardHelpers.AddConfigValue(pList, new [] { "UISupportedInterfaceOrientations~ipad" }, orientations.ToArray()/*, false /* don't merge, just overwrite */)
-            );
+            if(artifact.TargetPlatform == ArtifactTargetPlatform.IOS || artifact.TargetPlatform == ArtifactTargetPlatform.IPad)
+            {
+                result.AddMessages(
+                    ShardHelpers.AddConfigValue(pList, new [] { "UISupportedInterfaceOrientations~ipad" }, orientations.ToArray()/*, false /* don't merge, just overwrite */)
+                );
+            }
 
             return result;
         }
@@ -912,6 +946,7 @@ $@"source 'https://cdn.cocoapods.org/'
             var result = new Result<string>();
             var content = new System.Text.StringBuilder();
 
+            var targetNameLowercase = targetInfo.Name.ToLower();
             // result.AddMessages(
             //     MoveComponentsToCombinedAST(session, artifact, shard, combinedAST, componentNamesProcessed, token)
             // );
@@ -927,11 +962,11 @@ $@"source 'https://cdn.cocoapods.org/'
             content.Append(
 $@"
 # target represents the app artifact being produced by the build
-{targetInfo.Name} = project.new_target(:application, '{targetInfo.Name}', :ios, nil, nil, :swift)
+{targetNameLowercase} = project.new_target(:application, '{shard.Name}', :ios, nil, nil, :swift)
 
-{targetInfo.Name}.build_phases << embed_extensions_phase
+{targetNameLowercase}.build_phases << embed_extensions_phase
 
-attributes[{targetInfo.Name}.uuid] = {{'SystemCapabilities' => {{ 
+attributes[{targetNameLowercase}.uuid] = {{'SystemCapabilities' => {{ 
 "
             );
 
@@ -945,7 +980,7 @@ $@"
 }} }}
 
 # grouping the emitted files under a folder with the same name as artifact
-{targetInfo.SrcName} = project.new_group('{targetInfo.Name}')
+{targetInfo.SrcName} = project.new_group('{shard.Name}')
 
 {targetInfo.ResName} = {targetInfo.SrcName}.new_group('Resources')
 
@@ -956,7 +991,16 @@ $@"
             );
 
 
-            AddIncludesForReferencedComponents(session, artifact, shard, ast, targetInfo, $"{targetInfo.Name}.source_build_phase.add_file_reference({{0}}.new_file('{{1}}'))", content);
+            var fileRefFormatString = $"{targetNameLowercase}.source_build_phase.add_file_reference({{0}}.new_file('{{1}}'))";
+            AddIncludesForReferencedComponents(session, artifact, shard, ast, targetInfo, fileRefFormatString, content);
+
+
+            var splashAsset = shard.Assets.Find(x => x.Role == AssetRole.Splash) as SplashAsset;
+            if(splashAsset != null)
+            {
+                AddSplashStoryboard(splashAsset, artifact, targetInfo, fileRefFormatString, content, ofc);
+            }
+            
 
             foreach (var synthManifestFile in targetInfo.FilesNotReferencedInScheme)
             {
@@ -972,7 +1016,7 @@ $@"
                 ofc[FileSystem.ParseFileLocation(p)] = synthSourceFile.Emission;
 
 
-                content.Append($"{targetInfo.Name}.source_build_phase.add_file_reference({targetInfo.SrcName}.new_file('{p}'))");
+                content.Append($"{targetNameLowercase}.source_build_phase.add_file_reference({targetInfo.SrcName}.new_file('{p}'))");
                 content.AppendLine();
             }
 
@@ -980,7 +1024,7 @@ $@"
             foreach (var relResourcePath in relResourcePaths)
             {
                 // [dho] TODO CLEANUP make into one call to `add_resources` with a populated array - 19/07/19
-                content.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{relResourcePath}')])");
+                content.Append($"{targetNameLowercase}.add_resources([{targetInfo.ResName}.new_file('{relResourcePath}')])");
                 content.AppendLine();
             }
 
@@ -990,24 +1034,50 @@ $@"
                 )
             );
 
+            var targetedDeviceFamilyBuildSettingValue = targetInfo.TargetedDeviceFamilyIDs.Length == 1 ? 
+                targetInfo.TargetedDeviceFamilyIDs[0].ToString() :  
+                "'" + string.Join(",", targetInfo.TargetedDeviceFamilyIDs) + "'";
+
+            var iPhoneOSDeploymentTargetSetting = Array.IndexOf(targetInfo.TargetedDeviceFamilyIDs, IOSDeviceFamilyID_IPhone) > - 1 ? (
+                $"{targetNameLowercase}.build_configuration_list.set_setting('IPHONEOS_DEPLOYMENT_TARGET', '13.0')"
+            ) : string.Empty;
+
             content.Append(
 $@"
-{targetInfo.Name}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
-{targetInfo.Name}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
-{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{productBundleIdentifier}')
-# {targetInfo.Name}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
+{targetNameLowercase}.build_configuration_list.set_setting('TARGETED_DEVICE_FAMILY', {targetedDeviceFamilyBuildSettingValue})
+{iPhoneOSDeploymentTargetSetting}
+{targetNameLowercase}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
+{targetNameLowercase}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
+{targetNameLowercase}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{productBundleIdentifier}')
+# {targetNameLowercase}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
 
 {/*[dho] adapted from https://stackoverflow.com/a/58656323/300037 - 06/01/20 */""}
-{targetInfo.Name}.build_configuration_list.set_setting('BUILD_LIBRARY_FOR_DISTRIBUTION', 'YES')
+{targetNameLowercase}.build_configuration_list.set_setting('BUILD_LIBRARY_FOR_DISTRIBUTION', 'YES')
 
 {/*[dho] TODO change this if building for Release? - 08/01/20 */""}
-{targetInfo.Name}.build_configuration_list.set_setting('GCC_OPTIMIZATION_LEVEL', 0)
+{targetNameLowercase}.build_configuration_list.set_setting('GCC_OPTIMIZATION_LEVEL', 0)
 "
             );
 
             result.Value = content.ToString();
 
             return result;
+        }
+
+        private static int[] GetTargetDeviceFamilyIDs(Artifact artifact)
+        {   
+            switch(artifact.TargetPlatform)
+            {
+                case ArtifactTargetPlatform.IPad:
+                    return new int[] { IOSDeviceFamilyID_IPad };
+
+                case ArtifactTargetPlatform.IPhone:
+                    return new int[] { IOSDeviceFamilyID_IPhone };
+
+                default:
+                case ArtifactTargetPlatform.IOS:
+                    return new int[] { IOSDeviceFamilyID_IPhone, IOSDeviceFamilyID_IPad };
+            }
         }
 
         private void AddIncludesForReferencedComponents(Session session, Artifact artifact, Shard shard, RawAST ast, TargetInfo targetInfo, string formatString, System.Text.StringBuilder content)
@@ -1303,21 +1373,36 @@ $@"
                 var contentInitRB = new System.Text.StringBuilder();
 
                 var assetsRelPath = $"{targetInfo.RelPath}/Assets.xcassets";
-                contentInitRB.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{assetsRelPath}')])");
+                contentInitRB.Append($"{targetInfo.Name.ToLower()}.add_resources([{targetInfo.ResName}.new_file('{assetsRelPath}')])");
+                contentInitRB.AppendLine();
 
                 foreach (var asset in assets)
                 {
                     if (asset.Role == AssetRole.AppIcon)
                     {
-                        AddImageAssetSet((ImageAssetSet)asset, "appiconset", ofc, assetsRelPath);
+                        result.AddMessages(
+                            AddImageAssetSet(targetInfo.TargetedDeviceFamilyIDs, (ImageAssetSet)asset, "appiconset", ofc, assetsRelPath)
+                        );
+                    }
+                    else if(asset.Role == AssetRole.Splash)
+                    {
+                        result.AddMessages(
+                            AddSplashAsset((SplashAsset)asset, targetInfo, ofc, assetsRelPath)
+                        );
                     }
                     else if (asset.Role == AssetRole.Image)
                     {
-                        AddImageAssetSet((ImageAssetSet)asset, "imageset", ofc, assetsRelPath);
+                        result.AddMessages(
+                            AddImageAssetSet(targetInfo.TargetedDeviceFamilyIDs, (ImageAssetSet)asset, "imageset", ofc, assetsRelPath)
+                        );
                     }
                     else if (asset.Role == AssetRole.Font)
                     {
                         AddFontAsset((FontAsset)asset, ofc, assetsRelPath);
+                    }
+                    else if(asset.Role == AssetRole.None)
+                    {
+                        AddRawAsset((RawAsset)asset, ofc, assetsRelPath);
                     }
                     else
                     {
@@ -1333,8 +1418,10 @@ $@"
             return result;
         }
 
-        private static void AddImageAssetSet(ImageAssetSet asset, string setType, OutFileCollection ofc, string assetsRelPath)
+        private static Result<object> AddImageAssetSet(int[] targetedDeviceFamilyIDs, ImageAssetSet asset, string setType, OutFileCollection ofc, string assetsRelPath)
         {
+            var result = new Result<object>();
+
             var imgSetRelPath = $"{assetsRelPath}/{asset.Name}.{setType}";
             var contentsJSONRelPath = $"{imgSetRelPath}/Contents.json";
 
@@ -1350,7 +1437,16 @@ $@"
                 var imgSrcPath = img.Source.GetPathString();
                 var imgFileName = System.IO.Path.GetFileName(imgSrcPath);
                 var imgRelPath = $"{imgSetRelPath}/{imgFileName}";
-                var imgIdioms = InferImageAssetMemberIdioms(img);
+                var imgIdioms = InferImageAssetMemberIdioms(targetedDeviceFamilyIDs, img);
+
+                if(imgIdioms.Length == 0)
+                {
+                    // [dho] skip image if we could not detect idioms for it - 27/02/20
+                    result.AddMessages(
+                        new Message(MessageKind.Warning, $"Skipping image asset '{imgFileName}' because no iOS idioms were matched for the target platform")
+                    );
+                    continue;
+                }
 
                 for (int j = 0; j < imgIdioms.Length; ++j)
                 {
@@ -1391,23 +1487,67 @@ $@"
             contentsJSONContent.Append("],\"info\" : {\"version\" : 1,\"author\" : \"sempiler\"}}");
 
             AddRawFileIfNotPresent(ofc, contentsJSONRelPath, contentsJSONContent.ToString());
+
+            return result;
         }
 
-        private static string[] InferImageAssetMemberIdioms(ImageAssetMember img)
+        private static string[] InferImageAssetMemberIdioms(int[] targetedDeviceFamilyIDs, ImageAssetMember img)
         {
             switch (img.Size)
             {
                 case "20x20":
                 case "29x29":
                 case "40x40":
-                    return new[] { "iphone", "ipad" };
+                {
+                    var iPhoneSupport = Array.IndexOf(targetedDeviceFamilyIDs, IOSDeviceFamilyID_IPhone) > -1;
+                    var iPadSupport = Array.IndexOf(targetedDeviceFamilyIDs, IOSDeviceFamilyID_IPad) > -1;
 
-                case "60x60":
-                    return new[] { "iphone" };
+                    if(iPhoneSupport && iPadSupport)
+                    {
+                        return new[] { "iphone", "ipad" };
+                    }
+                    else if(iPhoneSupport)
+                    {
+                        return new[] { "iphone" };
+                    }
+                    else if(iPadSupport)
+                    {
+                        return new[] { "ipad" };
+                    }
+                    else
+                    {
+                        return new string[] {};
+                    }
+                }
+
+                case "60x60":{
+                    var iPhoneSupport = Array.IndexOf(targetedDeviceFamilyIDs, IOSDeviceFamilyID_IPhone) > -1;
+
+                    if(iPhoneSupport)
+                    {
+                        return new[] { "iphone" };
+                    }
+                    else 
+                    {
+                        return new string[] {};
+                    }
+                }
+
 
                 case "76x76":
                 case "83.5x83.5":
-                    return new[] { "ipad" };
+                {
+                    var iPadSupport = Array.IndexOf(targetedDeviceFamilyIDs, IOSDeviceFamilyID_IPad) > -1;
+
+                    if(iPadSupport)
+                    {
+                        return new[] { "ipad" };
+                    }
+                    else 
+                    {
+                        return new string[] {};
+                    }
+                }
 
                 case "1024x1024":
                     return new[] { "ios-marketing" };
@@ -1415,6 +1555,184 @@ $@"
                 default:
                     return new[] { "universal" };
             }
+        }
+
+        private static Result<object> AddSplashAsset(SplashAsset asset, TargetInfo targetInfo, OutFileCollection ofc, /*Dictionary<string, object> infoPList,*/ string assetsRelPath)
+        {
+            var result = new Result<object>();
+
+            var logoImgSrcPath = asset.Image.Source.GetPathString();
+
+            var logoImgAssetName = //System.Text.RegularExpressions.Regex.Replace(
+                 System.IO.Path.GetFileNameWithoutExtension(
+                    logoImgSrcPath
+                );//.ToLower(),
+            //@"\s+", "-");
+            
+            var logoImgAssetFileExtension = System.IO.Path.GetExtension(logoImgSrcPath);
+
+
+            var logoImgX2SrcPath = asset.ImageX2.Source.GetPathString();
+
+            var logoImgX2AssetName = //System.Text.RegularExpressions.Regex.Replace(
+                 System.IO.Path.GetFileNameWithoutExtension(
+                    logoImgX2SrcPath
+                );//.ToLower(),
+            //@"\s+", "-");
+            
+            var logoImgX2AssetFileExtension = System.IO.Path.GetExtension(logoImgX2SrcPath);
+
+
+            var logoImgX3SrcPath = asset.ImageX3.Source.GetPathString();
+
+            var logoImgX3AssetName = //System.Text.RegularExpressions.Regex.Replace(
+                 System.IO.Path.GetFileNameWithoutExtension(
+                    logoImgX3SrcPath
+                );//.ToLower(),
+            //@"\s+", "-");
+            
+            var logoImgX3AssetFileExtension = System.IO.Path.GetExtension(logoImgX3SrcPath);
+
+            var logoImgSetRelPath = $"{assetsRelPath}/{logoImgAssetName}.imageset";
+            var contentsJSONRelPath = $"{logoImgSetRelPath}/Contents.json";
+
+            // [dho] add the logo image - 03/03/20
+            AddCopyOfFileIfNotPresent(ofc, $"{logoImgSetRelPath}/{logoImgAssetName}{logoImgAssetFileExtension}", logoImgSrcPath);
+            AddCopyOfFileIfNotPresent(ofc, $"{logoImgSetRelPath}/{logoImgX2AssetName}{logoImgX2AssetFileExtension}", logoImgX2SrcPath);
+            AddCopyOfFileIfNotPresent(ofc, $"{logoImgSetRelPath}/{logoImgX3AssetName}{logoImgX3AssetFileExtension}", logoImgX3SrcPath);
+
+
+            AddRawFileIfNotPresent(ofc, $"{logoImgSetRelPath}/Contents.json", 
+$@"{{
+  ""images"" : [
+    {{
+      ""idiom"" : ""universal"",
+      ""filename"" : ""{logoImgAssetName}{logoImgAssetFileExtension}"",
+      ""scale"" : ""1x""
+    }},
+    {{
+      ""idiom"" : ""universal"",
+      ""filename"" : ""{logoImgX2AssetName}{logoImgX2AssetFileExtension}"",
+      ""scale"" : ""2x""
+    }},
+    {{
+      ""idiom"" : ""universal"",
+      ""filename"" : ""{logoImgX3AssetName}{logoImgX3AssetFileExtension}"",
+      ""scale"" : ""3x""
+    }}
+  ],
+  ""info"" : {{
+    ""version"" : 1,
+    ""author"" : ""sempiler""
+  }}
+}}"          
+            );
+            
+
+            return result;
+        }
+
+        private static void AddSplashStoryboard(SplashAsset asset, Artifact artifact, TargetInfo targetInfo, string formatString, System.Text.StringBuilder content, OutFileCollection ofc)
+        {
+            var bgR = asset.BackgroundRGB[0]/255.0;
+            var bgG = asset.BackgroundRGB[1]/255.0;
+            var bgB = asset.BackgroundRGB[2]/255.0;
+
+            var logoImgSrcPath = asset.Image.Source.GetPathString();
+
+            var logoImgAssetName = //System.Text.RegularExpressions.Regex.Replace(
+                System.IO.Path.GetFileNameWithoutExtension(
+                logoImgSrcPath
+            );
+
+            var storyboardSrcPath = $"{targetInfo.RelPath}/Base.lproj/LaunchScreen.storyboard";
+
+            content.Append(
+                String.Format(
+                    formatString, 
+                    targetInfo.SrcName, 
+                    storyboardSrcPath
+                )
+            );
+
+            content.AppendLine();
+
+            // [dho] DISABLING for now because we will just use the convention that the splash is called
+            // `LaunchScreen`, because the code is not really setup to pass the `infoPList` object here - 03/03/20
+            // result.AddMessages(ShardHelpers.AddConfigValue(infoPList, 
+            //     new [] { "UIApplicationSceneManifest", "UISceneConfigurations", "UIWindowSceneSessionRoleApplication", "UILaunchStoryboardName" },
+            //     "LaunchScreen"
+            // ));
+
+            // result.AddMessages(ShardHelpers.AddConfigValue(infoPList, 
+            //     new [] { "UILaunchStoryboardName" },
+            //     "LaunchScreen"
+            // ));
+
+            var frameWidth = 414;
+            var frameHeight = 896;
+            var rect = string.Empty;
+            var dims = string.Empty;
+
+            if(asset.Width.HasValue || asset.Height.HasValue)
+            {
+                rect = $@"<rect key=""frame"" ";
+
+                if(asset.Width.HasValue)
+                {
+                    rect += $@" x=""{frameWidth/2 - asset.Width/2}"" width=""{asset.Width}""";
+                    dims += $@" width=""{asset.Width}""";
+                }
+
+                if(asset.Height.HasValue)
+                {
+                    rect += $@" y=""{frameHeight/2 - asset.Height/2}"" height=""{asset.Height}""";
+                    dims += $@" height=""{asset.Height}""";
+                }
+
+                rect += " />";
+            }
+
+                
+            AddRawFileIfNotPresent(/*targetInfo.FilesReferencedInScheme*/ofc, storyboardSrcPath,
+$@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<document type=""com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB"" version=""3.0"" toolsVersion=""15705"" targetRuntime=""iOS.CocoaTouch"" propertyAccessControl=""none"" useAutolayout=""YES"" launchScreen=""YES"" useTraitCollections=""YES"" useSafeAreas=""YES"" colorMatched=""YES"" initialViewController=""01J-lp-oVM"">
+    <device id=""retina5_9"" orientation=""portrait"" appearance=""light""/>
+    <dependencies>
+        <plugIn identifier=""com.apple.InterfaceBuilder.IBCocoaTouchPlugin"" version=""15706""/>
+        <capability name=""Safe area layout guides"" minToolsVersion=""9.0""/>
+        <capability name=""documents saved in the Xcode 8 format"" minToolsVersion=""8.0""/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID=""EHf-IW-A2E"">
+            <objects>
+                <viewController id=""01J-lp-oVM"" sceneMemberID=""viewController"">
+                    <view key=""view"" contentMode=""scaleToFill"" id=""Ze5-6b-2t3"">
+                        <rect key=""frame"" x=""0.0"" y=""0.0"" width=""375"" height=""812""/>
+                        <autoresizingMask key=""autoresizingMask"" widthSizable=""YES"" heightSizable=""YES""/>
+                        <subviews>
+                            <imageView clipsSubviews=""YES"" userInteractionEnabled=""NO"" contentMode=""scaleAspectFit"" image=""{logoImgAssetName}"" translatesAutoresizingMaskIntoConstraints=""NO"" id=""N6r-3Y-s61"">
+                                {rect}
+                            </imageView>
+                        </subviews>
+                        <color key=""backgroundColor"" red=""{bgR}"" green=""{bgG}"" blue=""{bgB}"" alpha=""1"" colorSpace=""custom"" customColorSpace=""displayP3""/>
+                        <constraints>
+                            <constraint firstItem=""N6r-3Y-s61"" firstAttribute=""centerX"" secondItem=""Ze5-6b-2t3"" secondAttribute=""centerX"" id=""6CS-Jr-MiT""/>
+                            <constraint firstItem=""N6r-3Y-s61"" firstAttribute=""centerY"" secondItem=""Ze5-6b-2t3"" secondAttribute=""centerY"" id=""paH-Ti-MOh""/>
+                        </constraints>
+                        <viewLayoutGuide key=""safeArea"" id=""Bcu-3y-fUS""/>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier=""IBFirstResponder"" id=""iYj-Kq-Ea1"" userLabel=""First Responder"" sceneMemberID=""firstResponder""/>
+            </objects>
+            <point key=""canvasLocation"" x=""52"" y=""374.6305418719212""/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name=""{logoImgAssetName}"" {dims}/>
+    </resources>
+</document>");
         }
 
         private static void AddFontAsset(FontAsset asset, OutFileCollection ofc, string assetsRelPath)
@@ -1426,7 +1744,36 @@ $@"
             AddCopyOfFileIfNotPresent(ofc, fontRelPath, fontSrcPath);
         }
 
-        private static Result<TargetInfo> EmitShareExtensionTargetInfo(Session session, Artifact artifact, Shard shard, string artifactRelPath, CancellationToken token)
+        private static void AddRawAsset(RawAsset asset, OutFileCollection ofc, string assetsRelPath)
+        {
+            if(asset.Files.Count > 1)
+            {
+                var dirName = System.IO.Path.GetFileName(asset.SourcePath);
+                var dirRelPath = $"{assetsRelPath}/{dirName}";
+
+                foreach(var file in asset.Files)
+                {
+                    var fileSrcPath = file.GetPathString();
+            
+                    var relPath = dirRelPath + System.IO.Path.DirectorySeparatorChar + 
+                        fileSrcPath.Substring(fileSrcPath.LastIndexOf(dirName) + dirName.Length + 1 /* trailing slash */);
+
+                    AddCopyOfFileIfNotPresent(ofc, relPath, fileSrcPath);
+                }
+            }
+            else if(asset.Files.Count == 1)
+            {
+                var file = asset.Files[0];
+                var fileSrcPath = file.GetPathString();
+                var fileName = System.IO.Path.GetFileName(fileSrcPath);
+        
+                var fileRelPath = $"{assetsRelPath}/{fileName}";
+
+                AddCopyOfFileIfNotPresent(ofc, fileRelPath, fileSrcPath);
+            }
+        }
+
+        private static Result<TargetInfo> EmitShareExtensionTargetInfo(Session session, Artifact artifact, Shard shard, string artifactRelPath, string bundleVersion, CancellationToken token)
         {
             var result = new Result<TargetInfo>();
 
@@ -1434,6 +1781,8 @@ $@"
             {
                 ComponentNamesReferenced = ASTHelpers.GetComponentNames(shard.AST, true /* live only */)
             };
+
+            var targetNameLowercase = targetInfo.Name.ToLower();
 
             // // [dho] source files - 17/10/19
             // {
@@ -1452,8 +1801,12 @@ $@"
 
             // [dho] manifest files - 17/10/19
             {
-                var infoPList = BaseInfoPList(shard, targetInfo);
-/*
+                var infoPList = BaseInfoPList(shard, targetInfo, bundleVersion);
+
+                // result.AddMessages(
+                //     ShardHelpers.AddConfigValue(infoPList, new string[] { "SWIFT_MODULE_NAME" }, shard.Name)
+                // );
+                /*
 <!-- <key>NSExtensionJavaScriptPreprocessingFile</key>
 			<string>GetURL</string> -->
 */
@@ -1463,7 +1816,7 @@ $@"
                         //     { "NSExtensionActivationSupportsWebURLWithMaxCount", 1 }
                         // } },
                     }},
-                    { "NSExtensionMainStoryboard", "MainInterface" },
+                    // { "NSExtensionMainStoryboard", "MainInterface" },
                     { "NSExtensionPointIdentifier", "com.apple.share-services" }
                 }/*, true /* merge */));
 
@@ -1486,7 +1839,7 @@ $@"
 
                 AddRawFileIfNotPresent(
                     targetInfo.FilesNotReferencedInScheme,
-                    targetInfo.EntitlementsPListFileName = $"{targetInfo.Name}.entitlements",
+                    targetInfo.EntitlementsPListFileName = $"{targetNameLowercase}.entitlements",
                     PListSerialize(entitlementsPList)
                 );
 
@@ -1494,35 +1847,35 @@ $@"
 
                 targetInfo.FilesReferencedInScheme = new OutFileCollection();
                 // [dho] TODO dynamic, fully qualified? - 17/10/19
-                var shareViewController = "ShareViewController";
+                // var shareViewController = "ShareViewController";
 
 
-                AddRawFileIfNotPresent(targetInfo.FilesReferencedInScheme, $"MainInterface.storyboard",
-$@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<document type=""com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB"" version=""3.0"" toolsVersion=""13122.16"" targetRuntime=""iOS.CocoaTouch"" propertyAccessControl=""none"" useAutolayout=""YES"" useTraitCollections=""YES"" useSafeAreas=""YES"" colorMatched=""YES"" initialViewController=""j1y-V4-xli"">
-    <dependencies>
-        <plugIn identifier=""com.apple.InterfaceBuilder.IBCocoaTouchPlugin"" version=""13104.12""/>
-        <capability name=""Safe area layout guides"" minToolsVersion=""9.0""/>
-        <capability name=""documents saved in the Xcode 8 format"" minToolsVersion=""8.0""/>
-    </dependencies>
-    <scenes>
-        <!--Share View Controller-->
-        <scene sceneID=""ceB-am-kn3"">
-            <objects>
-                <viewController id=""j1y-V4-xli"" customClass=""{shareViewController}"" customModuleProvider=""target"" sceneMemberID=""viewController"">
-                    <view key=""view"" opaque=""NO"" contentMode=""scaleToFill"" id=""wbc-yd-nQP"">
-                        <rect key=""frame"" x=""0.0"" y=""0.0"" width=""375"" height=""667""/>
-                        <autoresizingMask key=""autoresizingMask"" widthSizable=""YES"" heightSizable=""YES""/>
-                        <color key=""backgroundColor"" red=""0.0"" green=""0.0"" blue=""0.0"" alpha=""0.0"" colorSpace=""custom"" customColorSpace=""sRGB""/>
-                        <viewLayoutGuide key=""safeArea"" id=""1Xd-am-t49""/>
-                    </view>
-                </viewController>
-                <placeholder placeholderIdentifier=""IBFirstResponder"" id=""CEy-Cv-SGf"" userLabel=""First Responder"" sceneMemberID=""firstResponder""/>
-            </objects>
-        </scene>
-    </scenes>
-</document>
-");
+//                 AddRawFileIfNotPresent(targetInfo.FilesReferencedInScheme, $"MainInterface.storyboard",
+// $@"<?xml version=""1.0"" encoding=""UTF-8""?>
+// <document type=""com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB"" version=""3.0"" toolsVersion=""13122.16"" targetRuntime=""iOS.CocoaTouch"" propertyAccessControl=""none"" useAutolayout=""YES"" useTraitCollections=""YES"" useSafeAreas=""YES"" colorMatched=""YES"" initialViewController=""j1y-V4-xli"">
+//     <dependencies>
+//         <plugIn identifier=""com.apple.InterfaceBuilder.IBCocoaTouchPlugin"" version=""13104.12""/>
+//         <capability name=""Safe area layout guides"" minToolsVersion=""9.0""/>
+//         <capability name=""documents saved in the Xcode 8 format"" minToolsVersion=""8.0""/>
+//     </dependencies>
+//     <scenes>
+//         <!--Share View Controller-->
+//         <scene sceneID=""ceB-am-kn3"">
+//             <objects>
+//                 <viewController id=""j1y-V4-xli"" customClass=""{shareViewController}"" customModuleProvider=""target"" sceneMemberID=""viewController"">
+//                     <view key=""view"" opaque=""NO"" contentMode=""scaleToFill"" id=""wbc-yd-nQP"">
+//                         <rect key=""frame"" x=""0.0"" y=""0.0"" width=""375"" height=""667""/>
+//                         <autoresizingMask key=""autoresizingMask"" widthSizable=""YES"" heightSizable=""YES""/>
+//                         <color key=""backgroundColor"" red=""0.0"" green=""0.0"" blue=""0.0"" alpha=""0.0"" colorSpace=""custom"" customColorSpace=""sRGB""/>
+//                         <viewLayoutGuide key=""safeArea"" id=""1Xd-am-t49""/>
+//                     </view>
+//                 </viewController>
+//                 <placeholder placeholderIdentifier=""IBFirstResponder"" id=""CEy-Cv-SGf"" userLabel=""First Responder"" sceneMemberID=""firstResponder""/>
+//             </objects>
+//         </scene>
+//     </scenes>
+// </document>
+// ");
 
 
             }
@@ -1538,7 +1891,7 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
         private Result<string> EmitShareExtensionInitRBContent(
             Session session, Artifact artifact, Shard shard, RawAST ast, TargetInfo targetInfo,
             // Dictionary<string, (bool, string)> componentNamesProcessed, RawAST combinedAST,
-            OutFileCollection ofc, string artifactRelPath, CancellationToken token
+            OutFileCollection ofc, string artifactRelPath, TargetInfo mainAppTargetInfo, CancellationToken token
         )
         {
             var result = new Result<string>();
@@ -1556,17 +1909,18 @@ $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 
             var mainApp = GetMainAppOrThrow(session, artifact);
             var mainAppTargetName = mainApp.Name;
+            var targetNameLowercase = targetInfo.Name.ToLower();
 
             // [dho] NOTE Embedded binary's bundle identifier must be prefixed with the parent app's bundle identifier - 16/11/19
-            var productBundleIdentifier = ProductIdentifier(artifact, mainApp) + "." + shard.Name;
+            var productBundleIdentifier = ProductIdentifier(artifact, mainApp) + "." + targetNameLowercase;
 
             content.Append(
 $@"
 {targetInfo.SrcName} = project.main_group.find_subpath('ShareExtension', true)
 
-{targetInfo.Name} = project.new_target(:app_extension, '{targetInfo.Name}', :ios, '13.0')
+{targetNameLowercase} = project.new_target(:app_extension, '{shard.Name}', :ios, '13.0')
 
-attributes[{targetInfo.Name}.uuid] = {{'SystemCapabilities' => {{ 
+attributes[{targetNameLowercase}.uuid] = {{'SystemCapabilities' => {{ 
 "
             );
 
@@ -1575,6 +1929,10 @@ attributes[{targetInfo.Name}.uuid] = {{'SystemCapabilities' => {{
             {
                 content.Append($"'{entitlement.Name}' => {{'enabled' => 1}},");
             }
+
+            var targetedDeviceFamilyBuildSettingValue = targetInfo.TargetedDeviceFamilyIDs.Length == 1 ? 
+                targetInfo.TargetedDeviceFamilyIDs[0].ToString() :  
+                "'" + string.Join(",", targetInfo.TargetedDeviceFamilyIDs) + "'";
 
             content.Append(
 $@"
@@ -1586,17 +1944,24 @@ $@"
 {targetInfo.SrcName}.new_file('{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
 {targetInfo.SrcName}.new_file('{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
 
-{targetInfo.Name}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
-{targetInfo.Name}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
-{targetInfo.Name}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{productBundleIdentifier}.{targetInfo.Name}')
-# {targetInfo.Name}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
+{targetNameLowercase}.build_configuration_list.set_setting('TARGETED_DEVICE_FAMILY', {targetedDeviceFamilyBuildSettingValue})
+{targetNameLowercase}.build_configuration_list.set_setting('INFOPLIST_FILE', '{targetInfo.RelPath}/{targetInfo.InfoPListFileName}')
+{targetNameLowercase}.build_configuration_list.set_setting('CODE_SIGN_ENTITLEMENTS', '{targetInfo.RelPath}/{targetInfo.EntitlementsPListFileName}')
+{targetNameLowercase}.build_configuration_list.set_setting('PRODUCT_BUNDLE_IDENTIFIER', '{productBundleIdentifier}')
+# {targetNameLowercase}.build_configuration_list.set_setting('DEVELOPMENT_TEAM', "")
 
 "
             );
 
+            var fileRefFormatString =  $"{targetNameLowercase}.add_file_references([{{0}}.new_file('{{1}}')])";
 
-            AddIncludesForReferencedComponents(session, artifact, shard, ast, targetInfo, $"{targetInfo.Name}.add_file_references([{{0}}.new_file('{{1}}')])", content);
+            AddIncludesForReferencedComponents(session, artifact, shard, ast, targetInfo, fileRefFormatString, content);
 
+            content.Append(
+                result.AddMessages(
+                    AddAssets(shard.Assets, targetInfo, ofc)
+                )
+            );
 
             foreach (var synthManifestFile in targetInfo.FilesNotReferencedInScheme)
             {
@@ -1611,7 +1976,7 @@ $@"
 
                 ofc[FileSystem.ParseFileLocation(p)] = synthSourceFile.Emission;
 
-                content.Append($"{targetInfo.Name}.add_file_references([{targetInfo.SrcName}.new_file('{p}')])");
+                content.Append($"{targetNameLowercase}.add_file_references([{targetInfo.SrcName}.new_file('{p}')])");
                 content.AppendLine();
             }
 
@@ -1619,22 +1984,18 @@ $@"
             foreach (var relResourcePath in relResourcePaths)
             {
                 // [dho] TODO CLEANUP make into one call to `add_resources` with a populated array - 19/07/19
-                content.Append($"{targetInfo.Name}.add_resources([{targetInfo.ResName}.new_file('{relResourcePath}')])");
+                content.Append($"{targetNameLowercase}.add_resources([{targetInfo.ResName}.new_file('{relResourcePath}')])");
                 content.AppendLine();
             }
 
 
-            content.Append(
-                result.AddMessages(
-                    AddAssets(shard.Assets, targetInfo, ofc)
-                )
-            );
+         
 
 
             content.Append(
 $@"
-{mainAppTargetName}.add_dependency({targetInfo.Name})
-embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).settings = {{ 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }}
+{mainAppTargetInfo.Name.ToLower()}.add_dependency({targetNameLowercase})
+embed_extensions_phase.add_file_reference({targetNameLowercase}.product_reference).settings = {{ 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }}
 "
             );
 
@@ -2341,89 +2702,89 @@ embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).s
         //             return result;
         //         }
 
-        private static Result<ObjectTypeDeclaration> ConvertToInlinedObjectTypeDeclaration(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
-        {
-            var result = new Result<ObjectTypeDeclaration>();
+        // private static Result<ObjectTypeDeclaration> ConvertToInlinedObjectTypeDeclaration(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
+        // {
+        //     var result = new Result<ObjectTypeDeclaration>();
 
-            // [dho] disabling this because:
-            // - TypeScript semantics do not automatically qualify instance references, so the author would have to do this usually (assuming source language is TypeScript)
-            // - If the class extends another class then the inherited members would not be qualified using the current implementation
-            //
-            // 04/10/19
-            //
-            // {
-            //     var task = new Sempiler.Transformation.SwiftInstanceSymbolTransformer().Transform(session, artifact, ast, token);
+        //     // [dho] disabling this because:
+        //     // - TypeScript semantics do not automatically qualify instance references, so the author would have to do this usually (assuming source language is TypeScript)
+        //     // - If the class extends another class then the inherited members would not be qualified using the current implementation
+        //     //
+        //     // 04/10/19
+        //     //
+        //     // {
+        //     //     var task = new Sempiler.Transformation.SwiftInstanceSymbolTransformer().Transform(session, artifact, ast, token);
 
-            //     task.Wait();
+        //     //     task.Wait();
 
-            //     var newAST = result.AddMessages(task.Result);
+        //     //     var newAST = result.AddMessages(task.Result);
 
-            //     if (HasErrors(result) || token.IsCancellationRequested) return result;
+        //     //     if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-            //     if (newAST != ast)
-            //     {
-            //         result.AddMessages(new Message(MessageKind.Error, "Swift Instance Symbol Transformer unexpectedly returned a different AST that was discarded"));
-            //     }
-            // }
+        //     //     if (newAST != ast)
+        //     //     {
+        //     //         result.AddMessages(new Message(MessageKind.Error, "Swift Instance Symbol Transformer unexpectedly returned a different AST that was discarded"));
+        //     //     }
+        //     // }
 
-            var inlinedObjectTypeDecl = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+        //     var inlinedObjectTypeDecl = NodeFactory.ObjectTypeDeclaration(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
 
-            {
-                var className = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
-                    ToInlinedObjectTypeClassIdentifier(ast, component.Node));
+        //     {
+        //         var className = NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling),
+        //             ToInlinedObjectTypeClassIdentifier(ast, component.Node));
 
-                ASTHelpers.Connect(ast, inlinedObjectTypeDecl.ID, new[] { className.Node }, SemanticRole.Name);
-            }
-
-
-            {
-                // [dho] make the class public - 29/06/19
-                var publicFlag = NodeFactory.Meta(
-                    ast,
-                    new PhaseNodeOrigin(PhaseKind.Bundling),
-                    MetaFlag.WorldVisibility
-                );
-
-                ASTHelpers.Connect(ast, inlinedObjectTypeDecl.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
-            }
+        //         ASTHelpers.Connect(ast, inlinedObjectTypeDecl.ID, new[] { className.Node }, SemanticRole.Name);
+        //     }
 
 
-            var prevTopLevelExpressionsCount = topLevelExpressions.Count;
+        //     {
+        //         // [dho] make the class public - 29/06/19
+        //         var publicFlag = NodeFactory.Meta(
+        //             ast,
+        //             new PhaseNodeOrigin(PhaseKind.Bundling),
+        //             MetaFlag.WorldVisibility
+        //         );
 
-            var members = result.AddMessages(
-                GetInlinedMembers(session, artifact, ast, component, token, ref imports, ref topLevelExpressions)
-            );
-
-            // [dho] NOTE the session entrypoint component is emitted in TOP LEVEL scope in the artifact, so we allow top level expressions in that file
-            // because we can stuff them into the `AppDelegate.application` 'main' function. But any top level expressions in files that are NOT
-            // the entrypoint component are ILLEGAL for now - 15/09/19
-            if (!BundlerHelpers.IsInferredSessionEntrypointComponent(session, component) && topLevelExpressions.Count > prevTopLevelExpressionsCount)
-            {
-                for (int i = prevTopLevelExpressionsCount; i < topLevelExpressions.Count; ++i)
-                {
-                    var node = topLevelExpressions[i];
-
-                    // [dho] TODO add support - 29/06/19
-                    result.AddMessages(
-                        new NodeMessage(MessageKind.Error, $"Could not create bundle because top level expressions are not yet supported", node)
-                        {
-                            Hint = GetHint(node.Origin),
-                            Tags = DiagnosticTags
-                        }
-                    );
-                }
-            }
-
-            if (members != null)
-            {
-                ASTHelpers.Connect(ast, inlinedObjectTypeDecl.ID, members.ToArray(), SemanticRole.Member);
-            }
+        //         ASTHelpers.Connect(ast, inlinedObjectTypeDecl.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
+        //     }
 
 
-            result.Value = inlinedObjectTypeDecl;
+        //     var prevTopLevelExpressionsCount = topLevelExpressions.Count;
 
-            return result;
-        }
+        //     var members = result.AddMessages(
+        //         GetInlinedMembers(session, artifact, ast, component, token, ref imports, ref topLevelExpressions)
+        //     );
+
+        //     // [dho] NOTE the session entrypoint component is emitted in TOP LEVEL scope in the artifact, so we allow top level expressions in that file
+        //     // because we can stuff them into the `AppDelegate.application` 'main' function. But any top level expressions in files that are NOT
+        //     // the entrypoint component are ILLEGAL for now - 15/09/19
+        //     if (!BundlerHelpers.IsInferredSessionEntrypointComponent(session, component) && topLevelExpressions.Count > prevTopLevelExpressionsCount)
+        //     {
+        //         for (int i = prevTopLevelExpressionsCount; i < topLevelExpressions.Count; ++i)
+        //         {
+        //             var node = topLevelExpressions[i];
+
+        //             // [dho] TODO add support - 29/06/19
+        //             result.AddMessages(
+        //                 new NodeMessage(MessageKind.Error, $"Could not create bundle because top level expressions are not yet supported", node)
+        //                 {
+        //                     Hint = GetHint(node.Origin),
+        //                     Tags = DiagnosticTags
+        //                 }
+        //             );
+        //         }
+        //     }
+
+        //     if (members != null)
+        //     {
+        //         ASTHelpers.Connect(ast, inlinedObjectTypeDecl.ID, members.ToArray(), SemanticRole.Member);
+        //     }
+
+
+        //     result.Value = inlinedObjectTypeDecl;
+
+        //     return result;
+        // }
 
         private static bool WillInlineAsObjectTypeDeclaration(Session session, Component component)
         {
@@ -2431,414 +2792,414 @@ embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).s
         }
 
 
-        private static Result<List<Node>> GetInlinedMembers(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
-        {
-            var result = new Result<List<Node>>();
+        // private static Result<List<Node>> GetInlinedMembers(Session session, Artifact artifact, RawAST ast, Component component, CancellationToken token, ref List<Node> imports, ref List<Node> topLevelExpressions)
+        // {
+        //     var result = new Result<List<Node>>();
 
-            var members = new List<Node>();
+        //     var members = new List<Node>();
 
-            var inlinerInfo = result.AddMessages(
-                ClientInlining.GetInlinerInfo(session, ast, component.Node, LanguageSemantics.Swift, token)
-            );
+        //     var inlinerInfo = result.AddMessages(
+        //         ClientInlining.GetInlinerInfo(session, ast, component.Node, LanguageSemantics.Swift, token)
+        //     );
 
-            if (inlinerInfo.Entrypoint != null)
-            {
-                // [dho] extracts the code that should be executed in the body of the 
-                // entrypoint function so it can be wrapped up in a different way - 31/08/19
-                var (userCodeParams, userCodeBody) = result.AddMessages(
-                    GetEntrypointParamsAndBody(session, artifact, ast, component, inlinerInfo.Entrypoint, inlinerInfo.EntrypointUserCode, token)
-                );
+        //     if (inlinerInfo.Entrypoint != null)
+        //     {
+        //         // [dho] extracts the code that should be executed in the body of the 
+        //         // entrypoint function so it can be wrapped up in a different way - 31/08/19
+        //         var (userCodeParams, userCodeBody) = result.AddMessages(
+        //             GetEntrypointParamsAndBody(session, artifact, ast, component, inlinerInfo.Entrypoint, inlinerInfo.EntrypointUserCode, token)
+        //         );
 
-                if (HasErrors(result) || token.IsCancellationRequested) return result;
+        //         if (HasErrors(result) || token.IsCancellationRequested) return result;
 
-                var entrypointMethod = NodeFactory.MethodDeclaration(ast, inlinerInfo.Entrypoint.Origin);
-                {
-                    {
-                        var publicFlag = NodeFactory.Meta(
-                            ast,
-                            new PhaseNodeOrigin(PhaseKind.Bundling),
-                            MetaFlag.WorldVisibility
-                        );
+        //         var entrypointMethod = NodeFactory.MethodDeclaration(ast, inlinerInfo.Entrypoint.Origin);
+        //         {
+        //             {
+        //                 var publicFlag = NodeFactory.Meta(
+        //                     ast,
+        //                     new PhaseNodeOrigin(PhaseKind.Bundling),
+        //                     MetaFlag.WorldVisibility
+        //                 );
 
-                        var staticFlag = NodeFactory.Meta(
-                            ast,
-                            new PhaseNodeOrigin(PhaseKind.Bundling),
-                            MetaFlag.Static
-                        );
+        //                 var staticFlag = NodeFactory.Meta(
+        //                     ast,
+        //                     new PhaseNodeOrigin(PhaseKind.Bundling),
+        //                     MetaFlag.Static
+        //                 );
 
-                        ASTHelpers.Connect(ast, entrypointMethod.ID, new[] { publicFlag.Node, staticFlag.Node }, SemanticRole.Meta);
-                    }
+        //                 ASTHelpers.Connect(ast, entrypointMethod.ID, new[] { publicFlag.Node, staticFlag.Node }, SemanticRole.Meta);
+        //             }
 
-                    ASTHelpers.Connect(ast, entrypointMethod.ID, new[] {
+        //             ASTHelpers.Connect(ast, entrypointMethod.ID, new[] {
 
-                        NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), EntrypointSymbolName).Node
+        //                 NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), EntrypointSymbolName).Node
 
-                    }, SemanticRole.Name);
+        //             }, SemanticRole.Name);
 
 
-                    ASTHelpers.Connect(ast, entrypointMethod.ID, userCodeParams, SemanticRole.Parameter);
+        //             ASTHelpers.Connect(ast, entrypointMethod.ID, userCodeParams, SemanticRole.Parameter);
 
-                    var returnType = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
-                    {
-                        ASTHelpers.Connect(ast, returnType.ID, new[] {
-                            NodeFactory.Modifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "some").Node
-                        }, SemanticRole.Modifier);
+        //             var returnType = NodeFactory.NamedTypeReference(ast, new PhaseNodeOrigin(PhaseKind.Bundling));
+        //             {
+        //                 ASTHelpers.Connect(ast, returnType.ID, new[] {
+        //                     NodeFactory.Modifier(ast, new PhaseNodeOrigin(PhaseKind.Transformation), "some").Node
+        //                 }, SemanticRole.Modifier);
 
-                        ASTHelpers.Connect(ast, returnType.ID, new[] {
-                            NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "View").Node
-                        }, SemanticRole.Name);
+        //                 ASTHelpers.Connect(ast, returnType.ID, new[] {
+        //                     NodeFactory.Identifier(ast, new PhaseNodeOrigin(PhaseKind.Bundling), "View").Node
+        //                 }, SemanticRole.Name);
 
-                        ASTHelpers.Connect(ast, entrypointMethod.ID, new[] { returnType.Node }, SemanticRole.Type);
-                    }
+        //                 ASTHelpers.Connect(ast, entrypointMethod.ID, new[] { returnType.Node }, SemanticRole.Type);
+        //             }
 
-                    ASTHelpers.Connect(ast, entrypointMethod.ID, new[] { userCodeBody }, SemanticRole.Body);
-                }
+        //             ASTHelpers.Connect(ast, entrypointMethod.ID, new[] { userCodeBody }, SemanticRole.Body);
+        //         }
 
-                members.Add(entrypointMethod.Node);
+        //         members.Add(entrypointMethod.Node);
 
-            }
+        //     }
 
 
-            result.AddMessages(
-                ProcessImports(session, artifact, ast, component, inlinerInfo.ImportDeclarations, token, ref imports)
-            );
+        //     result.AddMessages(
+        //         ProcessImports(session, artifact, ast, component, inlinerInfo.ImportDeclarations, token, ref imports)
+        //     );
 
-            result.AddMessages(
-                ProcessExports(session, artifact, ast, component, inlinerInfo.ExportedSymbols, token, ref members)
-            );
+        //     result.AddMessages(
+        //         ProcessExports(session, artifact, ast, component, inlinerInfo.ExportedSymbols, token, ref members)
+        //     );
 
-            result.AddMessages(
-                ProcessNamespaces(session, artifact, ast, component, inlinerInfo.NamespaceDeclarations, token)
-            );
+        //     result.AddMessages(
+        //         ProcessNamespaces(session, artifact, ast, component, inlinerInfo.NamespaceDeclarations, token)
+        //     );
 
-            if (inlinerInfo.ObjectTypeDeclarations?.Count > 0)
-            {
-                var objectTypes = new Node[inlinerInfo.ObjectTypeDeclarations.Count];
-
-                for (int i = 0; i < objectTypes.Length; ++i) objectTypes[i] = inlinerInfo.ObjectTypeDeclarations[i].Node;
-
-                members.AddRange(objectTypes);
-            }
-
-            if (inlinerInfo.ViewDeclarations?.Count > 0)
-            {
-                var viewDecls = new Node[inlinerInfo.ViewDeclarations.Count];
-
-                for (int i = 0; i < viewDecls.Length; ++i) viewDecls[i] = inlinerInfo.ViewDeclarations[i].Node;
-
-                members.AddRange(viewDecls);
-            }
-
-
-            if (inlinerInfo.FunctionDeclarations?.Count > 0)
-            {
-                var fnDecls = new Node[inlinerInfo.FunctionDeclarations.Count];
-
-                if (WillInlineAsObjectTypeDeclaration(session, component))
-                {
-                    for (int i = 0; i < fnDecls.Length; ++i)
-                    {
-                        var methodDecl = result.AddMessages(
-                            BundlerHelpers.ConvertToStaticMethodDeclaration(session, ast, inlinerInfo.FunctionDeclarations[i], token)
-                        );
-
-                        // [dho] guard against case when conversion has errored - 29/06/19
-                        if (methodDecl != null)
-                        {
-                            fnDecls[i] = methodDecl.Node;
-                        }
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < fnDecls.Length; ++i)
-                    {
-                        fnDecls[i] = inlinerInfo.FunctionDeclarations[i].Node;
-                    }
-                }
-
-
-                members.AddRange(fnDecls);
-            }
-
-
-            // [dho] NOTE doing the exec on loads last in case they depend on invoking one of the functions or 
-            // classes - which we make sure we put above these statements, rather than waste effort on rejigging
-            // the statements in to order - 14/07/19
-            result.AddMessages(
-                ProcessExecOnLoads(session, artifact, ast, component, inlinerInfo.ExecOnLoads, token, ref members, ref topLevelExpressions)
-            );
-
-            result.Value = members;
-
-            return result;
-        }
-
-        private static Result<object> ProcessExports(Session session, Artifact artifact, RawAST ast, Component component, List<ExportDeclaration> exportedSymbols, CancellationToken token, ref List<Node> exports)
-        {
-            var result = new Result<object>();
-
-            if (exportedSymbols?.Count > 0)
-            {
-                // [dho] TODO make each symbol public - 29/06/19
-                foreach (var exportedSymbol in exportedSymbols)
-                {
-                    var clauses = exportedSymbol.Clauses;
-                    var specifier = exportedSymbol.Specifier;
-
-                    if (specifier != null)
-                    {
-                        result.AddMessages(
-                            CreateUnsupportedFeatureResult(specifier, "Export specifiers")
-                        );
-                    }
-
-                    if (clauses.Length == 1)
-                    {
-                        var clause = clauses[0];
-
-                        if (LanguageSemantics.Swift.IsDeclarationStatement(ast, clause))
-                        {
-                            // [dho] make declaration public - 30/06/19
-                            var publicFlag = NodeFactory.Meta(
-                                ast,
-                                new PhaseNodeOrigin(PhaseKind.Bundling),
-                                MetaFlag.WorldVisibility
-                            );
-
-                            ASTHelpers.Connect(ast, clause.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
-
-                            exports.Add(clause);
-                        }
-                        else
-                        {
-                            result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Expected export clause to be declaration but found '{clause.Kind}'", clause)
-                                {
-                                    Hint = GetHint(clause.Origin),
-                                    Tags = DiagnosticTags
-                                }
-                            );
-                        }
-                    }
-                    else
-                    {
-                        result.AddMessages(
-                            CreateUnsupportedFeatureResult(clauses, "Multiple export clauses")
-                        );
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        private static Result<object> ProcessNamespaces(Session session, Artifact artifact, RawAST ast, Component component, List<NamespaceDeclaration> namespaceDecls, CancellationToken token)
-        {
-            var result = new Result<object>();
-
-            if (namespaceDecls?.Count > 0)
-            {
-                foreach (var namespaceDecl in namespaceDecls)
-                {
-                    result.AddMessages(
-                        new NodeMessage(MessageKind.Error, $"Could not create bundle because namespaces are not yet supported", namespaceDecl.Node)
-                        {
-                            Hint = GetHint(namespaceDecl.Node.Origin),
-                            Tags = DiagnosticTags
-                        }
-                    );
-                }
-            }
-
-            return result;
-        }
-
-        private static Result<(Node[], Node)> GetEntrypointParamsAndBody(Session session, Artifact artifact, RawAST ast, Component component, Node entrypoint, Node entrypointUserCode, CancellationToken token)
-        {
-            var result = new Result<(Node[], Node)>();
-
-            if (entrypoint != null)
-            {
-                if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
-                {
-                    // [dho] TODO CLEANUP HACK to get function parameters!! - 29/09/19
-                    var userCodeParams = ASTHelpers.QueryLiveEdgeNodes(ast, entrypointUserCode.ID, SemanticRole.Parameter);
-                    // [dho] TODO CLEANUP HACK to get function body!! - 29/06/19
-                    var userCodeBody = ASTHelpers.GetSingleLiveMatch(ast, entrypointUserCode.ID, SemanticRole.Body);
-
-                    foreach (var explicitExit in LanguageSemantics.Swift.GetExplicitExits(session, ast, userCodeBody, token))
-                    {
-                        var exitValue = default(Node);
-
-                        // [dho] the entrypoint has to return something that can be rendered - 29/06/19
-                        if (explicitExit.Kind == SemanticKind.FunctionTermination)
-                        {
-                            exitValue = ASTNodeFactory.FunctionTermination(ast, explicitExit).Value;
-                        }
-                        else if (explicitExit.Kind == SemanticKind.ViewConstruction)
-                        {
-                            // [dho] assert that we are dealing with a `() => <X>...</X>` situation - 21/06/19
-                            System.Diagnostics.Debug.Assert(entrypointUserCode.Kind == SemanticKind.LambdaDeclaration);
-
-                            continue;
-                        }
-                        else
-                        {
-                            exitValue = explicitExit;
-                        }
-
-
-                        if (exitValue?.Kind != SemanticKind.ViewConstruction)
-                        {
-                            // [dho] TODO if(typeOfExpression(returnValue, SemanticKind.ViewConstruction)) - 16/06/19
-                            result.AddMessages(
-                                new NodeMessage(MessageKind.Error, $"Expected entrypoint return value to be view construction but found '{exitValue.Kind}'", exitValue)
-                                {
-                                    Hint = GetHint(exitValue.Origin),
-                                    Tags = DiagnosticTags
-                                }
-                            );
-                        }
-                    }
-
-                    result.Value = (userCodeParams, userCodeBody);
-                }
-                else
-                {
-                    result.AddMessages(
-                        new NodeMessage(MessageKind.Error, $"Entrypoint is only supported in Artifact entry file", entrypoint)
-                        {
-                            Hint = GetHint(entrypoint.Origin),
-                            Tags = DiagnosticTags
-                        }
-                    );
-                }
-            }
-            else
-            {
-                result.Value = (default(Node[]), default(Node));
-            }
-
-
-            return result;
-        }
-
-        private static Result<object> ProcessImports(Session session, Artifact artifact, RawAST ast, Component component, List<Node> importDeclarations, CancellationToken token, ref List<Node> imports)
-        {
-            var result = new Result<object>();
-
-            if (importDeclarations?.Count > 0)
-            {
-                var importsSortedByType = result.AddMessages(
-                    ImportHelpers.SortImportDeclarationsByType(session, artifact, ast, component, importDeclarations, LanguageSemantics.Swift, token)
-                );
-
-                if (!HasErrors(result) && !token.IsCancellationRequested)
-                {
-                    foreach (var im in importsSortedByType.SempilerImports)
-                    {
-                        // [dho] CHECK do we need to do any renaming here though?? eg. from sempiler names like `View`
-                        // to SwiftUI names like `VStack`?? - 11/07/19
-
-                        // [dho] remove the "sempiler" import because it is a _fake_
-                        // import we just use to be sure that the symbols the user refers
-                        // to are for sempiler, and not something in global scope for a particular target platform - 24/06/19
-                        ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
-                    }
-
-                    foreach (var im in importsSortedByType.ComponentImports)
-                    {
-                        var importedComponentInlinedName = ToInlinedObjectTypeClassIdentifier(ast, im.Component.Node);
-
-                        result.AddMessages(
-                            ImportHelpers.QualifyImportReferences(ast, im, importedComponentInlinedName)
-                        );
-
-                        // [dho] remove the import because all components are inlined into the same output file - 24/06/19
-                        ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
-                    }
-
-                    foreach (var im in importsSortedByType.PlatformImports)
-                    {
-                        var specifier = im.ImportDeclaration.Specifier;
-
-                        // [dho] unpack a string constant for the import specifier so it is 
-                        // just the raw value of it, because in Swift imports are not wrapped in
-                        // quotes - 01/06/19 (ported 29/06/19)
-                        var newSpecifier = NodeFactory.CodeConstant(
-                            ast,
-                            specifier.Origin,
-                            im.ImportInfo.SpecifierLexeme
-                        );
-
-                        ASTHelpers.Replace(ast, specifier.ID, new[] { newSpecifier.Node });
-
-                        imports.Add(im.ImportDeclaration.Node);
-                    }
-                }
-            }
-
-            return result;
-        }
-
-        private static Result<object> ProcessExecOnLoads(Session session, Artifact artifact, RawAST ast, Component component, List<Node> execOnLoads, CancellationToken token, ref List<Node> topLevelStatements, ref List<Node> topLevelExpressions)
-        {
-            var result = new Result<object>();
-
-            if (execOnLoads?.Count > 0)
-            {
-                var shouldMakeTopLevelDeclsStatic = WillInlineAsObjectTypeDeclaration(session, component);
-
-                // var topLevelStatements = new List<Node>();
-
-                foreach (var execOnLoad in execOnLoads)
-                {
-                    if (LanguageSemantics.Swift.IsDeclarationStatement(ast, execOnLoad))
-                    {
-                        // [dho] need to make the declarations static at file level because we
-                        // are putting them inside a class - 14/07/19
-                        if ((MetaHelpers.ReduceFlags(ast, execOnLoad) & MetaFlag.Static) == 0 && shouldMakeTopLevelDeclsStatic)
-                        {
-                            var staticFlag = NodeFactory.Meta(
-                                ast,
-                                new PhaseNodeOrigin(PhaseKind.Bundling),
-                                MetaFlag.Static
-                            );
-
-                            ASTHelpers.Connect(ast, execOnLoad.ID, new[] { staticFlag.Node }, SemanticRole.Meta);
-                        }
-
-                        topLevelStatements.Add(execOnLoad);
-                    }
-                    else if (execOnLoad.Kind == SemanticKind.CodeConstant)
-                    {
-                        topLevelStatements.Add(execOnLoad);
-                    }
-                    else
-                    {
-                        topLevelExpressions.Add(execOnLoad);
-                    }
-
-                }
-            }
-
-            return result;
-        }
-
-        private static string ToInlinedObjectTypeClassIdentifier(RawAST ast, Node node)
-        {
-            var guid = ASTHelpers.GetRoot(ast).ID;
-
-            var sb = new System.Text.StringBuilder(guid + "$$");
-
-            foreach (byte b in System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes(node.ID)))
-            {
-                sb.Append(b.ToString("X2"));
-            }
-
-            return sb.ToString();
-        }
+        //     if (inlinerInfo.ObjectTypeDeclarations?.Count > 0)
+        //     {
+        //         var objectTypes = new Node[inlinerInfo.ObjectTypeDeclarations.Count];
+
+        //         for (int i = 0; i < objectTypes.Length; ++i) objectTypes[i] = inlinerInfo.ObjectTypeDeclarations[i].Node;
+
+        //         members.AddRange(objectTypes);
+        //     }
+
+        //     if (inlinerInfo.ViewDeclarations?.Count > 0)
+        //     {
+        //         var viewDecls = new Node[inlinerInfo.ViewDeclarations.Count];
+
+        //         for (int i = 0; i < viewDecls.Length; ++i) viewDecls[i] = inlinerInfo.ViewDeclarations[i].Node;
+
+        //         members.AddRange(viewDecls);
+        //     }
+
+
+        //     if (inlinerInfo.FunctionDeclarations?.Count > 0)
+        //     {
+        //         var fnDecls = new Node[inlinerInfo.FunctionDeclarations.Count];
+
+        //         if (WillInlineAsObjectTypeDeclaration(session, component))
+        //         {
+        //             for (int i = 0; i < fnDecls.Length; ++i)
+        //             {
+        //                 var methodDecl = result.AddMessages(
+        //                     BundlerHelpers.ConvertToStaticMethodDeclaration(session, ast, inlinerInfo.FunctionDeclarations[i], token)
+        //                 );
+
+        //                 // [dho] guard against case when conversion has errored - 29/06/19
+        //                 if (methodDecl != null)
+        //                 {
+        //                     fnDecls[i] = methodDecl.Node;
+        //                 }
+        //             }
+        //         }
+        //         else
+        //         {
+        //             for (int i = 0; i < fnDecls.Length; ++i)
+        //             {
+        //                 fnDecls[i] = inlinerInfo.FunctionDeclarations[i].Node;
+        //             }
+        //         }
+
+
+        //         members.AddRange(fnDecls);
+        //     }
+
+
+        //     // [dho] NOTE doing the exec on loads last in case they depend on invoking one of the functions or 
+        //     // classes - which we make sure we put above these statements, rather than waste effort on rejigging
+        //     // the statements in to order - 14/07/19
+        //     result.AddMessages(
+        //         ProcessExecOnLoads(session, artifact, ast, component, inlinerInfo.ExecOnLoads, token, ref members, ref topLevelExpressions)
+        //     );
+
+        //     result.Value = members;
+
+        //     return result;
+        // }
+
+        // private static Result<object> ProcessExports(Session session, Artifact artifact, RawAST ast, Component component, List<ExportDeclaration> exportedSymbols, CancellationToken token, ref List<Node> exports)
+        // {
+        //     var result = new Result<object>();
+
+        //     if (exportedSymbols?.Count > 0)
+        //     {
+        //         // [dho] TODO make each symbol public - 29/06/19
+        //         foreach (var exportedSymbol in exportedSymbols)
+        //         {
+        //             var clauses = exportedSymbol.Clauses;
+        //             var specifier = exportedSymbol.Specifier;
+
+        //             if (specifier != null)
+        //             {
+        //                 result.AddMessages(
+        //                     CreateUnsupportedFeatureResult(specifier, "Export specifiers")
+        //                 );
+        //             }
+
+        //             if (clauses.Length == 1)
+        //             {
+        //                 var clause = clauses[0];
+
+        //                 if (LanguageSemantics.Swift.IsDeclarationStatement(ast, clause))
+        //                 {
+        //                     // [dho] make declaration public - 30/06/19
+        //                     var publicFlag = NodeFactory.Meta(
+        //                         ast,
+        //                         new PhaseNodeOrigin(PhaseKind.Bundling),
+        //                         MetaFlag.WorldVisibility
+        //                     );
+
+        //                     ASTHelpers.Connect(ast, clause.ID, new[] { publicFlag.Node }, SemanticRole.Meta);
+
+        //                     exports.Add(clause);
+        //                 }
+        //                 else
+        //                 {
+        //                     result.AddMessages(
+        //                         new NodeMessage(MessageKind.Error, $"Expected export clause to be declaration but found '{clause.Kind}'", clause)
+        //                         {
+        //                             Hint = GetHint(clause.Origin),
+        //                             Tags = DiagnosticTags
+        //                         }
+        //                     );
+        //                 }
+        //             }
+        //             else
+        //             {
+        //                 result.AddMessages(
+        //                     CreateUnsupportedFeatureResult(clauses, "Multiple export clauses")
+        //                 );
+        //             }
+        //         }
+        //     }
+
+        //     return result;
+        // }
+
+        // private static Result<object> ProcessNamespaces(Session session, Artifact artifact, RawAST ast, Component component, List<NamespaceDeclaration> namespaceDecls, CancellationToken token)
+        // {
+        //     var result = new Result<object>();
+
+        //     if (namespaceDecls?.Count > 0)
+        //     {
+        //         foreach (var namespaceDecl in namespaceDecls)
+        //         {
+        //             result.AddMessages(
+        //                 new NodeMessage(MessageKind.Error, $"Could not create bundle because namespaces are not yet supported", namespaceDecl.Node)
+        //                 {
+        //                     Hint = GetHint(namespaceDecl.Node.Origin),
+        //                     Tags = DiagnosticTags
+        //                 }
+        //             );
+        //         }
+        //     }
+
+        //     return result;
+        // }
+
+        // private static Result<(Node[], Node)> GetEntrypointParamsAndBody(Session session, Artifact artifact, RawAST ast, Component component, Node entrypoint, Node entrypointUserCode, CancellationToken token)
+        // {
+        //     var result = new Result<(Node[], Node)>();
+
+        //     if (entrypoint != null)
+        //     {
+        //         if (BundlerHelpers.IsInferredArtifactEntrypointComponent(session, artifact, component))
+        //         {
+        //             // [dho] TODO CLEANUP HACK to get function parameters!! - 29/09/19
+        //             var userCodeParams = ASTHelpers.QueryLiveEdgeNodes(ast, entrypointUserCode.ID, SemanticRole.Parameter);
+        //             // [dho] TODO CLEANUP HACK to get function body!! - 29/06/19
+        //             var userCodeBody = ASTHelpers.GetSingleLiveMatch(ast, entrypointUserCode.ID, SemanticRole.Body);
+
+        //             foreach (var explicitExit in LanguageSemantics.Swift.GetExplicitExits(session, ast, userCodeBody, token))
+        //             {
+        //                 var exitValue = default(Node);
+
+        //                 // [dho] the entrypoint has to return something that can be rendered - 29/06/19
+        //                 if (explicitExit.Kind == SemanticKind.FunctionTermination)
+        //                 {
+        //                     exitValue = ASTNodeFactory.FunctionTermination(ast, explicitExit).Value;
+        //                 }
+        //                 else if (explicitExit.Kind == SemanticKind.ViewConstruction)
+        //                 {
+        //                     // [dho] assert that we are dealing with a `() => <X>...</X>` situation - 21/06/19
+        //                     System.Diagnostics.Debug.Assert(entrypointUserCode.Kind == SemanticKind.LambdaDeclaration);
+
+        //                     continue;
+        //                 }
+        //                 else
+        //                 {
+        //                     exitValue = explicitExit;
+        //                 }
+
+
+        //                 if (exitValue?.Kind != SemanticKind.ViewConstruction)
+        //                 {
+        //                     // [dho] TODO if(typeOfExpression(returnValue, SemanticKind.ViewConstruction)) - 16/06/19
+        //                     result.AddMessages(
+        //                         new NodeMessage(MessageKind.Error, $"Expected entrypoint return value to be view construction but found '{exitValue.Kind}'", exitValue)
+        //                         {
+        //                             Hint = GetHint(exitValue.Origin),
+        //                             Tags = DiagnosticTags
+        //                         }
+        //                     );
+        //                 }
+        //             }
+
+        //             result.Value = (userCodeParams, userCodeBody);
+        //         }
+        //         else
+        //         {
+        //             result.AddMessages(
+        //                 new NodeMessage(MessageKind.Error, $"Entrypoint is only supported in Artifact entry file", entrypoint)
+        //                 {
+        //                     Hint = GetHint(entrypoint.Origin),
+        //                     Tags = DiagnosticTags
+        //                 }
+        //             );
+        //         }
+        //     }
+        //     else
+        //     {
+        //         result.Value = (default(Node[]), default(Node));
+        //     }
+
+
+        //     return result;
+        // }
+
+        // private static Result<object> ProcessImports(Session session, Artifact artifact, RawAST ast, Component component, List<Node> importDeclarations, CancellationToken token, ref List<Node> imports)
+        // {
+        //     var result = new Result<object>();
+
+        //     if (importDeclarations?.Count > 0)
+        //     {
+        //         var importsSortedByType = result.AddMessages(
+        //             ImportHelpers.SortImportDeclarationsByType(session, artifact, ast, component, importDeclarations, LanguageSemantics.Swift, token)
+        //         );
+
+        //         if (!HasErrors(result) && !token.IsCancellationRequested)
+        //         {
+        //             foreach (var im in importsSortedByType.SempilerImports)
+        //             {
+        //                 // [dho] CHECK do we need to do any renaming here though?? eg. from sempiler names like `View`
+        //                 // to SwiftUI names like `VStack`?? - 11/07/19
+
+        //                 // [dho] remove the "sempiler" import because it is a _fake_
+        //                 // import we just use to be sure that the symbols the user refers
+        //                 // to are for sempiler, and not something in global scope for a particular target platform - 24/06/19
+        //                 ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
+        //             }
+
+        //             foreach (var im in importsSortedByType.ComponentImports)
+        //             {
+        //                 var importedComponentInlinedName = ToInlinedObjectTypeClassIdentifier(ast, im.Component.Node);
+
+        //                 result.AddMessages(
+        //                     ImportHelpers.QualifyImportReferences(ast, im, importedComponentInlinedName)
+        //                 );
+
+        //                 // [dho] remove the import because all components are inlined into the same output file - 24/06/19
+        //                 ASTHelpers.DisableNodes(ast, new[] { im.ImportDeclaration.ID });
+        //             }
+
+        //             foreach (var im in importsSortedByType.PlatformImports)
+        //             {
+        //                 var specifier = im.ImportDeclaration.Specifier;
+
+        //                 // [dho] unpack a string constant for the import specifier so it is 
+        //                 // just the raw value of it, because in Swift imports are not wrapped in
+        //                 // quotes - 01/06/19 (ported 29/06/19)
+        //                 var newSpecifier = NodeFactory.CodeConstant(
+        //                     ast,
+        //                     specifier.Origin,
+        //                     im.ImportInfo.SpecifierLexeme
+        //                 );
+
+        //                 ASTHelpers.Replace(ast, specifier.ID, new[] { newSpecifier.Node });
+
+        //                 imports.Add(im.ImportDeclaration.Node);
+        //             }
+        //         }
+        //     }
+
+        //     return result;
+        // }
+
+        // private static Result<object> ProcessExecOnLoads(Session session, Artifact artifact, RawAST ast, Component component, List<Node> execOnLoads, CancellationToken token, ref List<Node> topLevelStatements, ref List<Node> topLevelExpressions)
+        // {
+        //     var result = new Result<object>();
+
+        //     if (execOnLoads?.Count > 0)
+        //     {
+        //         var shouldMakeTopLevelDeclsStatic = WillInlineAsObjectTypeDeclaration(session, component);
+
+        //         // var topLevelStatements = new List<Node>();
+
+        //         foreach (var execOnLoad in execOnLoads)
+        //         {
+        //             if (LanguageSemantics.Swift.IsDeclarationStatement(ast, execOnLoad))
+        //             {
+        //                 // [dho] need to make the declarations static at file level because we
+        //                 // are putting them inside a class - 14/07/19
+        //                 if ((MetaHelpers.ReduceFlags(ast, execOnLoad) & MetaFlag.Static) == 0 && shouldMakeTopLevelDeclsStatic)
+        //                 {
+        //                     var staticFlag = NodeFactory.Meta(
+        //                         ast,
+        //                         new PhaseNodeOrigin(PhaseKind.Bundling),
+        //                         MetaFlag.Static
+        //                     );
+
+        //                     ASTHelpers.Connect(ast, execOnLoad.ID, new[] { staticFlag.Node }, SemanticRole.Meta);
+        //                 }
+
+        //                 topLevelStatements.Add(execOnLoad);
+        //             }
+        //             else if (execOnLoad.Kind == SemanticKind.CodeConstant)
+        //             {
+        //                 topLevelStatements.Add(execOnLoad);
+        //             }
+        //             else
+        //             {
+        //                 topLevelExpressions.Add(execOnLoad);
+        //             }
+
+        //         }
+        //     }
+
+        //     return result;
+        // }
+
+        // private static string ToInlinedObjectTypeClassIdentifier(RawAST ast, Node node)
+        // {
+        //     var guid = ASTHelpers.GetRoot(ast).ID;
+
+        //     var sb = new System.Text.StringBuilder(guid + "$$");
+
+        //     foreach (byte b in System.Security.Cryptography.SHA256.Create().ComputeHash(System.Text.Encoding.UTF8.GetBytes(node.ID)))
+        //     {
+        //         sb.Append(b.ToString("X2"));
+        //     }
+
+        //     return sb.ToString();
+        // }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static string ArtifactRelPath(Artifact artifact)
@@ -2850,7 +3211,15 @@ embed_extensions_phase.add_file_reference({targetInfo.Name}.product_reference).s
         {
             public override string RelativeComponentOutFilePath(Session session, Artifact artifact, Shard shard, Component node)
             {
-                return ArtifactRelPath(artifact) + "/" + node.ID + FileExtension;
+                var filenameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(node.Name);
+
+                var filename = BundlerHelpers.IsRawSource(node) ? (
+                    filenameWithoutExt + System.IO.Path.GetExtension(node.Name)
+                ) : (
+                    filenameWithoutExt + "$" + node.ID + FileExtension
+                );
+
+                return ArtifactRelPath(artifact) + "/" + filename;
             }
         }
     }

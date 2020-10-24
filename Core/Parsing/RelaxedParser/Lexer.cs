@@ -343,6 +343,16 @@ namespace Sempiler.Parsing
             return ch >= (int)CharacterCodes._0 && ch <= (int)CharacterCodes._9;
         }
 
+        public static bool IsDigitOrUnderscore(int ch)
+        {
+            return IsDigit(ch) || IsUnderscore(ch);
+        }
+
+        public static bool IsUnderscore(int ch)
+        {
+            return ch == (int)CharacterCodes._;
+        }
+
         public static bool IsOctalDigit(int ch)
         {
             return ch >= (int)CharacterCodes._0 && ch <= (int)CharacterCodes._7;
@@ -1996,6 +2006,7 @@ namespace Sempiler.Parsing
 
         private int ScanBinaryOrOctalDigits(int radix)
         {
+            var start = Pos;
             var value = 0;
             var numberOfDigits = 0;
             
@@ -2003,7 +2014,7 @@ namespace Sempiler.Parsing
             {
                 var ch = TokenUtils.CharCodeAt(SourceText, Pos);
                 var valueOfCh = ch - (int)CharacterCodes._0;
-                if (!TokenUtils.IsDigit(ch) || valueOfCh >= radix)
+                if (!TokenUtils.IsDigitOrUnderscore(ch) || (TokenUtils.IsUnderscore(ch) && Pos == start) || valueOfCh >= radix)
                 {
                     break;
                 }
@@ -2083,15 +2094,31 @@ namespace Sempiler.Parsing
             var result = new Result<string>();
 
             var start = Pos;
-            while (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
+
+            while (TokenUtils.IsDigitOrUnderscore(TokenUtils.CharCodeAt(SourceText, Pos)))
             {
+                // if(Pos == start && TokenUtils.IsUnderscore(TokenUtils.CharCodeAt(SourceText, Pos)))
+                // {
+                //     result.AddMessages(
+                //         new ParsingMessage(MessageKind.Error, "Digit expected", new Range(Pos, Pos))
+                //     );
+                // }
+
                 Pos++;
             }
             if (TokenUtils.CharCodeAt(SourceText, Pos) == (int)CharacterCodes.Dot)
             {
                 Pos++;
-                while (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
+                // var s = Pos;
+                while (TokenUtils.IsDigitOrUnderscore(TokenUtils.CharCodeAt(SourceText, Pos)))
                 {
+                    // if(Pos == s && TokenUtils.IsUnderscore(TokenUtils.CharCodeAt(SourceText, Pos)))
+                    // {
+                    //     result.AddMessages(
+                    //         new ParsingMessage(MessageKind.Error, "Digit expected", new Range(Pos, Pos))
+                    //     );
+                    // }
+
                     Pos++;
                 }
             }
@@ -2106,7 +2133,7 @@ namespace Sempiler.Parsing
                 if (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
                 {
                     Pos++;
-                    while (TokenUtils.IsDigit(TokenUtils.CharCodeAt(SourceText, Pos)))
+                    while (TokenUtils.IsDigitOrUnderscore(TokenUtils.CharCodeAt(SourceText, Pos)))
                     {
                         Pos++;
                     }

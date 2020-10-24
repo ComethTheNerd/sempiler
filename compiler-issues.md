@@ -1,3 +1,13 @@
+
+# 🗓 29/02/20
+- 🐛 `TypeScriptEmitter` mangles complex type definition, eg. `export type StronglyKeyedMap<T, K extends keyof T, V> = { [k in K]: V }` is emitted as `export type StronglyKeyedMap<T,K extends keyof T,V>={k in keyof K in keyof V: V[k in keyof K]; };` *[dho]*
+
+# 🗓 28/02/20
+- 🐛 Parser chokes on forced casts/type assertions of the form `<Foo>...` *[dho]*
+
+# 🗓 16/02/20
+- 🐛 A `#compiler if(x) y` with a single statement body (that is not wrapped in a `Block`) emits an empty body at CTExec (eg. `y` is not present in CTExec output) *[dho]*
+
 # 🗓 07/02/20
 - 🐛 `addManifestEntry` assumes any array value is a string array, and any individual value is a string *[dho]*
 

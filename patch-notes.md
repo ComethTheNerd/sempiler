@@ -1,5 +1,67 @@
 ** IN PROGRESS : Rough repo patch notes **
 
+# 🗓 06/05/20
+- Set minimum iOS version of `13.0` for iPhone in `IOSBundler`
+
+# 🗓 25/04/20
+- Made bundle version consistent across shards in `IOSBundler`
+
+# 🗓 17/04/20
+- Fixed issue with `AWSLambdaBundler` only calling setup function when the request was triggered by an internal event, not API gateway. The setup function is now called regardless
+
+# 🗓 31/03/20
+- Added `AWSLambdaBundler` support for awaiting a `default` exported function before processing the request
+
+# 🗓 30/03/20
+- Added Node support for awaiting a `default` exported function before starting the server
+
+# 🗓 26/03/20
+- Added `AWSLambdaBundler` for deploying server side code targeted at AWS Lambda platform
+
+# 🗓 15/03/20
+- Added experimental `SwiftNullabilityTransformer` that detects if statements of the form `if(x !== null){ ... }` and automatically force unwraps all references to `x` inside the true branch (eg. `x!.y`)
+
+# 🗓 13/03/20
+- Emitting TypeScript `keyof` expression with parentheses in case the operand is an array or something that would be ambiguous without
+
+# 🗓 08/03/20
+- Upping default request size limits of `body-parser` in `nodejs/express` to avoid `413 Request entity too large` errors
+
+# 🗓 07/03/20
+- Output files now contain name of input file to make debugging easier at a glance
+
+# 🗓 03/03/20
+- Rough first implementation of splash screen generation for iOS with new `"splash"` asset role
+
+# 🗓 29/02/20
+- Added support for raw asset includes that just get copied as is. If the asset path is a directory then the directory name will be preserved,  otherwise just the file name and extension is preserved
+
+# 🗓 28/02/20
+- Added syntax support in `RelaxedParser` for invocation and indexing following optional and forced chains, ie `foo?.(bar)`, `foo?.[bar]`, `foo!.(bar)`, `foo!.[bar]`
+- Added CT Exec timeout to hack around underlying issue where Node process sometimes does not terminate at the end of CT Exec phase
+- Fix for issue where `TypeScriptEmitter` would put a return value on a new line. In TS/JS the return value has to follow the `return` keyword on the same line
+
+# 🗓 27/02/20
+- Added more granular iOS target platforms (`ios/iphone`, `ios/ipad`) to allow for specifying that an artifact only targets a subset of the iOS device family
+- Made SwiftUI the inherent default for iOS targets
+
+# 🗓 26/02/20
+- Added support for new target platform `nodejs/express`
+- Added `body-parser` dependency for NodeJS Express generation to fix issue where POST body was not being parsed
+
+# 🗓 25/02/20
+- Decoupled code for generating Node JS files (eg. `package.json`, `tsconfig.json`, Express router) out from `FirebaseFunctionsBundler` to make it reusable across Node platforms
+
+# 🗓 24/02/20
+- `IOSBundler` emits raw sources with their original filename, to prevent mangling of names and extensions that are conventional (like `xxx-Bridging-Header.h`). It will not deduplicate any clashes for now so this approach has limitations
+
+# 🗓 22/02/20
+- Fix `TypeScriptEmitter` bug when emitting type definition for array of intersection or union type
+
+# 🗓 16/02/20
+- Fixed exception caused when parsing a mixture of previously seen source paths and new source paths, that resulted in duplication of components in the resulting list
+- Fix for `TypeScriptEmitter` not emitting optional flags on parameters
+
 # 🗓 15/02/20
 - `FirebaseFunctionsBundler` now puts any dependencies with a name starting `@types/` into `package.json` `devDependencies` map, and other dependencies go in the standard `dependencies` map
 - `FirebaseFunctionsBundler` uses `cleanUrls` by default

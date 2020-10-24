@@ -71,6 +71,16 @@ namespace Sempiler.AST
             return focus;
         }
 
+        public static Node UnwrapInvocationArgument(RawAST ast, Node node)
+        {
+            if(node.Kind == SemanticKind.InvocationArgument)
+            {
+                return ASTNodeFactory.InvocationArgument(ast, node).Value;
+            }
+
+            return node;
+        }
+
         public static IEnumerable<(AST.Node, bool)> IterateLiveChildren(RawAST ast, AST.ASTNode nodeWrapper) => IterateLiveChildren(ast, nodeWrapper.ID);
 
         public static IEnumerable<(AST.Node, bool)> IterateLiveChildren(RawAST ast, NodeID nodeID)
@@ -655,6 +665,21 @@ namespace Sempiler.AST
             }
 
             return paramNameLexemes;
+        }
+
+        public static List<Node> FilterNonKindMatches(IEnumerable<Node> nodes, SemanticKind kind)
+        {
+            List<Node> result = new List<Node>();
+
+            foreach(var node in nodes)
+            {
+                if(node.Kind != kind)
+                {
+                    result.Add(node);
+                }
+            }
+
+            return result;
         }
     }
 }

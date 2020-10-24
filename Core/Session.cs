@@ -78,6 +78,30 @@ namespace Sempiler
         public string URL;
     }
 
+    public static class DependencyHelpers
+    {
+        public static Result<bool> AddIfNotPresent(ref List<Dependency> dependencies, Dependency newDependency)
+        {
+            var result = new Result<bool> { Value = false };
+
+            foreach(var existingDependency in dependencies)
+            {
+                if(existingDependency.Name == newDependency.Name)
+                {
+                    return result;
+                }
+            }
+
+            dependencies.Add(newDependency);
+
+            result.Value = true;
+
+            return result;
+        }
+    }
+
+    
+
     public static class PackageManager
     {
         // public const string Compiler = "compiler";
@@ -85,7 +109,13 @@ namespace Sempiler
         public const string NPM = "npm";
         public const string CocoaPods = "pod";
         public const string SwiftPackageManager = "spm";
+
+        // public static readonly Dictionary<string, string> CacheDirNames = new Dictionary<string, string>{
+        //     { PackageManager.NPM, "node_modules" },
+        //     { PackageManager.CocoaPods, "Pods" }
+        // };
     }
+    
 
     public enum ConfigurationPrimitive
     {
@@ -129,12 +159,19 @@ namespace Sempiler
         None,
         AppIcon,
         Image,
-        Font
+        Font,
+        Splash
     }
 
     public abstract class Asset 
     {
         public AssetRole Role; 
+    }
+
+    public class RawAsset : Asset 
+    {
+        public string SourcePath;
+        public List<ISourceFile> Files;
     }
 
     public class ImageAssetSet : Asset
@@ -155,6 +192,17 @@ namespace Sempiler
         public string Name;
 
         public ISourceFile Source;
+    }
+
+    public class SplashAsset : Asset 
+    {
+        public int[] BackgroundRGB;
+        public int? Width;
+        public int? Height;
+
+        public ImageAssetMember Image;
+        public ImageAssetMember ImageX2;
+        public ImageAssetMember ImageX3;
     }
 
     public static class SessionHelpers

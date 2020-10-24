@@ -337,11 +337,16 @@ namespace Sempiler.Core
 
                     try
                     {
+                        Console.WriteLine("Starting node process with arguments : " + arguments);
                         if (proc.Start())
                         {
+                            // proc.PriorityClass = System.Diagnostics.ProcessPriorityClass.High;
+
+                            Console.WriteLine("Waiting for process " + proc.Id + " to exit...");
                             // [dho] NOTE CTExecHandler will kill process once it receives a terminate
                             // message - 25/11/19
                             proc.WaitForExit();
+                            Console.WriteLine("Process " + proc.Id + " finished!");
                         }
                         else
                         {
@@ -352,7 +357,9 @@ namespace Sempiler.Core
                     {
                         try
                         {
+                            Console.WriteLine("Got an error from process, attempting to kill");
                             proc.Kill();
+                            Console.WriteLine("Killed process after error");
                         }
                         catch
                         {
@@ -864,7 +871,9 @@ namespace Sempiler.Core
                     bundler = new AndroidBundler();
                 }
                 else if (artifact.TargetPlatform == ArtifactTargetPlatform.IOS ||
-                    artifact.TargetPlatform == ArtifactTargetPlatform.SwiftUI)
+                    artifact.TargetPlatform == ArtifactTargetPlatform.IPad ||
+                    artifact.TargetPlatform == ArtifactTargetPlatform.IPhone/* ||
+                    artifact.TargetPlatform == ArtifactTargetPlatform.SwiftUI*/)
                 {
                     bundler = new IOSBundler();
                 }
@@ -875,6 +884,14 @@ namespace Sempiler.Core
                 else if (artifact.TargetPlatform == ArtifactTargetPlatform.FirebaseFunctions)
                 {
                     bundler = new FirebaseFunctionsBundler();
+                }
+                else if(artifact.TargetPlatform == ArtifactTargetPlatform.AWSLambda)
+                {
+                    bundler = new AWSLambdaBundler();
+                }
+                else if(artifact.TargetPlatform == ArtifactTargetPlatform.NodeJSExpress)
+                {
+                    bundler = new Sempiler.Bundling.NodeJS.ExpressBundler();
                 }
                 else
                 {

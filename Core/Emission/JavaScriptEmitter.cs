@@ -46,10 +46,56 @@ namespace Sempiler.Emission
             return IgnoreNode(node.Node);
         }
 
+        public override Result<object> EmitIndexedAccess(IndexedAccess node, Context context, CancellationToken token)
+        {
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+            // // childContext.Parent = node;
+
+            var incident = node.Incident;
+
+            result.AddMessages(
+                EmitNode(incident, childContext, token)
+            );
+
+            context.Emission.Append(node, "[");
+
+            result.AddMessages(
+                EmitNode(node.Member, childContext, token)
+            );
+
+            context.Emission.Append(node, "]");
+
+            return result;
+        }
+
         public override Result<object> EmitInvocation(Invocation node, Context context, CancellationToken token)
         {
-            // [dho] get rid of generics - 04/12/19
-            return __EmitWithoutTypeInfo(node, context, base.EmitInvocation, token);
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+            // // childContext.Parent = node;
+
+            var subject = node.Subject;
+            var arguments = node.Arguments;
+
+            result.AddMessages(
+                EmitNode(subject, childContext, token)
+            );
+
+            context.Emission.Append(node, "(");
+
+            if (arguments.Length > 0)
+            {
+                result.AddMessages(
+                    EmitCSV(arguments, childContext, token)
+                );
+            }
+
+            context.Emission.Append(node, ")");
+
+            return result;
         }
 
         public override Result<object> EmitNamedTypeConstruction(NamedTypeConstruction node, Context context, CancellationToken token)

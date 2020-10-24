@@ -129,7 +129,7 @@ $@"{{
   ""devDependencies"": {{
     ""@types/node-fetch"": ""^2.1.4"",
     ""ts-node"": ""^7.0.1"",
-    ""typescript"": ""^3.2.4""
+    ""typescript"": ""^3.8""
   }},
   ""dependencies"": {{
     ""node-fetch"": ""^2.3.0""

@@ -35,16 +35,17 @@ namespace Sempiler.Core
             // Establish the local endpoint for the socket.  
             // The DNS name of the computer  
             // running the listener is "host.contoso.com".  
-            IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());  
+            // IPHostEntry ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());  
 
-            foreach(var address in ipHostInfo.AddressList)
-            {
-                if(address.AddressFamily == AddressFamily.InterNetwork)
-                {
-                    IPAddress = address;
-                    break;
-                }
-            }
+            // foreach(var address in ipHostInfo.AddressList)
+            // {
+            //     if(address.AddressFamily == AddressFamily.InterNetwork)
+            //     {
+            //         IPAddress = address;
+            //         break;
+            //     }
+            // }
+            IPAddress = new IPAddress(new byte[] { 127, 0, 0, 1 });
 
             System.Diagnostics.Debug.Assert(IPAddress != default(IPAddress));
         }  

@@ -1613,7 +1613,21 @@ namespace Sempiler.Emission
 
         public override Result<object> EmitKeyValuePair(KeyValuePair node, Context context, CancellationToken token)
         {
-            return CreateUnsupportedFeatureResult(node);
+            var result = new Result<object>();
+
+            var childContext = ContextHelpers.Clone(context);
+   
+            // [dho] TODO CLEANUP HACK emitting keys as strings for now eventhough
+            // Swift allows for other types to be used as keys - 26/03/20
+            context.Emission.Append(node, "\"");
+            result.AddMessages(EmitNode(node.Key, childContext, token));
+            context.Emission.Append(node, "\"");
+
+            context.Emission.Append(node, ":");
+
+            result.AddMessages(EmitNode(node.Value, childContext, token));
+
+            return result;
         }
 
         public override Result<object> EmitLabel(Label node, Context context, CancellationToken token)
@@ -1861,17 +1875,17 @@ namespace Sempiler.Emission
 
             if(expression.Length == 1)
             {
-                context.Emission.Append(node, "case ");
+                context.Emission.AppendBelow(node, "case ");
 
                 result.AddMessages(
                     EmitNode(expression[0], context, token)
                 );
 
-                context.Emission.Append(node, " : ");
+                context.Emission.Append(node, ":");
             }
             else if(expression.Length == 0)
             {
-                context.Emission.Append(node, "default:");
+                context.Emission.AppendBelow(node, "default:");
             }
             else
             {
@@ -1884,9 +1898,18 @@ namespace Sempiler.Emission
 
             if(body.Length > 0)
             {
-                result.AddMessages(
-                    EmitBlockLike(node.Body, node.Node, childContext, token)
-                );
+                foreach(var b in body)
+                {
+                    context.Emission.AppendBelow(b, "");
+
+                    result.AddMessages(
+                        EmitNode(b, childContext, token)
+                    );
+                }
+            }
+            else
+            {
+                context.Emission.AppendBelow(node, "fallthrough;");
             }
 
             return result;
@@ -3109,12 +3132,14 @@ namespace Sempiler.Emission
             // // childContext.Parent = node;
 
             // operator
-            context.Emission.Append(node, operatorToken);
+            context.Emission.Append(node, operatorToken + "(");
             
             // operand
             result.AddMessages(
                 EmitNode(node.Operand, childContext, token)
             );
+
+            context.Emission.Append(node, ")");
 
             return result;
         }

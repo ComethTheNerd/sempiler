@@ -566,7 +566,7 @@ namespace Sempiler.Parsing
 
                 if (token.Kind == close)
                 {
-                    result.Value = null;
+                    result.Value = new Node[] {};
                     return result;
                 }
 
@@ -1021,9 +1021,15 @@ namespace Sempiler.Parsing
             return token.Kind == SyntaxKind.AsteriskAsteriskToken;
         }
 
+        private bool IsOpenParenOrOpenBracket(Token token, Lexer lexer, Context context, CancellationToken ct)
+        {
+            return token.Kind == SyntaxKind.OpenParenToken || token.Kind == SyntaxKind.OpenBracketToken;
+        }
+
+
         private bool IsOpenParenOrDotOrOpenBracket(Token token, Lexer lexer, Context context, CancellationToken ct)
         {
-            return token.Kind == SyntaxKind.OpenParenToken || token.Kind == SyntaxKind.DotToken || token.Kind == SyntaxKind.OpenBracketToken;
+            return IsOpenParenOrOpenBracket(token, lexer, context, ct) || token.Kind == SyntaxKind.DotToken;
         }
 
         private bool IsDot(Token token, Lexer lexer, Context context, CancellationToken ct)
@@ -1617,6 +1623,14 @@ namespace Sempiler.Parsing
                         result.AddMessages(AddOutgoingEdges(context.AST, expression, subject, SemanticRole.Subject));
 
                         token = result.AddMessages(NextToken(lookAhead, context, ct));
+
+                        // [dho] handles the situation where the the force chain is followed
+                        // by an invocation or indexing, eg `foo!.(bar)` or `foo!.[bar]` - 28/02/20
+                        if(LookAhead(IsOpenParenOrOpenBracket, lookAhead, context, ct).Item1)
+                        {
+                            lexer.Pos = lookAhead.Pos;
+                            token = result.AddMessages(NextToken(lookAhead, context, ct));
+                        }
                     }
                     else
                     {
@@ -1642,6 +1656,14 @@ namespace Sempiler.Parsing
                         result.AddMessages(AddOutgoingEdges(context.AST, expression, subject, SemanticRole.Subject));
 
                         token = result.AddMessages(NextToken(lookAhead, context, ct));
+
+                        // [dho] handles the situation where the the optional chain is followed
+                        // by an invocation or indexing, eg `foo?.(bar)` or `foo?.[bar]` - 28/02/20
+                        if(LookAhead(IsOpenParenOrOpenBracket, lookAhead, context, ct).Item1)
+                        {
+                            lexer.Pos = lookAhead.Pos;
+                            token = result.AddMessages(NextToken(lookAhead, context, ct));
+                        }
                     }
                     else
                     {
@@ -7462,7 +7484,9 @@ namespace Sempiler.Parsing
         {
             var result = new Result<Node>();
 
-            var n = NodeFactory.NumericConstant(context.AST, CreateOrigin(token, lexer, context), token.Lexeme);
+            var lexeme = token.Lexeme.Replace("_", "");
+
+            var n = NodeFactory.NumericConstant(context.AST, CreateOrigin(token, lexer, context), lexeme);
 
             result.Value = result.AddMessages(FinishNode(n, lexer, context, ct));
 
